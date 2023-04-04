@@ -11,6 +11,7 @@ packages = [{include = "bento_authorization_service"}]
 python = "^3.10"
 fastapi = "^0.95.0"
 jsonschema = "^4.17.3"
+pydantic = "^1.10.7"
 
 [tool.poetry.group.dev.dependencies]
 tox = "^4.4.8"
