@@ -4,6 +4,7 @@ from .constants import SERVICE_GROUP, SERVICE_ARTIFACT
 
 __all__ = [
     "Config",
+    "config",
 ]
 
 
@@ -14,3 +15,8 @@ class Config(BaseSettings):
 
     # /service-info customization
     service_contact_url: str = "mailto:info@c3g.ca"
+
+    database_uri: str = "postgres://localhost:5432"
+
+
+config = Config()
