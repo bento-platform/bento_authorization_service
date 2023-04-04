@@ -1,2 +1,3 @@
-# bento_authorization_service
+# Bento Authorization Service
+
 Permissions and authorization service for the Bento platform.
