@@ -2,6 +2,9 @@
 
 cd /authorization || exit
 
+# Update dependencies and install module locally
+/poetry_user_install_dev.bash
+
 # Set default internal port to 5000
 : "${INTERNAL_PORT:=5000}"
 

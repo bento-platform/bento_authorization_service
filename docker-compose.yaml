@@ -1,0 +1,27 @@
+# Development-only (!) compose file for the Bento authorization service
+
+services:
+  authorization:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    environment:
+      - DATABASE_URI=postgres://auth_user:auth_password@authorization-db:5432/auth_db
+    ports:
+      - "5055:5000"
+    volumes:
+      - $PWD:/authorization
+  authorization-db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_password
+      - POSTGRES_DB=auth_db
+    expose:
+      - 5432
+    volumes:
+      - $PWD/data:/var/lib/postgresql
+  adminer:
+    image: adminer:4.8.1
+    ports:
+      - "8085:8080"
