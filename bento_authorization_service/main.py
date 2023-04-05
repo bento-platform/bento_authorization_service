@@ -1,9 +1,16 @@
 from fastapi import FastAPI
 
 from .db import db
+from .routers.grants import grants_router
+from .routers.groups import groups_router
+from .routers.policy import policy_router
 
 
 app = FastAPI()
+
+app.include_router(grants_router)
+app.include_router(groups_router)
+app.include_router(policy_router)
 
 
 @app.on_event("startup")
