@@ -1,3 +1,4 @@
+from bento_lib.search.queries import Query
 from typing import Literal, NotRequired, TypedDict
 
 from .policy_engine.permissions import Permission
@@ -15,6 +16,9 @@ __all__ = [
     "Resource",
 
     "Grant",
+
+    "GroupMembership",
+    "Group",
 ]
 
 
@@ -63,3 +67,19 @@ class Grant(TypedDict):
     negated: bool
     permission: Permission
     extra: dict
+
+
+class GroupMembershipList(TypedDict):
+    members: list[SubjectClient | SubjectUser]
+
+
+class GroupMembershipExpression(TypedDict):
+    expr: Query
+
+
+GroupMembership = GroupMembershipList | GroupMembershipExpression
+
+
+class Group(TypedDict):
+    id: NotRequired[int]
+    membership: GroupMembership
