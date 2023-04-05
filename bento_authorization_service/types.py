@@ -1,5 +1,7 @@
 from typing import Literal, NotRequired, TypedDict
 
+from .policy_engine.permissions import Permission
+
 __all__ = [
     "SubjectEveryone",
     "SubjectGroup",
@@ -11,6 +13,8 @@ __all__ = [
     "ResourceProject",
     "ResourceDataset",
     "Resource",
+
+    "Grant",
 ]
 
 
@@ -50,3 +54,12 @@ class ResourceDataset(TypedDict):
 
 
 Resource = ResourceEverything | ResourceProject | ResourceDataset
+
+
+class Grant(TypedDict):
+    id: NotRequired[int]
+    subject: Subject
+    resource: Resource
+    negated: bool
+    permission: Permission
+    extra: dict
