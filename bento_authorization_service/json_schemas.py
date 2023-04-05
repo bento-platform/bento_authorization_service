@@ -1,8 +1,14 @@
 import jsonschema
 
+from .config import config
+
+
+def _make_schema_id(name: str) -> str:
+    return f"{config.service_url_base_path.rstrip('/')}/schemas/{name}.json"
+
 
 SUBJECT_SCHEMA = {
-    "$id": "TODO",
+    "$id": _make_schema_id("subject"),
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Subject",
     "type": "object",
@@ -40,7 +46,7 @@ SUBJECT_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(SUBJECT_SCHEMA)
 
 
 RESOURCE_SCHEMA = {
-    "$id": "TODO",
+    "$id": _make_schema_id("resource"),
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Resource",
     "type": "object",
