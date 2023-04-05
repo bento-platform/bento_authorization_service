@@ -7,7 +7,7 @@ __all__ = [
     "SERVICE_TYPE",
 ]
 
-BENTO_SERVICE_KIND = "reference"
+BENTO_SERVICE_KIND = "authorization"
 
 SERVICE_GROUP = "ca.c3g.bento"
 SERVICE_ARTIFACT = BENTO_SERVICE_KIND
