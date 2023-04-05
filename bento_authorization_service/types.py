@@ -1,5 +1,5 @@
 from bento_lib.search.queries import Query
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, TypedDict
 
 from .policy_engine.permissions import Permission
 
@@ -47,26 +47,35 @@ class ResourceEverything(TypedDict):
     everything: Literal[True]
 
 
-class ResourceProject(TypedDict):
+class _ResourceProjectBase(TypedDict):
     project: str
-    data_type: NotRequired[str]
 
 
-class ResourceDataset(TypedDict):
+class ResourceProject(_ResourceProjectBase, total=False):
+    data_type: str
+
+
+class _ResourceDatasetBase(TypedDict):
     dataset: str
-    data_type: NotRequired[str]
+
+
+class ResourceDataset(_ResourceDatasetBase, total=False):
+    data_type: str
 
 
 Resource = ResourceEverything | ResourceProject | ResourceDataset
 
 
-class Grant(TypedDict):
-    id: NotRequired[int]
+class _GrantBase(TypedDict):
     subject: Subject
     resource: Resource
     negated: bool
     permission: Permission
     extra: dict
+
+
+class Grant(_GrantBase, total=False):
+    id: int
 
 
 class GroupMembershipList(TypedDict):
@@ -80,6 +89,9 @@ class GroupMembershipExpression(TypedDict):
 GroupMembership = GroupMembershipList | GroupMembershipExpression
 
 
-class Group(TypedDict):
-    id: NotRequired[int]
+class _GroupBase(TypedDict):
     membership: GroupMembership
+
+
+class Group(_GroupBase, total=False):
+    id: int
