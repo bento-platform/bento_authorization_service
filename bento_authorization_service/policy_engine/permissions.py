@@ -53,6 +53,9 @@ class Permission:
     def __str__(self):
         return f"{self._verb}:{self._noun}"
 
+    def __hash__(self):
+        return hash(str(self))
+
 
 QUERY_VERB = PermissionVerb("query")
 DOWNLOAD_VERB = PermissionVerb("download")
