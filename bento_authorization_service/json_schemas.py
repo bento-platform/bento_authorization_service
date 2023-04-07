@@ -74,16 +74,10 @@ RESOURCE_SCHEMA = {
         {
             "properties": {
                 "project": {"type": "string", "format": "uuid"},  # Project ID
+                "dataset": {"type": "string", "format": "uuid"},  # Dataset ID (optional)
                 "data_type": {"type": "string"},  # Specific data type; if left out, all data types are in-scope
             },
             "required": ["project"],
-        },
-        {
-            "properties": {
-                "dataset": {"type": "string", "format": "uuid"},  # Dataset ID
-                "data_type": {"type": "string"},  # Specific data type; if left out, all data types are in-scope
-            },
-            "required": ["dataset"],
         },
     ],
     "additionalProperties": False,

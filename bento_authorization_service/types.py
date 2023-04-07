@@ -11,8 +11,7 @@ __all__ = [
     "Subject",
 
     "ResourceEverything",
-    "ResourceProject",
-    "ResourceDataset",
+    "ResourceProjectOrDatasetOrDataType",
     "Resource",
 
     "Grant",
@@ -51,19 +50,12 @@ class _ResourceProjectBase(TypedDict):
     project: str
 
 
-class ResourceProject(_ResourceProjectBase, total=False):
-    data_type: str
-
-
-class _ResourceDatasetBase(TypedDict):
+class ResourceProjectOrDatasetOrDataType(_ResourceProjectBase, total=False):
     dataset: str
-
-
-class ResourceDataset(_ResourceDatasetBase, total=False):
     data_type: str
 
 
-Resource = ResourceEverything | ResourceProject | ResourceDataset
+Resource = ResourceEverything | ResourceProjectOrDatasetOrDataType
 
 
 class _GrantBase(TypedDict):
