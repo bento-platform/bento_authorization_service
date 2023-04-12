@@ -10,6 +10,7 @@ from .policy_engine.permissions import PERMISSIONS_BY_STRING
 from .types import Subject, Resource, Grant
 
 __all__ = [
+    "Database",
     "db",
 ]
 
@@ -77,6 +78,9 @@ class Database:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             res = await conn.fetch("SELECT id, subject, resource, negated, permission, extra FROM grants")
+
+            # TODO: sorted!!!! by least to most specific
+
             return tuple(_deserialize_grant(r) for r in res)
 
     async def add_grant(self, grant: Grant) -> None:
