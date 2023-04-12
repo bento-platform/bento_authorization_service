@@ -74,6 +74,8 @@ PROJECT_LEVEL_COUNTS = PermissionNoun("project_level_counts")
 DATASET_LEVEL_COUNTS = PermissionNoun("dataset_level_counts")
 
 DATA = PermissionNoun("data")
+DROP_BOX = PermissionNoun("drop_box")
+RUNS = PermissionNoun("runs")
 
 PROJECT = PermissionNoun("project")
 DATASET = PermissionNoun("dataset")
@@ -87,21 +89,36 @@ P_QUERY_PROJECT_LEVEL_COUNTS = Permission(QUERY_VERB, PROJECT_LEVEL_COUNTS, min_
 P_QUERY_DATASET_LEVEL_COUNTS = Permission(QUERY_VERB, DATASET_LEVEL_COUNTS)
 
 # Data-level: interacting with data inside of data services... and triggering workflows
+
 P_QUERY_DATA = Permission(QUERY_VERB, DATA)  # query at full access
 P_DOWNLOAD_DATA = Permission(DOWNLOAD_VERB, DATA)  # download CSVs, associated DRS objects
 P_DELETE_DATA = Permission(DELETE_VERB, DATA)  # clear data from a specific data type
+
 #   - workflow-relevant items: (types of workflows....)
+
 P_INGEST_DATA = Permission(INGEST_VERB, DATA)
 P_ANALYZE_DATA = Permission(ANALYZE_VERB, DATA)
 P_EXPORT_DATA = Permission(EXPORT_VERB, DATA)
 
+P_VIEW_RUNS = Permission(VIEW_VERB, RUNS)
+# ---
+
 # only {everything: true} (instance-level):
+
+P_VIEW_DROP_BOX = Permission(VIEW_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
+P_INGEST_DROP_BOX = Permission(INGEST_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
+P_DELETE_DROP_BOX = Permission(DELETE_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
+
 P_CREATE_PROJECT = Permission(CREATE_VERB, PROJECT, min_level_required=LEVEL_INSTANCE)
 P_DELETE_PROJECT = Permission(DELETE_VERB, PROJECT, min_level_required=LEVEL_INSTANCE)
+
+# ---
+
 # only {everything: true} or {project: ...} (instance- or project-level):
 P_EDIT_PROJECT = Permission(EDIT_VERB, PROJECT, min_level_required=LEVEL_PROJECT)
 P_CREATE_DATASET = Permission(CREATE_VERB, DATASET, min_level_required=LEVEL_PROJECT)
 P_DELETE_DATASET = Permission(DELETE_VERB, DATASET, min_level_required=LEVEL_DATASET)
+# ---
 
 P_EDIT_DATASET = Permission(EDIT_VERB, DATASET)
 
