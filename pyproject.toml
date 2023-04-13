@@ -9,12 +9,14 @@ packages = [{include = "bento_authorization_service"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+aiodns = "^3.0.0"
+aiofiles = "^23.1.0"
+aiohttp = "^3.8.4"
+asyncpg = "^0.27.0"
+bento-lib = "^6.0.1"
 fastapi = "^0.95.0"
 jsonschema = "^4.17.3"
 pydantic = "^1.10.7"
-asyncpg = "^0.27.0"
-aiofiles = "^23.1.0"
-bento-lib = "^6.0.1"
 pyjwt = {extras = ["crypto"], version = "^2.6.0"}
 
 [tool.poetry.group.dev.dependencies]
