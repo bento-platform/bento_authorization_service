@@ -5,6 +5,7 @@ from bento_authorization_service import __version__
 from .config import config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .db import db
+from .idp_manager import idp_manager
 from .routers.grants import grants_router
 from .routers.groups import groups_router
 from .routers.policy import policy_router
@@ -20,6 +21,7 @@ app.include_router(policy_router)
 @app.on_event("startup")
 async def startup():
     await db.initialize()  # Initialize the database connection pool
+    await idp_manager.initialize()  # Initialize the IdP manager / token validator
 
 
 @app.on_event("shutdown")
