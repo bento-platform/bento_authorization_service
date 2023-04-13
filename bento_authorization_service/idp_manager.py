@@ -49,7 +49,7 @@ class IdPManager:
     def initialized(self) -> bool:
         return self._initialized
 
-    async def validate(self, token: str) -> dict:
+    async def decode(self, token: str) -> dict:
         # This relies on access tokens following RFC9068, rather than using the introspection endpoint.
 
         if not self._initialized:

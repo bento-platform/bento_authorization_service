@@ -1,7 +1,12 @@
-from typing import Generator, TypedDict
+from bento_lib.search.data_structure import check_ast_against_data_structure
+from bento_lib.search.queries import convert_query_to_ast_and_preprocess
+
+from typing import AsyncGenerator, TypedDict
 
 from ..db import Database
-from ..types import Resource, Grant
+from ..idp_manager import idp_manager
+from ..json_schemas import TOKEN_DATA
+from ..types import Resource, Grant, Group, GroupMembership
 from .permissions import Permission
 
 
@@ -27,6 +32,10 @@ class InvalidResourceRequest(Exception):
     pass
 
 
+class InvalidGroupMembership(Exception):
+    pass
+
+
 class TokenData(TypedDict, total=False):
     iss: str
     sub: str
@@ -34,7 +43,45 @@ class TokenData(TypedDict, total=False):
     azp: str  # Will contain client ID
 
 
-def check_if_grant_subject_matches_token(token_data: TokenData | None, grant: Grant) -> bool:
+def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bool:
+    if token_data is None:
+        return False  # anonymous users cannot CURRENTLY be part of groups
+
+    membership: GroupMembership = group["membership"]
+
+    if (g_members := membership.get("members")) is not None:
+        for member in g_members:
+            m_iss = member["iss"]
+            t_iss = token_data.get("iss")
+            if (m_client := member["client"]) is not None:
+                if m_iss == t_iss and m_client == token_data.get("azp"):
+                    # Issuer and client IDs match, so this token bearer is a member of this group
+                    return True
+            elif (m_sub := member["sub"]) is not None:
+                if m_iss == t_iss and m_sub == token_data.get("sub"):
+                    # Issuer and subjects match, so this token bearer is a member of this group
+                    return True
+            else:
+                raise InvalidGroupMembership()  # No client/subject field in member object
+
+        return False
+
+    elif (g_expr := membership.get("expr")) is not None:
+        expr_ast = convert_query_to_ast_and_preprocess(g_expr)
+
+        return check_ast_against_data_structure(
+            expr_ast,
+            token_data,
+            schema=TOKEN_DATA,
+            internal=True,
+            return_all_index_combinations=False,
+        )
+
+    else:
+        raise InvalidGroupMembership()
+
+
+async def check_if_grant_subject_matches_token(db: Database, token_data: TokenData | None, grant: Grant) -> bool:
     t = token_data or {}
     t_iss = t.get("iss")
 
@@ -44,6 +91,12 @@ def check_if_grant_subject_matches_token(token_data: TokenData | None, grant: Gr
     #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
     if grant["subject"].get("everyone"):
         return True
+    elif (group_id := grant["subject"].get("group")) is not None:
+        group_def = await db.get_group(group_id)
+        if group_def is None:
+            # TODO: log
+            raise InvalidGrant(str(grant))
+        return check_if_token_is_in_group(token_data, group_def)
     elif g_iss := grant["subject"].get("iss"):
         iss_match: bool = t_iss is not None and g_iss == t_iss
         if g_client := grant["subject"].get("azp"):  # {iss, client}
@@ -86,26 +139,30 @@ def check_if_grant_resource_matches_resource_request(resource: Resource, grant: 
                 (g_data_type is None or g_data_type == r_data_type)
             )
         else:  # grant resource doesn't match any known resource pattern, somehow.
+            # TODO: log
             raise InvalidResourceRequest(str(grant))  # Missing resource request project or {everything: True}
     else:
+        # TODO: log
         raise InvalidGrant(str(grant))  # Missing grant project or {everything: True}
 
 
-def filter_matching_grants(
+async def filter_matching_grants(
+    db: Database,
     token_data: TokenData | None,
     resource: Resource,
-    grants: tuple[Grant, ...],
-) -> Generator[Grant, None, None]:
+) -> AsyncGenerator[Grant, None, None]:
     """
     TODO
+    :param db:
     :param token_data:
     :param resource:
-    :param grants:
     :return:
     """
 
+    grants = await db.get_grants()
+
     for g in grants:
-        subject_matches: bool = check_if_grant_subject_matches_token(token_data, g)
+        subject_matches: bool = await check_if_grant_subject_matches_token(db, token_data, g)
         resource_matches: bool = check_if_grant_resource_matches_resource_request(resource, g)
         if subject_matches and resource_matches:
             yield g
@@ -120,10 +177,8 @@ async def determine_permissions(db: Database, token: str | None, resource: Resou
     :return: The permissions
     """
 
-    all_grants = await db.get_grants()
-    token_data = {} if token else None  # TODO: Parse token JWT string
-
-    return set(g["permission"] for g in filter_matching_grants(token_data, resource, all_grants))
+    token_data = (await idp_manager.decode(token)) if token else None
+    return set(g["permission"] async for g in filter_matching_grants(db, token_data, resource))
 
 
 async def evaluate(db: Database, token: str | None, resource: Resource, required_permissions: set[Permission]) -> bool:

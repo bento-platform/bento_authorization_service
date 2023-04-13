@@ -2,9 +2,38 @@ import jsonschema
 
 from .config import config
 
+__all__ = [
+    "TOKEN_DATA",
+    "SUBJECT_ISSUER_AND_CLIENT_ID",
+    "SUBJECT_ISSUER_AND_SUBJECT_ID",
+    "SUBJECT_SCHEMA",
+    "SUBJECT_SCHEMA_VALIDATOR",
+    "RESOURCE_SCHEMA",
+    "RESOURCE_SCHEMA_VALIDATOR",
+    "GROUP_MEMBERSHIP_SCHEMA",
+    "GROUP_SCHEMA",
+]
+
 
 def _make_schema_id(name: str) -> str:
     return f"{config.service_url_base_path.rstrip('/')}/schemas/{name}.json"
+
+
+TOKEN_DATA = {
+    "$id": _make_schema_id("token_data"),
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TokenData",
+    "properties": {
+        "iss": {"type": "string"},  # Issuer
+        "sub": {"type": "string"},  # Subject
+        "azp": {"type": "string"},  # Client ID (ish)
+        "exp": {"type": "integer"},  # Expiry time
+        "iat": {"type": "integer"},  # Issued-at time
+        "typ": {"type": "string"},  # == "Bearer"
+        "scope": {"type": "string"},  # Token scope(s) (space-separated list-in-string)
+    },
+    "required": ["iss", "exp", "iat"],
+}
 
 
 SUBJECT_ISSUER_AND_CLIENT_ID = {
