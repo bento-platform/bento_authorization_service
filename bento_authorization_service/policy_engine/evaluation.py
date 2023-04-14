@@ -1,3 +1,5 @@
+import json
+
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 
@@ -197,29 +199,45 @@ async def filter_matching_grants(
             yield g
 
 
-async def determine_permissions(db: Database, token: str | None, requested_resource: Resource) -> set[Permission]:
+async def determine_permissions(
+    db: Database,
+    token_data: TokenData | None,
+    requested_resource: Resource,
+) -> set[Permission]:
     """
     Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
     :param db: A database instance.
-    :param token: The token of a user or automated script, or None if an anonymous request.
+    :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
     :param requested_resource: The resource the token wishes to operate on.
     :return: The permissions
     """
-
-    token_data = (await idp_manager.decode(token)) if token else None
     return set(g["permission"] async for g in filter_matching_grants(db, token_data, requested_resource))
 
 
 async def evaluate(
-    db: Database, token: str | None,
+    db: Database,
+    token: str | None,
     requested_resource: Resource,
     required_permissions: set[Permission],
 ) -> bool:
+    # If an access token is specified, validate it and extract its data.
+    # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
+    # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
+    # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
+    # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
+    token_data = (await idp_manager.decode(token)) if token else None
+
+    # Determine the permissions
     permissions = await determine_permissions(db, token, requested_resource)
 
     # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
     decision = required_permissions.issubset(permissions)
 
-    # TODO: aggressive logging
+    # Log the decision made, with some user data
+    user_str = {"anonymous": True}
+    if token_data is not None:
+        user_str = {k: token_data.get(k) for k in ("iss", "client", "sub")}
+    log_obj = {"user": user_str, "requested_resource": requested_resource, "decision": decision}
+    logger.info(f"evaluate: {json.dumps(log_obj)})")
 
     return decision
