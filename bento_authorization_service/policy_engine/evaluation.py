@@ -6,6 +6,7 @@ from typing import AsyncGenerator, TypedDict
 from ..db import Database
 from ..idp_manager import idp_manager
 from ..json_schemas import TOKEN_DATA
+from ..logger import logger
 from ..types import Resource, Grant, Group, GroupMembership
 from .permissions import Permission
 
@@ -16,7 +17,6 @@ from .permissions import Permission
 #    - a resource
 #    - a list of grants which may or may not apply to a token/resource
 #    - the required permissions to access the resource
-# - Sort the grants in order of most specific to least secific
 # - Calculate:
 #    - whether the token has the required permissions to access the resource
 # - Yield:

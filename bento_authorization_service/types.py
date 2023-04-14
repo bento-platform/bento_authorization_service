@@ -61,7 +61,6 @@ Resource = ResourceEverything | ResourceProjectOrDatasetOrDataType
 class _GrantBase(TypedDict):
     subject: Subject
     resource: Resource
-    negated: bool
     permission: Permission
     extra: dict
 

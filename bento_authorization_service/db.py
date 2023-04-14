@@ -22,8 +22,8 @@ class DatabaseError(Exception):
     pass
 
 
-def _serialize_grant(g: Grant) -> tuple[dict, dict, bool, str, dict]:
-    return g["subject"], g["resource"], g["negated"], str(g["permission"]), g["extra"]
+def _serialize_grant(g: Grant) -> tuple[dict, dict, str, dict]:
+    return g["subject"], g["resource"], str(g["permission"]), g["extra"]
 
 
 def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
@@ -33,7 +33,6 @@ def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
         "id": r["id"],
         "subject": Subject(r["subject"]),
         "resource": Resource(r["resource"]),
-        "negated": r["negated"],
         "permission": PERMISSIONS_BY_STRING[r["permission"]],
         "extra": r["extra"],
     }
@@ -71,13 +70,13 @@ class Database:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             row: Optional[asyncpg.Record] = await conn.fetchrow(
-                "SELECT id, subject, resource, negated, permission, extra FROM grants WHERE id = $1", id_)
+                "SELECT id, subject, resource, permission, extra FROM grants WHERE id = $1", id_)
             return _deserialize_grant(row)
 
     async def get_grants(self) -> tuple[Grant, ...]:
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            res = await conn.fetch("SELECT id, subject, resource, negated, permission, extra FROM grants")
+            res = await conn.fetch("SELECT id, subject, resource, permission, extra FROM grants")
 
             # TODO: sorted!!!! by least to most specific
 
@@ -90,7 +89,7 @@ class Database:
         async with self.connect() as conn:
             # TODO: Run DB-level checks first
             await conn.execute(
-                "INSERT INTO grants (subject, resource, negated, permission, extra) VALUES ($1, $2, $3, $4, $5)",
+                "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4, $5)",
                 *_serialize_grant(grant))
 
     async def get_group(self, id_: int):
