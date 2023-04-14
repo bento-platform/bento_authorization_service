@@ -1,4 +1,5 @@
 from pydantic import BaseSettings
+from typing import Literal
 
 from .constants import SERVICE_GROUP, SERVICE_ARTIFACT
 
@@ -22,6 +23,8 @@ class Config(BaseSettings):
     #  - Schemas in this service are written ready for multi-IdP/federation support; however, for now, only
     #    the instance-local IdP is supported.
     openid_well_known_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
+
+    log_level: Literal["debug", "info", "warning", "error"] = "debug"
 
 
 config = Config()

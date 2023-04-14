@@ -94,7 +94,7 @@ async def check_if_grant_subject_matches_token(db: Database, token_data: TokenDa
     elif (group_id := grant["subject"].get("group")) is not None:
         group_def = await db.get_group(group_id)
         if group_def is None:
-            # TODO: log
+            logger.error(f"Invalid grant encountered in database: {grant} (group not found: {group_id})")
             raise InvalidGrant(str(grant))
         return check_if_token_is_in_group(token_data, group_def)
     elif g_iss := grant["subject"].get("iss"):
@@ -106,8 +106,10 @@ async def check_if_grant_subject_matches_token(db: Database, token_data: TokenDa
             # g_sub is not None by the if-check
             return iss_match and g_sub == t.get("sub")
         else:
+            logger.error(f"Invalid grant encountered in database: {grant} (subject has iss but missing azp|sub)")
             raise InvalidGrant(str(grant))
     else:
+        logger.error(f"Invalid grant encountered in database: {grant} (subject missing everyone|group|iss)")
         raise InvalidGrant(str(grant))
 
 
@@ -146,11 +148,12 @@ def check_if_grant_resource_matches_requested_resource(requested_resource: Resou
                 (g_dataset is None or g_dataset == r_dataset) and
                 (g_data_type is None or g_data_type == r_data_type)
             )
-        else:  # grant resource doesn't match any known resource pattern, somehow.
-            # TODO: log
-            raise InvalidResourceRequest(str(grant))  # Missing resource request project or {everything: True}
-    else:
-        # TODO: log
+        else:  # requested resource doesn't match any known resource pattern, somehow.
+            logger.error(f"Invalid resource request: {requested_resource} (missing everything|project)")
+            # Missing resource request project or {everything: True}
+            raise InvalidResourceRequest(str(requested_resource))
+    else:  # grant resource is invalid
+        logger.error(f"Invalid grant encountered in database: {grant} (resource missing everything|project)")
         raise InvalidGrant(str(grant))  # Missing grant project or {everything: True}
 
 
