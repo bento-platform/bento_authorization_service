@@ -11,6 +11,22 @@ from ..types import Resource, Grant, Group, GroupMembership
 from .permissions import Permission
 
 
+__all__ = [
+    "InvalidGrant",
+    "InvalidResourceRequest",
+    "InvalidGroupMembership",
+
+    "TokenData",
+
+    "check_if_token_is_in_group",
+    "check_if_grant_subject_matches_token",
+    "check_if_grant_resource_matches_requested_resource",
+    "filter_matching_grants",
+    "determine_permissions",
+    "evaluate",
+]
+
+
 # Policy evaluation
 # Given:
 #    - a token
