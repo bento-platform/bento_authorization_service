@@ -87,7 +87,7 @@ async def check_if_grant_subject_matches_token(db: Database, token_data: TokenDa
 
     # First, check if the subject matches.
     #  - If the grant applies to everyone, it automatically includes the current token/anonymous user.
-    #  - Then, TODO: CHECK GROUPS!
+    #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
     #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
     if grant["subject"].get("everyone"):
         return True
@@ -111,20 +111,28 @@ async def check_if_grant_subject_matches_token(db: Database, token_data: TokenDa
         raise InvalidGrant(str(grant))
 
 
-def check_if_grant_resource_matches_resource_request(resource: Resource, grant: Grant) -> bool:
+def check_if_grant_resource_matches_requested_resource(requested_resource: Resource, grant: Grant) -> bool:
     # Check if a grant resource matches the requested resource.
-    #   - TODO
+    #   - First, if the grant applies to everything. If it does, it automatically matches the specified resource.
     if grant["resource"].get("everything"):
         return True
     elif g_project := grant["resource"].get("project"):  # we have {project: ..., possibly with dataset, data_type}
+        # The grant applies to a project, or dataset, or project data type, or dataset data type.
+
         g_dataset = grant["resource"].get("dataset")
         g_data_type = grant["resource"].get("data_type")
 
-        if resource.get("everything"):
-            return False  # They want access to everything but this grant isn't for everything
-        elif r_project := resource.get("project"):
-            r_dataset = resource.get("dataset")
-            r_data_type = resource.get("data_type")
+        if requested_resource.get("everything"):
+            # They want access to everything/something node-wide, but this grant is for something specific. No!
+            return False
+        elif r_project := requested_resource.get("project"):
+            # The requested resource is at least a project, or possibly more specific:
+            #   - project, or
+            #   - project + dataset, or
+            #   - project + data type
+
+            r_dataset = requested_resource.get("dataset")
+            r_data_type = requested_resource.get("data_type")
 
             # Match cases are as follows:
             # projects match AND
@@ -149,13 +157,13 @@ def check_if_grant_resource_matches_resource_request(resource: Resource, grant: 
 async def filter_matching_grants(
     db: Database,
     token_data: TokenData | None,
-    resource: Resource,
+    requested_resource: Resource,
 ) -> AsyncGenerator[Grant, None, None]:
     """
     TODO
     :param db:
     :param token_data:
-    :param resource:
+    :param requested_resource:
     :return:
     """
 
@@ -163,26 +171,32 @@ async def filter_matching_grants(
 
     for g in grants:
         subject_matches: bool = await check_if_grant_subject_matches_token(db, token_data, g)
-        resource_matches: bool = check_if_grant_resource_matches_resource_request(resource, g)
+        resource_matches: bool = check_if_grant_resource_matches_requested_resource(requested_resource, g)
         if subject_matches and resource_matches:
+            # Grant applies to the token in question, and the requested resource in question, so it is part of the
+            # set of grants which determine the permissions the token bearer has on this resource.
             yield g
 
 
-async def determine_permissions(db: Database, token: str | None, resource: Resource) -> set[Permission]:
+async def determine_permissions(db: Database, token: str | None, requested_resource: Resource) -> set[Permission]:
     """
     Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
     :param db: A database instance.
     :param token: The token of a user or automated script, or None if an anonymous request.
-    :param resource: The resource the token wishes to operate on.
+    :param requested_resource: The resource the token wishes to operate on.
     :return: The permissions
     """
 
     token_data = (await idp_manager.decode(token)) if token else None
-    return set(g["permission"] async for g in filter_matching_grants(db, token_data, resource))
+    return set(g["permission"] async for g in filter_matching_grants(db, token_data, requested_resource))
 
 
-async def evaluate(db: Database, token: str | None, resource: Resource, required_permissions: set[Permission]) -> bool:
-    permissions = await determine_permissions(db, token, resource)
+async def evaluate(
+    db: Database, token: str | None,
+    requested_resource: Resource,
+    required_permissions: set[Permission],
+) -> bool:
+    permissions = await determine_permissions(db, token, requested_resource)
 
     # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
     decision = required_permissions.issubset(permissions)
