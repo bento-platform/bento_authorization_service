@@ -1,0 +1,34 @@
+name: Build and push Bento Authorization Service image
+on:
+  release:
+    types: [ published ]
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: "recursive"
+
+      - name: Run Bento build action
+        uses: bento-platform/bento_build_action@v0.11.0
+        with:
+          registry: ghcr.io
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ghcr.io/bento-platform/bento_authorization_service
+          development-dockerfile: dev.Dockerfile
+          dockerfile: Dockerfile
