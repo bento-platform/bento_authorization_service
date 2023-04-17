@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from ..db import db
+from ..types import Grant
 
 __all__ = [
     "grants_router",
@@ -9,9 +10,14 @@ __all__ = [
 grants_router = APIRouter(prefix="/grants")
 
 
+def _serialize_grant(g: Grant) -> dict:
+    return {**g, "permission": str(g["permission"])}
+
+
 @grants_router.get("/")
 async def list_grants():
-    pass
+    # TODO: return typing
+    return [_serialize_grant(g) for g in (await db.get_grants())]
 
 
 @grants_router.post("/")
