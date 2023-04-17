@@ -7,7 +7,7 @@ from typing import AsyncGenerator, Optional
 
 from .config import config
 from .policy_engine.permissions import PERMISSIONS_BY_STRING
-from .types import Subject, Resource, Grant
+from .types import Subject, Resource, Grant, Group, GroupMembership
 
 __all__ = [
     "Database",
@@ -36,6 +36,16 @@ def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
         "permission": PERMISSIONS_BY_STRING[r["permission"]],
         "extra": r["extra"],
     }
+
+
+def _serialize_group(g: Group) -> tuple[int, GroupMembership]:
+    return g["id"], g["membership"]
+
+
+def _deserialize_group(r: asyncpg.Record | None) -> Group | None:
+    if r is None:
+        return None
+    return dict(r)
 
 
 class Database:
@@ -77,9 +87,6 @@ class Database:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             res = await conn.fetch("SELECT id, subject, resource, permission, extra FROM grants")
-
-            # TODO: sorted!!!! by least to most specific
-
             return tuple(_deserialize_grant(r) for r in res)
 
     async def add_grant(self, grant: Grant) -> None:
@@ -95,12 +102,22 @@ class Database:
     async def get_group(self, id_: int):
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            pass  # TODO
+            res: Optional[asyncpg.Record] = await conn.fetchrow("SELECT id, membership FROM groups WHERE id = $1", id_)
+            return _deserialize_group(res)
 
-    async def set_group(self, id_: int, membership: dict):
+    async def create_group(self, group: Group):
+        # TODO: Run checks first
+
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            pass  # TODO
+            await conn.execute("INSERT INTO groups (membership) VALUES ($1)", _serialize_group(group)[1])
+
+    async def set_group(self, group: Group):
+        # TODO: Run checks first
+
+        conn: asyncpg.Connection
+        async with self.connect() as conn:
+            await conn.execute("UPDATE groups SET membership = $2 WHERE id = $1", *_serialize_group(group))
 
 
 db = Database(config.database_uri)
