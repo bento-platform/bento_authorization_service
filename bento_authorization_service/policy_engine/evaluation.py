@@ -3,7 +3,7 @@ import json
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 
-from typing import AsyncGenerator, TypedDict
+from typing import Generator, TypedDict
 
 from ..db import Database
 from ..idp_manager import idp_manager
@@ -103,7 +103,11 @@ def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bo
         raise InvalidGroupMembership()
 
 
-async def check_if_grant_subject_matches_token(db: Database, token_data: TokenData | None, grant: Grant) -> bool:
+def check_if_grant_subject_matches_token(
+    groups_dict: dict[int, Group],
+    token_data: TokenData | None,
+    grant: Grant,
+) -> bool:
     t = token_data or {}
     t_iss = t.get("iss")
 
@@ -114,7 +118,7 @@ async def check_if_grant_subject_matches_token(db: Database, token_data: TokenDa
     if grant["subject"].get("everyone"):
         return True
     elif (group_id := grant["subject"].get("group")) is not None:
-        group_def = await db.get_group(group_id)
+        group_def = groups_dict.get(group_id)
         if group_def is None:
             logger.error(f"Invalid grant encountered in database: {grant} (group not found: {group_id})")
             raise InvalidGrant(str(grant))
@@ -179,23 +183,23 @@ def check_if_grant_resource_matches_requested_resource(requested_resource: Resou
         raise InvalidGrant(str(grant))  # Missing grant project or {everything: True}
 
 
-async def filter_matching_grants(
-    db: Database,
+def filter_matching_grants(
+    grants: tuple[Grant, ...],
+    groups_dict: dict[int, Group],
     token_data: TokenData | None,
     requested_resource: Resource,
-) -> AsyncGenerator[Grant, None]:
+) -> Generator[Grant, None, None]:
     """
     TODO
-    :param db:
+    :param grants: List of grants to filter out non-matches.
+    :param groups_dict: Dictionary of group IDs and group definitions.
     :param token_data:
     :param requested_resource:
     :return:
     """
 
-    grants = await db.get_grants()
-
     for g in grants:
-        subject_matches: bool = await check_if_grant_subject_matches_token(db, token_data, g)
+        subject_matches: bool = check_if_grant_subject_matches_token(groups_dict, token_data, g)
         resource_matches: bool = check_if_grant_resource_matches_requested_resource(requested_resource, g)
         if subject_matches and resource_matches:
             # Grant applies to the token in question, and the requested resource in question, so it is part of the
@@ -215,7 +219,9 @@ async def determine_permissions(
     :param requested_resource: The resource the token wishes to operate on.
     :return: The permissions
     """
-    return set(g["permission"] async for g in filter_matching_grants(db, token_data, requested_resource))
+    grants = await db.get_grants()
+    groups_dict = await db.get_groups_dict()
+    return set(g["permission"] for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
 
 
 async def evaluate(
