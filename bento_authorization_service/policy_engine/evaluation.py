@@ -71,11 +71,11 @@ def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bo
         for member in g_members:
             m_iss = member["iss"]
             t_iss = token_data.get("iss")
-            if (m_client := member["client"]) is not None:
+            if (m_client := member.get("client")) is not None:
                 if m_iss == t_iss and m_client == token_data.get("azp"):
                     # Issuer and client IDs match, so this token bearer is a member of this group
                     return True
-            elif (m_sub := member["sub"]) is not None:
+            elif (m_sub := member.get("sub")) is not None:
                 if m_iss == t_iss and m_sub == token_data.get("sub"):
                     # Issuer and subjects match, so this token bearer is a member of this group
                     return True
