@@ -179,7 +179,7 @@ async def filter_matching_grants(
     db: Database,
     token_data: TokenData | None,
     requested_resource: Resource,
-) -> AsyncGenerator[Grant, None, None]:
+) -> AsyncGenerator[Grant, None]:
     """
     TODO
     :param db:
