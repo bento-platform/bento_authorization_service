@@ -99,20 +99,29 @@ class Database:
                 "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4, $5)",
                 *_serialize_grant(grant))
 
-    async def get_group(self, id_: int):
+    async def get_group(self, id_: int) -> Group | None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             res: Optional[asyncpg.Record] = await conn.fetchrow("SELECT id, membership FROM groups WHERE id = $1", id_)
             return _deserialize_group(res)
 
-    async def create_group(self, group: Group):
+    async def get_groups(self) -> tuple[Group, ...]:
+        conn: asyncpg.Connection
+        async with self.connect() as conn:
+            res = await conn.fetch("SELECT id, membership FROM groups")
+            return tuple(_deserialize_group(g) for g in res)
+
+    async def get_groups_dict(self) -> dict[int, Group]:
+        return {g["id"]: g for g in (await self.get_groups())}
+
+    async def create_group(self, group: Group) -> None:
         # TODO: Run checks first
 
         conn: asyncpg.Connection
         async with self.connect() as conn:
             await conn.execute("INSERT INTO groups (membership) VALUES ($1)", _serialize_group(group)[1])
 
-    async def set_group(self, group: Group):
+    async def set_group(self, group: Group) -> None:
         # TODO: Run checks first
 
         conn: asyncpg.Connection
