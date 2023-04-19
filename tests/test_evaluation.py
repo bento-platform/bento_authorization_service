@@ -1,6 +1,7 @@
 import pytest
 from bento_authorization_service.policy_engine.evaluation import (
     check_if_token_is_in_group,
+    check_if_grant_subject_matches_token,
     check_if_grant_resource_matches_requested_resource,
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
@@ -75,6 +76,11 @@ TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: Grant = {
 def test_group_membership(group: Group, is_member: bool):
     assert not check_if_token_is_in_group(None, group)
     assert check_if_token_is_in_group(TEST_TOKEN, group) == is_member
+
+
+def test_subject_match():
+    assert check_if_grant_subject_matches_token({}, TEST_TOKEN, TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)  # Everyone
+    assert check_if_grant_subject_matches_token({}, TEST_TOKEN, TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)  # Everyone
 
 
 def test_resource_match():
