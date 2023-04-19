@@ -1,4 +1,5 @@
 import jsonschema
+from bento_lib.search import queries as q
 
 from .config import config
 
@@ -23,14 +24,64 @@ TOKEN_DATA = {
     "$id": _make_schema_id("token_data"),
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "TokenData",
+    "type": "object",
     "properties": {
-        "iss": {"type": "string"},  # Issuer
-        "sub": {"type": "string"},  # Subject
-        "azp": {"type": "string"},  # Client ID (ish)
-        "exp": {"type": "integer"},  # Expiry time
-        "iat": {"type": "integer"},  # Issued-at time
-        "typ": {"type": "string"},  # == "Bearer"
-        "scope": {"type": "string"},  # Token scope(s) (space-separated list-in-string)
+        # Issuer
+        "iss": {
+            "type": "string",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # Subject
+        "sub": {
+            "type": "string",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # Client ID (ish)
+        "azp": {
+            "type": "string",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # Expiry time
+        "exp": {
+            "type": "integer",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # Issued-at time
+        "iat": {
+            "type": "integer",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # == "Bearer"
+        "typ": {
+            "type": "string",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # Token scope(s) (space-separated list-in-string):
+        "scope": {
+            "type": "string",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            }
+        },
     },
     "required": ["iss", "exp", "iat"],
 }
