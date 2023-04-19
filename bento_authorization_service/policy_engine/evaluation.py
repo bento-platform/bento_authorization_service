@@ -59,6 +59,10 @@ class TokenData(TypedDict, total=False):
     sub: str
     aud: str
     azp: str  # Will contain client ID
+    typ: str
+
+    iat: int
+    exp: int
 
 
 def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bool:
