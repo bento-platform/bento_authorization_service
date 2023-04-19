@@ -21,7 +21,6 @@ pyjwt = {extras = ["crypto"], version = "^2.6.0"}
 
 [tool.poetry.group.dev.dependencies]
 tox = "^4.4.8"
-codecov = "^2.1.12"
 coverage = "^7.2.2"
 pytest = "^7.2.2"
 flake8 = "^6.0.0"

@@ -493,15 +493,6 @@ files = [
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
-name = "codecov"
-version = "2.1.12"
-description = "Hosted coverage reports for GitHub, Bitbucket and Gitlab"
-category = "dev"
-optional = false
-python-versions = "*"
-files = []
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -1688,4 +1679,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e02115f3a4e1eab44e74ce23e0d3b1774f5028eabec8553383c1e28a6e946c66"
+content-hash = "c4d669acf4c98ff7694fbfb880c531c63203e423d69ca3b3ea3f8ba422cef400"
