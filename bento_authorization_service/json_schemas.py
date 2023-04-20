@@ -150,6 +150,7 @@ RESOURCE_SCHEMA = {
                 "everything": {"const": True},  # Everything
             },
             "required": ["everything"],
+            "additionalProperties": False,
         },
         {
             "properties": {
@@ -158,9 +159,9 @@ RESOURCE_SCHEMA = {
                 "data_type": {"type": "string"},  # Specific data type; if left out, all data types are in-scope
             },
             "required": ["project"],
+            "additionalProperties": False,
         },
     ],
-    "additionalProperties": False,
 }
 RESOURCE_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(RESOURCE_SCHEMA)
 
@@ -181,6 +182,7 @@ GROUP_MEMBERSHIP_SCHEMA = {
                 },
             },
             "required": ["members"],
+            "additionalProperties": False,
         },
         {
             "properties": {
@@ -189,9 +191,9 @@ GROUP_MEMBERSHIP_SCHEMA = {
                 },
             },
             "required": ["expr"],
+            "additionalProperties": False,
         },
     ],
-    "additionalProperties": False,
 }
 GROUP_MEMBERSHIP_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(GROUP_MEMBERSHIP_SCHEMA)
 
