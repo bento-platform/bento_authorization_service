@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import db
+from ..models import GroupModel
 
 __all__ = [
     "groups_router",
@@ -18,6 +19,12 @@ async def list_groups():
     return await db.get_groups()
 
 
+@groups_router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_group(group: GroupModel):
+    # TODO
+    pass
+
+
 @groups_router.get("/{group_id}")
 async def get_group(group_id: int):
     if group := await db.get_group(group_id):
@@ -33,5 +40,5 @@ async def delete_group(group_id: int):
 
 
 @groups_router.put("/{group_id}")
-async def update_group(group_id: int):
+async def update_group(group_id: int, group: GroupModel):
     pass

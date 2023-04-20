@@ -4,6 +4,8 @@ from typing import Literal, Optional
 __all__ = [
     "SubjectModel",
     "ResourceModel",
+    "GroupMembershipItemModel",
+    "GroupModel",
     "GrantModel",
 ]
 
@@ -17,6 +19,17 @@ class SubjectModel(BaseModel):
     iss: Optional[str] = None
     client: Optional[str] = None
     sub: Optional[str] = None
+
+
+class GroupMembershipItemModel(BaseModel):
+    expr: Optional[str] = None
+    iss: Optional[str] = None
+    client: Optional[str] = None
+    sub: Optional[str] = None
+
+
+class GroupModel(BaseModel):
+    members: list[GroupMembershipItemModel]
 
 
 class ResourceModel(BaseModel):
