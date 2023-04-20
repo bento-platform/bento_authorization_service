@@ -11,7 +11,7 @@ grants_router = APIRouter(prefix="/grants")
 
 
 def grant_not_found(grant_id: int) -> HTTPException:
-    return HTTPException(status_code=404, detail=f"Grant '{grant_id}' not found")
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Grant '{grant_id}' not found")
 
 
 def _serialize_grant(g: Grant) -> dict:
@@ -37,11 +37,8 @@ async def get_grant(grant_id: int):
 
 @grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grant(grant_id: int):
-    grant = await db.get_group(grant_id)
-
-    if grant is None:
+    if (await db.get_group(grant_id)) is None:
         raise grant_not_found(grant_id)
-
     await db.delete_grant()
 
 
