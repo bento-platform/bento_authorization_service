@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 
 from ..db import db
 
@@ -10,7 +10,7 @@ groups_router = APIRouter(prefix="/groups")
 
 
 def group_not_found(group_id: int) -> HTTPException:
-    return HTTPException(status_code=404, detail=f"Group '{group_id}' not found")
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Group '{group_id}' not found")
 
 
 @groups_router.get("/")
@@ -25,10 +25,11 @@ async def get_group(group_id: int):
     raise group_not_found(group_id)
 
 
-@groups_router.delete("/{group_id}")
+@groups_router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_group(group_id: int):
-    # TODO: in a single transaction, delete grants which refer to the group and then delete the group.
-    pass
+    if (await db.get_group(group_id)) is None:
+        raise group_not_found(group_id)
+    await db.delete_group_and_dependent_grants(group_id)
 
 
 @groups_router.put("/{group_id}")

@@ -133,5 +133,13 @@ class Database:
         async with self.connect() as conn:
             await conn.execute("UPDATE groups SET membership = $2 WHERE id = $1", *_serialize_group(group))
 
+    async def delete_group_and_dependent_grants(self, group_id: int) -> None:
+        conn: asyncpg.Connection
+        async with self.connect() as conn:
+            async with conn.transaction():  # Use a single transaction to make both deletes occur at the same time
+                # The Postgres JSON access returns NULL if the field doesn't exist, so the below works.
+                await conn.execute("DELETE FROM grants WHERE subject->'group' = $1", group_id)
+                await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
+
 
 db = Database(config.database_uri)
