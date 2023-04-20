@@ -6,6 +6,8 @@ from bento_authorization_service.policy_engine.evaluation import (
     check_if_token_is_in_group,
     check_if_grant_subject_matches_token,
     check_if_grant_resource_matches_requested_resource,
+    filter_matching_grants,
+    determine_permissions,
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
 from bento_authorization_service.types import Subject, Resource, Grant, Group, GroupMembership
@@ -18,6 +20,16 @@ SUB = "david"
 TEST_TOKEN = {
     "iss": ISS,
     "sub": SUB,
+    "aud": "account",
+    "azp": CLIENT,
+    "typ": "Bearer",
+    "exp": 100,  # Not checked here
+    "iat": 0,  # Not checked here
+}
+
+TEST_TOKEN_NOT_DAVID = {
+    "iss": ISS,
+    "sub": "not_david",
     "aud": "account",
     "azp": CLIENT,
     "typ": "Bearer",
@@ -90,8 +102,20 @@ TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: Grant = {
     "permission": P_QUERY_DATA,
     "extra": {},
 }
+TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: Grant = {
+    "subject": {"group": 0},
+    "resource": RESOURCE_PROJECT_2,
+    "permission": P_QUERY_DATA,
+    "extra": {},
+}
 TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: Grant = {
     "subject": {"group": 2},
+    "resource": RESOURCE_PROJECT_1,
+    "permission": P_QUERY_DATA,
+    "extra": {},
+}
+TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: Grant = {
+    "subject": SUBJECT_DAVID,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
@@ -127,11 +151,30 @@ def test_subject_match():
     assert check_if_grant_subject_matches_token(
         TEST_GROUPS_DICT, TEST_TOKEN, TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)  # Everyone
 
+    # Members of group 0 (iss/client-based):
     assert check_if_grant_subject_matches_token(
-        TEST_GROUPS_DICT, TEST_TOKEN, TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)  # Member of group 0
+        TEST_GROUPS_DICT, TEST_TOKEN, TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+    assert check_if_grant_subject_matches_token(
+        TEST_GROUPS_DICT, TEST_TOKEN_NOT_DAVID, TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
 
+    # NOT a member of group 2:
     assert not check_if_grant_subject_matches_token(
-        TEST_GROUPS_DICT, TEST_TOKEN, TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA)  # NOT a member of group 2
+        TEST_GROUPS_DICT, TEST_TOKEN, TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA)
+
+    # David:
+    assert check_if_grant_subject_matches_token(
+        TEST_GROUPS_DICT, TEST_TOKEN, TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+
+    # NOT David:
+    assert not check_if_grant_subject_matches_token(
+        TEST_GROUPS_DICT, TEST_TOKEN_NOT_DAVID, TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+
+
+def test_invalid_grants():
+    # Missing group raise:
+    with pytest.raises(InvalidGrant):
+        # No groups defined
+        check_if_grant_subject_matches_token({}, TEST_TOKEN, TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
 
 
 def test_resource_match():
@@ -149,3 +192,36 @@ def test_resource_match():
         RESOURCE_PROJECT_1, TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
     assert check_if_grant_resource_matches_requested_resource(
         RESOURCE_PROJECT_1_DATASET_A, TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
+
+
+def test_invalid_resource_request():
+    with pytest.raises(InvalidResourceRequest):
+        check_if_grant_resource_matches_requested_resource({}, TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    with pytest.raises(InvalidResourceRequest):
+        check_if_grant_resource_matches_requested_resource({}, TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+
+
+def test_grant_filtering_and_permissions_set():
+    grants_1 = (TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA, TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+    args_1 = (grants_1, TEST_GROUPS_DICT, TEST_TOKEN, RESOURCE_PROJECT_1_DATASET_A)
+    matching_token_1 = tuple(filter_matching_grants(*args_1))
+    permissions_set_1 = determine_permissions(*args_1)
+    assert len(matching_token_1) == 2  # Matches subject and resource on both
+    assert permissions_set_1 == frozenset({P_QUERY_DATA})
+
+    args_2 = ((TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), TEST_GROUPS_DICT, TEST_TOKEN, RESOURCE_PROJECT_1_DATASET_A)
+    matching_token_1 = tuple(filter_matching_grants(*args_2))
+    permissions_set_2 = determine_permissions(*args_2)
+    assert len(matching_token_1) == 0  # Different project
+    assert permissions_set_2 == frozenset()
+
+    matching_token_2 = tuple(filter_matching_grants((
+        TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+        TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+    ), TEST_GROUPS_DICT, TEST_TOKEN_FOREIGN_ISS, RESOURCE_PROJECT_1_DATASET_A))
+    assert len(matching_token_2) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
+
+    matching_token_2 = tuple(filter_matching_grants((
+        TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+    ), TEST_GROUPS_DICT, TEST_TOKEN_FOREIGN_ISS, RESOURCE_PROJECT_1_DATASET_A))
+    assert len(matching_token_2) == 0  # Foreign issuer, not in group 0
