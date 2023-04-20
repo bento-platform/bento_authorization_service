@@ -35,9 +35,14 @@ async def get_grant(grant_id: int):
     raise grant_not_found(grant_id)
 
 
-@grants_router.delete("/{grant_id}")
+@grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grant(grant_id: int):
-    pass
+    grant = await db.get_group(grant_id)
+
+    if grant is None:
+        raise grant_not_found(grant_id)
+
+    await db.delete_grant()
 
 
 # EXPLICITLY: No grant updating; they are immutable.
