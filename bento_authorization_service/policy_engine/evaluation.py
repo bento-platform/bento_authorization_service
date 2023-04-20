@@ -73,6 +73,9 @@ def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bo
 
     if (g_members := membership.get("members")) is not None:
         for member in g_members:
+            if "iss" not in member:
+                raise InvalidGroupMembership()  # No issuer field in member object
+
             m_iss = member["iss"]
             t_iss = token_data.get("iss")
             if (m_client := member.get("client")) is not None:
