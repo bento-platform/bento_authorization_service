@@ -34,11 +34,13 @@ async def req_list_permissions(
     # In general, the below req_evaluate() endpoint MUST be used unless for cosmetic purposes (UI rendering).
     #                                               ^^^^
 
-    token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
-
     return {
-        "result": sorted(str(p) for p in await determine_permissions(
-            db, token_data, list_permissions_request.requested_resource)),
+        "result": sorted(str(p) for p in determine_permissions(
+            grants=await db.get_grants(),
+            groups_dict=await db.get_groups_dict(),
+            token_data=(await idp_manager.decode(authorization.credentials)) if authorization is not None else None,
+            requested_resource=list_permissions_request.requested_resource.dict(),
+        )),
     }
 
 
