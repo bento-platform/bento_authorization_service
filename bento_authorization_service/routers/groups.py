@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+
+from ..db import db
 
 __all__ = [
     "groups_router",
@@ -7,14 +9,20 @@ __all__ = [
 groups_router = APIRouter(prefix="/groups")
 
 
+def group_not_found(group_id: int) -> HTTPException:
+    return HTTPException(status_code=404, detail=f"Group '{group_id}' not found")
+
+
 @groups_router.get("/")
 async def list_groups():
-    pass
+    return await db.get_groups()
 
 
 @groups_router.get("/{group_id}")
 async def get_group(group_id: int):
-    pass
+    if group := await db.get_group(group_id):
+        return group
+    raise group_not_found(group_id)
 
 
 @groups_router.delete("/{group_id}")
