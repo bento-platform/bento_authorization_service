@@ -145,8 +145,20 @@ def check_if_grant_subject_matches_token(
 def check_if_grant_resource_matches_requested_resource(requested_resource: Resource, grant: Grant) -> bool:
     # Check if a grant resource matches the requested resource.
     #   - First, if the grant applies to everything. If it does, it automatically matches the specified resource.
+
+    def _invalid_requested_resource():
+        logger.error(f"Invalid resource request: {requested_resource} (missing everything|project)")
+        # Missing resource request project or {everything: True}
+        raise InvalidResourceRequest(str(requested_resource))
+
+    rr_everything = requested_resource.get("everything")
+    rr_project = requested_resource.get("project")
+
     if grant["resource"].get("everything"):
-        return True
+        if rr_everything or rr_project:
+            return True
+        _invalid_requested_resource()
+
     elif g_project := grant["resource"].get("project"):  # we have {project: ..., possibly with dataset, data_type}
         # The grant applies to a project, or dataset, or project data type, or dataset data type.
 
@@ -156,14 +168,14 @@ def check_if_grant_resource_matches_requested_resource(requested_resource: Resou
         if requested_resource.get("everything"):
             # They want access to everything/something node-wide, but this grant is for something specific. No!
             return False
-        elif r_project := requested_resource.get("project"):
+        elif rr_project is not None:
             # The requested resource is at least a project, or possibly more specific:
             #   - project, or
             #   - project + dataset, or
             #   - project + data type
 
-            r_dataset = requested_resource.get("dataset")
-            r_data_type = requested_resource.get("data_type")
+            rr_dataset = requested_resource.get("dataset")
+            rr_data_type = requested_resource.get("data_type")
 
             # Match cases are as follows:
             # projects match AND
@@ -173,14 +185,12 @@ def check_if_grant_resource_matches_requested_resource(requested_resource: Resou
             #  - grant data
 
             return (
-                g_project == r_project and
-                (g_dataset is None or g_dataset == r_dataset) and
-                (g_data_type is None or g_data_type == r_data_type)
+                g_project == rr_project and
+                (g_dataset is None or g_dataset == rr_dataset) and
+                (g_data_type is None or g_data_type == rr_data_type)
             )
         else:  # requested resource doesn't match any known resource pattern, somehow.
-            logger.error(f"Invalid resource request: {requested_resource} (missing everything|project)")
-            # Missing resource request project or {everything: True}
-            raise InvalidResourceRequest(str(requested_resource))
+            _invalid_requested_resource()
     else:  # grant resource is invalid
         logger.error(f"Invalid grant encountered in database: {grant} (resource missing everything|project)")
         raise InvalidGrant(str(grant))  # Missing grant project or {everything: True}
@@ -196,9 +206,9 @@ def filter_matching_grants(
     TODO
     :param grants: List of grants to filter out non-matches.
     :param groups_dict: Dictionary of group IDs and group definitions.
-    :param token_data:
-    :param requested_resource:
-    :return:
+    :param token_data: TODO
+    :param requested_resource: TODO
+    :return: TODO
     """
 
     for g in grants:
@@ -210,21 +220,22 @@ def filter_matching_grants(
             yield g
 
 
-async def determine_permissions(
-    db: Database,
+def determine_permissions(
+    grants: tuple[Grant, ...],
+    groups_dict: dict[int, Group],
     token_data: TokenData | None,
     requested_resource: Resource,
-) -> set[Permission]:
+) -> frozenset[Permission]:
     """
     Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
-    :param db: A database instance.
+    :param grants: TODO
+    :param groups_dict: TODO
     :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
     :param requested_resource: The resource the token wishes to operate on.
-    :return: The permissions
+    :return: The permissions frozen set
     """
-    grants = await db.get_grants()
-    groups_dict = await db.get_groups_dict()
-    return set(g["permission"] for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
+    return frozenset(
+        g["permission"] for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
 
 
 async def evaluate(
@@ -241,7 +252,9 @@ async def evaluate(
     token_data = (await idp_manager.decode(token)) if token else None
 
     # Determine the permissions
-    permissions = await determine_permissions(db, token, requested_resource)
+    grants = await db.get_grants()
+    groups_dict = await db.get_groups_dict()
+    permissions = determine_permissions(grants, groups_dict, token, requested_resource)
 
     # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
     decision = required_permissions.issubset(permissions)
