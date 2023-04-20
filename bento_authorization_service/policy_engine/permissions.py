@@ -80,6 +80,8 @@ RUNS = PermissionNoun("runs")
 PROJECT = PermissionNoun("project")
 DATASET = PermissionNoun("dataset")
 
+NOTIFICATIONS = PermissionNoun("notifications")
+
 PERMISSIONS_NOUN = PermissionNoun("permissions")
 
 P_QUERY_PROJECT_LEVEL_BOOLEAN = Permission(QUERY_VERB, PROJECT_LEVEL_BOOLEAN, min_level_required=LEVEL_PROJECT)
@@ -101,13 +103,23 @@ P_ANALYZE_DATA = Permission(ANALYZE_VERB, DATA)
 P_EXPORT_DATA = Permission(EXPORT_VERB, DATA)
 
 P_VIEW_RUNS = Permission(VIEW_VERB, RUNS)
+
+#   - notifications
+
+P_VIEW_NOTIFICATIONS = Permission(VIEW_VERB, NOTIFICATIONS)
+P_CREATE_NOTIFICATIONS = Permission(CREATE_VERB, NOTIFICATIONS)
+
 # ---
 
 # only {everything: true} (instance-level):
 
+#   - drop box
+
 P_VIEW_DROP_BOX = Permission(VIEW_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
 P_INGEST_DROP_BOX = Permission(INGEST_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
 P_DELETE_DROP_BOX = Permission(DELETE_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
+
+#   - project management
 
 P_CREATE_PROJECT = Permission(CREATE_VERB, PROJECT, min_level_required=LEVEL_INSTANCE)
 P_DELETE_PROJECT = Permission(DELETE_VERB, PROJECT, min_level_required=LEVEL_INSTANCE)
@@ -115,11 +127,14 @@ P_DELETE_PROJECT = Permission(DELETE_VERB, PROJECT, min_level_required=LEVEL_INS
 # ---
 
 # only {everything: true} or {project: ...} (instance- or project-level):
+#   - project metadata editing
+#   - dataset management
 P_EDIT_PROJECT = Permission(EDIT_VERB, PROJECT, min_level_required=LEVEL_PROJECT)
 P_CREATE_DATASET = Permission(CREATE_VERB, DATASET, min_level_required=LEVEL_PROJECT)
 P_DELETE_DATASET = Permission(DELETE_VERB, DATASET, min_level_required=LEVEL_DATASET)
 # ---
 
+#   - dataset metadata editing
 P_EDIT_DATASET = Permission(EDIT_VERB, DATASET)
 
 # can edit permissions for the resource which granted this permission only:
