@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import db
+from ..models import GrantModel
 from ..types import Grant
 
 __all__ = [
@@ -23,8 +24,9 @@ async def list_grants():
     return [_serialize_grant(g) for g in (await db.get_grants())]
 
 
-@grants_router.post("/")
-async def create_grant():
+@grants_router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_grant(grant: GrantModel):
+    # TODO
     pass
 
 
