@@ -242,7 +242,7 @@ async def evaluate(
     db: Database,
     token: str | None,
     requested_resource: Resource,
-    required_permissions: set[Permission],
+    required_permissions: frozenset[Permission],
 ) -> bool:
     # If an access token is specified, validate it and extract its data.
     # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in

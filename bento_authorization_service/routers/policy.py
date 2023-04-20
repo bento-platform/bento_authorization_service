@@ -59,13 +59,11 @@ async def req_evaluate(
     # Given a token, a resource, and a list of required permissions, figure out if the
     # Builds on the above method, but here a decision is actually being made.
 
-    permissions = set(PERMISSIONS_BY_STRING[p] for p in evaluation_request.required_permissions)
-
     return {
         "result": await evaluate(
-            db,
-            None if authorization is None else authorization.credentials,
-            evaluation_request.requested_resource.dict(),
-            permissions,
+            db=db,
+            token=None if authorization is None else authorization.credentials,
+            requested_resource=evaluation_request.requested_resource.dict(),
+            required_permissions=frozenset(PERMISSIONS_BY_STRING[p] for p in evaluation_request.required_permissions),
         ),
     }
