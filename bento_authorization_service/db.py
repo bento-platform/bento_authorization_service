@@ -99,6 +99,11 @@ class Database:
                 "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4, $5)",
                 *_serialize_grant(grant))
 
+    async def delete_grant(self, grant_id: int) -> None:
+        conn: asyncpg.Connection
+        async with self.connect() as conn:
+            await conn.execute("DELETE FROM grants WHERE id = $1", grant_id)
+
     async def get_group(self, id_: int) -> Group | None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
