@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 from .config import config
+from .json_schemas import GROUP_SCHEMA_VALIDATOR
 from .policy_engine.permissions import PERMISSIONS_BY_STRING
 from .types import Subject, Resource, Grant, Group
 
@@ -122,8 +123,7 @@ class Database:
         return {g["id"]: g for g in (await self.get_groups())}
 
     async def create_group(self, group: Group) -> Optional[int]:
-        # TODO: Run checks first
-
+        GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():
@@ -131,8 +131,7 @@ class Database:
                     "INSERT INTO groups (membership) VALUES ($1) RETURNING id", _serialize_group(group)[1])
 
     async def set_group(self, group: Group) -> None:
-        # TODO: Run checks first
-
+        GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
             await conn.execute("UPDATE groups SET membership = $2 WHERE id = $1", *_serialize_group(group))
