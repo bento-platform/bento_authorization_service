@@ -142,7 +142,7 @@ class Database:
         async with self.connect() as conn:
             async with conn.transaction():  # Use a single transaction to make both deletes occur at the same time
                 # The Postgres JSON access returns NULL if the field doesn't exist, so the below works.
-                await conn.execute("DELETE FROM grants WHERE subject->'group' = $1", group_id)
+                await conn.execute("DELETE FROM grants WHERE (subject->>'group')::int = $1", group_id)
                 await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
 
 
