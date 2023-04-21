@@ -121,15 +121,14 @@ class Database:
     async def get_groups_dict(self) -> dict[int, Group]:
         return {g["id"]: g for g in (await self.get_groups())}
 
-    async def create_group(self, group: Group) -> int:
+    async def create_group(self, group: Group) -> Optional[int]:
         # TODO: Run checks first
 
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():
-                r = await conn.fetchrow(
+                return await conn.fetchval(
                     "INSERT INTO groups (membership) VALUES ($1) RETURNING id", _serialize_group(group)[1])
-                return r["id"]
 
     async def set_group(self, group: Group) -> None:
         # TODO: Run checks first
