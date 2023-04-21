@@ -7,7 +7,7 @@ from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated, Optional
 
-from .config import get_config
+from .config import ConfigDependency
 from .logger import logger
 
 __all__ = [
@@ -92,8 +92,8 @@ class IdPManager(BaseIdPManager):
 
 
 @lru_cache()
-def get_idp_manager() -> BaseIdPManager:
-    return IdPManager(get_config().openid_well_known_url)
+def get_idp_manager(config: ConfigDependency) -> BaseIdPManager:
+    return IdPManager(config.openid_well_known_url)
 
 
 IdPManagerDependency = Annotated[BaseIdPManager, Depends(get_idp_manager)]

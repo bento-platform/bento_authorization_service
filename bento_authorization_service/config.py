@@ -29,6 +29,9 @@ class Config(BaseSettings):
 
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 
+    class Config:
+        frozen = True  # Make parent Config instances hashable
+
 
 @lru_cache()
 def get_config() -> Config:

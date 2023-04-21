@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from bento_authorization_service import __version__
 
-from .config import ConfigDependency
+from .config import get_config, ConfigDependency
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .db import db
 from .idp_manager import get_idp_manager
@@ -23,7 +23,7 @@ app.include_router(schema_router)
 @app.on_event("startup")
 async def startup():
     await db.initialize()  # Initialize the database connection pool
-    await get_idp_manager().initialize()  # Initialize the IdP manager / token validator
+    await get_idp_manager(get_config()).initialize()  # Initialize the IdP manager / token validator
 
 
 @app.on_event("shutdown")
