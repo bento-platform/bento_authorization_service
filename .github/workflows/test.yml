@@ -36,4 +36,3 @@ jobs:
           pytest -svv --cov=bento_authorization_service --cov-branch
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
-
