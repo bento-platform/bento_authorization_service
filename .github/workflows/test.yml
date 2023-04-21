@@ -10,6 +10,16 @@ jobs:
     strategy:
       matrix:
         python-version: [ "3.10", "3.11" ]
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -21,7 +31,9 @@ jobs:
       - name: Install dependencies
         run: poetry install
       - name: Test
-        run: pytest -svv --cov=bento_authorization_service --cov-branch
+        run: |
+          export DATABASE_URI="postgres://postgres:postgres@localhost:5432/postgres"
+          pytest -svv --cov=bento_authorization_service --cov-branch
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
 
