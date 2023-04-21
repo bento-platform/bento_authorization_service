@@ -1,12 +1,14 @@
+from fastapi import Depends
 from functools import lru_cache
 from pydantic import BaseSettings
-from typing import Literal
+from typing import Annotated, Literal
 
 from .constants import SERVICE_GROUP, SERVICE_ARTIFACT
 
 __all__ = [
     "Config",
     "get_config",
+    "ConfigDependency",
 ]
 
 
@@ -31,3 +33,6 @@ class Config(BaseSettings):
 @lru_cache()
 def get_config() -> Config:
     return Config()
+
+
+ConfigDependency = Annotated[Config, Depends(get_config)]

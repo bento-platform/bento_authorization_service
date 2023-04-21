@@ -3,8 +3,9 @@ import datetime
 import jwt
 
 from abc import ABC, abstractmethod
+from fastapi import Depends
 from functools import lru_cache
-from typing import Optional
+from typing import Annotated, Optional
 
 from .config import get_config
 from .logger import logger
@@ -14,6 +15,7 @@ __all__ = [
     "BaseIdPManager",
     "IdPManager",
     "get_idp_manager",
+    "IdPManagerDependency",
 ]
 
 
@@ -92,3 +94,6 @@ class IdPManager(BaseIdPManager):
 @lru_cache()
 def get_idp_manager() -> BaseIdPManager:
     return IdPManager(get_config().openid_well_known_url)
+
+
+IdPManagerDependency = Annotated[BaseIdPManager, Depends(get_idp_manager)]

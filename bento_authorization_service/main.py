@@ -1,9 +1,8 @@
-from fastapi import Depends, FastAPI
-from typing import Annotated
+from fastapi import FastAPI
 
 from bento_authorization_service import __version__
 
-from .config import Config, get_config
+from .config import ConfigDependency
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .db import db
 from .idp_manager import get_idp_manager
@@ -33,7 +32,7 @@ async def shutdown():
 
 
 @app.get("/service-info")
-async def service_info(config: Annotated[Config, Depends(get_config)]):
+async def service_info(config: ConfigDependency):
     return {
         "id": config.service_id,
         "name": config.service_name,  # TODO: Should be globally unique?
