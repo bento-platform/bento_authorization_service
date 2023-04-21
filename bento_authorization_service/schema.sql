@@ -1,12 +1,12 @@
 CREATE TABLE IF NOT EXISTS grants (
     id SERIAL PRIMARY KEY,
-    subject JSON NOT NULL,
-    resource JSON NOT NULL,
+    subject JSONB NOT NULL,
+    resource JSONB NOT NULL,
     permission VARCHAR(127),
-    extra JSON NOT NULL DEFAULT '{}'::json
+    extra JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS groups (
     id SERIAL PRIMARY KEY,
-    membership JSON NOT NULL
+    membership JSONB NOT NULL
 );
