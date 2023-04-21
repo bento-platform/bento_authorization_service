@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 from .config import config
-from .json_schemas import GROUP_SCHEMA_VALIDATOR
-from .policy_engine.permissions import PERMISSIONS_BY_STRING
+from .json_schemas import GROUP_SCHEMA_VALIDATOR, GRANT_SCHEMA_VALIDATOR
+from .policy_engine.permissions import PERMISSIONS_BY_STRING, Permission
 from .types import Subject, Resource, Grant, Group
 
 __all__ = [
@@ -98,7 +98,11 @@ class Database:
             return tuple(_deserialize_grant(r) for r in res)
 
     async def create_grant(self, grant: Grant) -> Optional[int]:
-        # TODO: Run checks first
+        gp = grant.get("permission")
+        GRANT_SCHEMA_VALIDATOR.validate({
+            **grant,
+            "permission": str(gp) if isinstance(gp, Permission) else gp,  # Let schema validation catch the bad type
+        })  # Will raise if the group is invalid
 
         conn: asyncpg.Connection
         async with self.connect() as conn:
