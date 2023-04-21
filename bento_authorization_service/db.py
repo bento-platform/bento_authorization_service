@@ -91,14 +91,14 @@ class Database:
             res = await conn.fetch("SELECT id, subject, resource, permission, extra FROM grants")
             return tuple(_deserialize_grant(r) for r in res)
 
-    async def add_grant(self, grant: Grant) -> None:
+    async def create_grant(self, grant: Grant) -> Optional[int]:
         # TODO: Run checks first
 
         conn: asyncpg.Connection
         async with self.connect() as conn:
             # TODO: Run DB-level checks first
-            await conn.execute(
-                "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4, $5)",
+            return await conn.fetchval(
+                "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4, $5) RETURNING id",
                 *_serialize_grant(grant))
 
     async def delete_grant(self, grant_id: int) -> None:
