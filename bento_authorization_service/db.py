@@ -1,13 +1,14 @@
 import aiofiles
 import asyncpg
 import contextlib
+import orjson
 
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 from .config import config
 from .policy_engine.permissions import PERMISSIONS_BY_STRING
-from .types import Subject, Resource, Grant, Group, GroupMembership
+from .types import Subject, Resource, Grant, Group
 
 __all__ = [
     "Database",
@@ -38,14 +39,14 @@ def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
     }
 
 
-def _serialize_group(g: Group) -> tuple[int, GroupMembership]:
-    return g["id"], g["membership"]
+def _serialize_group(g: Group) -> tuple[int, str]:
+    return g["id"], orjson.dumps(g["membership"]).decode("utf-8")
 
 
 def _deserialize_group(r: asyncpg.Record | None) -> Group | None:
     if r is None:
         return None
-    return dict(r)
+    return {"id": r["id"], "membership": orjson.loads(r["membership"])}
 
 
 class Database:
