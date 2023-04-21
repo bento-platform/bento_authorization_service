@@ -1,0 +1,29 @@
+# Test-only (!) compose file for the Bento authorization service
+
+services:
+  authorization:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    depends_on:
+      - authorization-db
+    environment:
+      - DATABASE_URI=postgres://auth_user:auth_password@authorization-db:5432/auth_db
+    ports:
+      - "5055:5000"
+    volumes:
+      - $PWD:/authorization
+    command: /bin/bash -c '
+      cd /authorization && 
+      /poetry_user_install_dev.bash && 
+      pytest -svv --cov=bento_authorization_service --cov-branch &&
+      coverage html
+      '
+  authorization-db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_password
+      - POSTGRES_DB=auth_db
+    expose:
+      - 5432
