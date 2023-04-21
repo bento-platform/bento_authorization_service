@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: dev.Dockerfile
+    depends_on:
+      - authorization-db
     environment:
       - DATABASE_URI=postgres://auth_user:auth_password@authorization-db:5432/auth_db
     ports:
