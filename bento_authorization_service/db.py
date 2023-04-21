@@ -69,6 +69,7 @@ class Database:
     async def close(self):
         if self._pool:
             await self._pool.close()
+            self._pool = None
 
     @contextlib.asynccontextmanager
     async def connect(self) -> AsyncGenerator[asyncpg.Connection, None]:

@@ -7,6 +7,21 @@ from .shared_data import TEST_GROUPS
 
 
 @pytest.mark.asyncio
+async def test_db_close(db: Database):
+    await db.close()
+    assert db._pool is None
+
+    # duplicate request: should be idempotent
+    await db.close()
+    assert db._pool is None
+
+    # should not be able to connect
+    with pytest.raises(DatabaseError):
+        async with db.connect():
+            pass
+
+
+@pytest.mark.asyncio
 async def test_db_group(db: Database):
     g: Group = Group(**TEST_GROUPS[0][0])
     g_id: int = await db.create_group(g)
