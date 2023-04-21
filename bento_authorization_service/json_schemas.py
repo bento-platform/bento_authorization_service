@@ -14,6 +14,8 @@ __all__ = [
     "GROUP_MEMBERSHIP_SCHEMA",
     "GROUP_SCHEMA",
     "GROUP_SCHEMA_VALIDATOR",
+    "GRANT_SCHEMA",
+    "GRANT_SCHEMA_VALIDATOR",
 ]
 
 
@@ -212,3 +214,21 @@ GROUP_SCHEMA = {
     "additionalProperties": False,
 }
 GROUP_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(GROUP_SCHEMA)
+
+
+GRANT_SCHEMA = {
+    "$id": _make_schema_id("grant"),
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Grant",
+    "type": "object",
+    "properties": {
+        "id": {"type": "integer"},
+        "subject": SUBJECT_SCHEMA,
+        "resource": RESOURCE_SCHEMA,
+        "permission": {"type": "string"},
+        "extra": {"type": "object"},
+    },
+    "required": ["subject", "resource", "permission"],
+    "additionalProperties": False,
+}
+GRANT_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(GRANT_SCHEMA)

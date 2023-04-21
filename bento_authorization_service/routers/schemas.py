@@ -35,3 +35,8 @@ def group_membership_json_schema():
 @schema_router.get("/group.json")
 def group_json_schema():
     return js.GROUP_SCHEMA
+
+
+@schema_router.get("/grant.json")
+def grant_json_schema():
+    return js.GRANT_SCHEMA
