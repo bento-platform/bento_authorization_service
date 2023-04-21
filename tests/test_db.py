@@ -7,7 +7,7 @@ from .shared_data import TEST_GROUPS
 
 
 @pytest.mark.asyncio
-async def test_db_close(db: Database):
+async def test_db_open_close(db: Database):
     await db.close()
     assert db._pool is None
 
@@ -19,6 +19,15 @@ async def test_db_close(db: Database):
     with pytest.raises(DatabaseError):
         async with db.connect():
             pass
+
+    # try re-opening
+    await db.initialize()
+    assert db._pool is not None
+    old_pool = db._pool
+
+    # duplicate request: should be idempotent
+    await db.initialize()
+    assert db._pool == old_pool  # same instance
 
 
 @pytest.mark.asyncio
