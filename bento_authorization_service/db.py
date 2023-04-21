@@ -6,7 +6,7 @@ import orjson
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
-from .config import config
+from .config import get_config
 from .json_schemas import GROUP_SCHEMA_VALIDATOR, GRANT_SCHEMA_VALIDATOR
 from .policy_engine.permissions import PERMISSIONS_BY_STRING, Permission
 from .types import Subject, Resource, Grant, Group
@@ -154,4 +154,5 @@ class Database:
                 await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
 
 
-db = Database(config.database_uri)
+# TODO: convert to injectable thing for FastAPI
+db = Database(get_config().database_uri)

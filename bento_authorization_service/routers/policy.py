@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Annotated
 
 from ..db import db
-from ..idp_manager import idp_manager
+from ..idp_manager import BaseIdPManager, get_idp_manager
 from ..models import ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate
 from ..policy_engine.permissions import PERMISSIONS_BY_STRING
@@ -23,6 +23,7 @@ class ListPermissionsRequest(BaseModel):
 
 @policy_router.post("/permissions")
 async def req_list_permissions(
+    idp_manager: Annotated[BaseIdPManager, Depends(get_idp_manager)],
     authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     list_permissions_request: ListPermissionsRequest,
 ):
@@ -51,6 +52,7 @@ class EvaluationRequest(BaseModel):
 
 @policy_router.post("/evaluate")
 async def req_evaluate(
+    idp_manager: Annotated[BaseIdPManager, Depends(get_idp_manager)],
     authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     evaluation_request: EvaluationRequest,
 ):
@@ -63,6 +65,7 @@ async def req_evaluate(
 
     return {
         "result": await evaluate(
+            idp_manager=idp_manager,
             db=db,
             token=None if authorization is None else authorization.credentials,
             requested_resource=evaluation_request.requested_resource.dict(),

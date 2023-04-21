@@ -1,6 +1,6 @@
 import logging
 
-from .config import config
+from .config import get_config
 
 __all__ = [
     "logger",
@@ -15,5 +15,7 @@ log_config_to_log_level = {
 
 logging.basicConfig(level=logging.DEBUG)
 
+# TODO: convert to injectable thing for FastAPI
+
 logger = logging.getLogger(__name__)
-logger.setLevel(log_config_to_log_level[config.log_level])
+logger.setLevel(log_config_to_log_level[get_config().log_level])

@@ -6,7 +6,7 @@ from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from typing import Generator, TypedDict
 
 from ..db import Database
-from ..idp_manager import idp_manager
+from ..idp_manager import BaseIdPManager
 from ..json_schemas import TOKEN_DATA
 from ..logger import logger
 from ..types import Resource, Grant, Group, GroupMembership
@@ -239,6 +239,7 @@ def determine_permissions(
 
 
 async def evaluate(
+    idp_manager: BaseIdPManager,
     db: Database,
     token: str | None,
     requested_resource: Resource,

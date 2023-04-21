@@ -2,14 +2,18 @@ import aiohttp
 import datetime
 import jwt
 
+from abc import ABC, abstractmethod
+from functools import lru_cache
 from typing import Optional
 
-from .config import config
+from .config import get_config
+from .logger import logger
 
 __all__ = [
     "UninitializedIdPManagerError",
+    "BaseIdPManager",
     "IdPManager",
-    "idp_manager",
+    "get_idp_manager",
 ]
 
 
@@ -17,10 +21,29 @@ class UninitializedIdPManagerError(Exception):
     pass
 
 
-class IdPManager:
+class BaseIdPManager(ABC):
 
     def __init__(self, oidc_well_known_url: str):
         self._oidc_well_known_url: str = oidc_well_known_url
+
+    @abstractmethod
+    async def initialize(self):
+        pass
+
+    @property
+    @abstractmethod
+    def initialized(self) -> bool:
+        pass
+
+    @abstractmethod
+    async def decode(self, token: str) -> dict:
+        pass
+
+
+class IdPManager(BaseIdPManager):
+
+    def __init__(self, oidc_well_known_url: str):
+        super().__init__(oidc_well_known_url)
 
         self._oidc_well_known_data: Optional[dict] = None
         self._oidc_well_known_data_last_fetched: Optional[datetime.datetime] = None
@@ -39,11 +62,14 @@ class IdPManager:
         self._jwks_client = jwt.PyJWKClient(self._oidc_well_known_data["jwks_uri"])
 
     async def initialize(self):
-        await self.fetch_well_known_data()
-        if self._oidc_well_known_data_last_fetched:
-            self.set_up_jwks_client()
-        # TODO: throw + log error otherwise
-        self._initialized = True
+        try:
+            await self.fetch_well_known_data()
+            if self._oidc_well_known_data_last_fetched:
+                self.set_up_jwks_client()
+            self._initialized = True
+        except Exception as e:
+            logger.critical(f"Could not initialize IdPManager: encountered exception '{repr(e)}'")
+            self._initialized = False
 
     @property
     def initialized(self) -> bool:
@@ -63,4 +89,6 @@ class IdPManager:
         return jwt.decode(token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"])
 
 
-idp_manager = IdPManager(config.openid_well_known_url)
+@lru_cache()
+def get_idp_manager() -> BaseIdPManager:
+    return IdPManager(get_config().openid_well_known_url)

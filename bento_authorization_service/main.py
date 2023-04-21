@@ -1,11 +1,12 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from typing import Annotated
 
 from bento_authorization_service import __version__
 
-from .config import config
+from .config import Config, get_config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .db import db
-from .idp_manager import idp_manager
+from .idp_manager import get_idp_manager
 from .routers.grants import grants_router
 from .routers.groups import groups_router
 from .routers.policy import policy_router
@@ -23,7 +24,7 @@ app.include_router(schema_router)
 @app.on_event("startup")
 async def startup():
     await db.initialize()  # Initialize the database connection pool
-    await idp_manager.initialize()  # Initialize the IdP manager / token validator
+    await get_idp_manager().initialize()  # Initialize the IdP manager / token validator
 
 
 @app.on_event("shutdown")
@@ -32,7 +33,7 @@ async def shutdown():
 
 
 @app.get("/service-info")
-async def service_info():
+async def service_info(config: Annotated[Config, Depends(get_config)]):
     return {
         "id": config.service_id,
         "name": config.service_name,  # TODO: Should be globally unique?

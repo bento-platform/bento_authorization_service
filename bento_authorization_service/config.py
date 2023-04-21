@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pydantic import BaseSettings
 from typing import Literal
 
@@ -5,7 +6,7 @@ from .constants import SERVICE_GROUP, SERVICE_ARTIFACT
 
 __all__ = [
     "Config",
-    "config",
+    "get_config",
 ]
 
 
@@ -27,4 +28,6 @@ class Config(BaseSettings):
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 
 
-config = Config()
+@lru_cache()
+def get_config() -> Config:
+    return Config()

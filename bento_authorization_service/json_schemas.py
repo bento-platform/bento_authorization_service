@@ -1,7 +1,7 @@
 import jsonschema
 from bento_lib.search import queries as q
 
-from .config import config
+from .config import get_config
 
 __all__ = [
     "TOKEN_DATA",
@@ -20,7 +20,7 @@ __all__ = [
 
 
 def _make_schema_id(name: str) -> str:
-    return f"{config.service_url_base_path.rstrip('/')}/schemas/{name}.json"
+    return f"{get_config().service_url_base_path.rstrip('/')}/schemas/{name}.json"
 
 
 TOKEN_DATA = {
