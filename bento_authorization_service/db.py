@@ -11,6 +11,7 @@ from .policy_engine.permissions import PERMISSIONS_BY_STRING
 from .types import Subject, Resource, Grant, Group
 
 __all__ = [
+    "DatabaseError",
     "Database",
     "db",
 ]
