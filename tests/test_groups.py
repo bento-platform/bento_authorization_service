@@ -1,33 +1,11 @@
+from fastapi import status
+from fastapi.testclient import TestClient
 import json
 import pytest
-from bento_authorization_service.db import DatabaseError, Database
+from bento_authorization_service.db import Database
 from bento_authorization_service.types import Group
 
 from .shared_data import TEST_GROUPS
-
-
-@pytest.mark.asyncio
-async def test_db_open_close(db: Database):
-    await db.close()
-    assert db._pool is None
-
-    # duplicate request: should be idempotent
-    await db.close()
-    assert db._pool is None
-
-    # should not be able to connect
-    with pytest.raises(DatabaseError):
-        async with db.connect():
-            pass
-
-    # try re-opening
-    await db.initialize()
-    assert db._pool is not None
-    old_pool = db._pool
-
-    # duplicate request: should be idempotent
-    await db.initialize()
-    assert db._pool == old_pool  # same instance
 
 
 @pytest.mark.asyncio
@@ -62,3 +40,14 @@ async def test_db_group(db: Database):
 @pytest.mark.asyncio
 async def test_db_group_non_existant(db: Database):
     assert (await db.get_group(-1)) is None
+
+
+@pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
+def test_group_creation_endpoint(group: Group, _is_member: bool, test_client: TestClient):
+    g = {**group}
+    del g["id"]
+    res = test_client.post("/groups/", json=g)
+    assert res.status_code == status.HTTP_201_CREATED
+
+    # g_rest = res.json()
+    # await db.get_group()
