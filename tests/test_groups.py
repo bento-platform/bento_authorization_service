@@ -42,12 +42,13 @@ async def test_db_group_non_existant(db: Database):
     assert (await db.get_group(-1)) is None
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-def test_group_creation_endpoint(group: Group, _is_member: bool, test_client: TestClient):
+async def test_group_creation_endpoint(group: Group, _is_member: bool, test_client: TestClient, db: Database):
     g = {**group}
     del g["id"]
     res = test_client.post("/groups/", json=g)
     assert res.status_code == status.HTTP_201_CREATED
 
-    # g_rest = res.json()
-    # await db.get_group()
+    g_rest = res.json()
+    assert json.dumps(await db.get_group(g_rest["id"]), sort_keys=True) == json.dumps(g_rest, sort_keys=True)
