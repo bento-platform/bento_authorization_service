@@ -41,8 +41,8 @@ def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
     }
 
 
-def _serialize_group(g: Group) -> tuple[int, str]:
-    return g["id"], orjson.dumps(g["membership"]).decode("utf-8")
+def _serialize_group(g: Group) -> tuple[int | None, str]:
+    return g.get("id"), orjson.dumps(g["membership"]).decode("utf-8")
 
 
 def _deserialize_group(r: asyncpg.Record | None) -> Group | None:
