@@ -21,8 +21,10 @@ async def list_groups():
 
 @groups_router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_group(group: GroupModel):
-    # TODO
-    pass
+    g_id = await db.create_group(group.dict())
+    if g_id is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Group could not be created")
+    return await db.get_group(g_id)
 
 
 @groups_router.get("/{group_id}")
