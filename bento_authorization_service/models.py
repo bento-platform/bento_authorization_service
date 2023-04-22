@@ -10,42 +10,59 @@ __all__ = [
 ]
 
 
-class SubjectModel(BaseModel):
-    # janky way of representing the true Union type for Subject
-    # TODO: try create_model_from_typeddict in pydantic 2
+class IssuerAndClientModel(BaseModel):
+    iss: str
+    client: str
 
-    everyone: Optional[Literal[True]] = None
-    group: Optional[int] = None
-    iss: Optional[str] = None
-    client: Optional[str] = None
-    sub: Optional[str] = None
+
+class IssuerAndSubjectModel(BaseModel):
+    iss: str
+    sub: str
+
+
+class SubjectEveryoneModel(BaseModel):
+    everyone: Literal[True]
+
+
+class SubjectGroupModel(BaseModel):
+    group: int
+
+
+class SubjectModel(BaseModel):
+    __root__: SubjectEveryoneModel | SubjectGroupModel | IssuerAndClientModel | IssuerAndSubjectModel
+
+
+class GroupMembershipExpr(BaseModel):
+    expr: list  # JSON representation of query format
 
 
 class GroupMembershipItemModel(BaseModel):
-    expr: Optional[str] = None
-    iss: Optional[str] = None
-    client: Optional[str] = None
-    sub: Optional[str] = None
+    __root__: IssuerAndClientModel | IssuerAndSubjectModel
 
 
-class GroupModel(BaseModel):
+class GroupMembershipMembers(BaseModel):
     members: list[GroupMembershipItemModel]
 
 
-class ResourceModel(BaseModel):
-    # janky way of representing the true Union type for Resource
-    # TODO: try create_model_from_typeddict in pydantic 2
+class GroupModel(BaseModel):
+    membership: GroupMembershipExpr | GroupMembershipMembers
 
-    everything: Optional[Literal[True]] = None
-    project: Optional[str] = None
+
+class ResourceEverythingModel(BaseModel):
+    everything: Literal[True]
+
+
+class ResourceSpecificModel(BaseModel):
+    project: str
     dataset: Optional[str] = None
     data_type: Optional[str] = None
 
 
-class GrantModel(BaseModel):
-    # janky way of representing the true Union type for Grant
-    # TODO: try create_model_from_typeddict in pydantic 2
+class ResourceModel(BaseModel):
+    __root__: ResourceEverythingModel | ResourceSpecificModel
 
+
+class GrantModel(BaseModel):
     subject: SubjectModel
     resource: ResourceModel
     permission: str
