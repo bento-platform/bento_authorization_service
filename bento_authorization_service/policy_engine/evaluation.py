@@ -263,7 +263,7 @@ async def evaluate(
     # Log the decision made, with some user data
     user_str = {"anonymous": True}
     if token_data is not None:
-        user_str = {k: token_data.get(k) for k in ("iss", "client", "sub")}
+        user_str = {k: token_data.get(k) for k in ("iss", "azp", "sub")}
     log_obj = {"user": user_str, "requested_resource": requested_resource, "decision": decision}
     logger.info(f"evaluate: {json.dumps(log_obj)})")
 
