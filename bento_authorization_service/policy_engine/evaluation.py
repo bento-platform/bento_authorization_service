@@ -128,7 +128,7 @@ def check_if_grant_subject_matches_token(
         return check_if_token_is_in_group(token_data, group_def)
     elif g_iss := grant["subject"].get("iss"):
         iss_match: bool = t_iss is not None and g_iss == t_iss
-        if g_client := grant["subject"].get("azp"):  # {iss, client}
+        if g_client := grant["subject"].get("client"):  # {iss, client}
             # g_client is not None by the if-check
             return iss_match and g_client == t.get("azp")
         elif g_sub := grant["subject"].get("sub"):
