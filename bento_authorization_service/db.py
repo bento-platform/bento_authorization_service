@@ -108,7 +108,7 @@ class Database:
         async with self.connect() as conn:
             # TODO: Run DB-level checks first
             return await conn.fetchval(
-                "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+                "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4) RETURNING id",
                 *_serialize_grant(grant))
 
     async def delete_grant(self, grant_id: int) -> None:
