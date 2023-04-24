@@ -255,7 +255,7 @@ async def evaluate(
     # Determine the permissions
     grants = await db.get_grants()
     groups_dict = await db.get_groups_dict()
-    permissions = determine_permissions(grants, groups_dict, token, requested_resource)
+    permissions = determine_permissions(grants, groups_dict, token_data, requested_resource)
 
     # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
     decision = required_permissions.issubset(permissions)
