@@ -41,7 +41,7 @@ async def req_list_permissions(
             grants=await db.get_grants(),
             groups_dict=await db.get_groups_dict(),
             token_data=(await idp_manager.decode(authorization.credentials)) if authorization is not None else None,
-            requested_resource=list_permissions_request.requested_resource.dict(),
+            requested_resource=list_permissions_request.requested_resource.dict()["__root__"],
         )),
     }
 
