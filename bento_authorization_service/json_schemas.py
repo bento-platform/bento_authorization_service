@@ -127,17 +127,18 @@ SUBJECT_SCHEMA = {
                 "everyone": {"const": True},  # Everyone
             },
             "required": ["everyone"],
+            "additionalProperties": False,
         },
         {
             "properties": {
                 "group": {"type": "number"},  # Group ID
             },
             "required": ["group"],
+            "additionalProperties": False,
         },
         SUBJECT_ISSUER_AND_CLIENT_ID,
         SUBJECT_ISSUER_AND_SUBJECT_ID
     ],
-    "additionalProperties": False,
 }
 SUBJECT_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(SUBJECT_SCHEMA)
 
