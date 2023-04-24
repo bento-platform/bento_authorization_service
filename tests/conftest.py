@@ -21,7 +21,7 @@ class MockIdPManager(BaseIdPManager):
         return True
 
     async def decode(self, token: str) -> dict:
-        return jwt.decode(token, verify=False)
+        return jwt.decode(token, "secret", audience="account", algorithms=["HS256"])  # hard-coded test secret
 
 
 @lru_cache()
