@@ -9,7 +9,7 @@ from typing import AsyncGenerator, Optional
 from .config import get_config
 from .json_schemas import GROUP_SCHEMA_VALIDATOR, GRANT_SCHEMA_VALIDATOR
 from .policy_engine.permissions import PERMISSIONS_BY_STRING, Permission
-from .types import Subject, Resource, Grant, Group
+from .types import Grant, Group
 
 __all__ = [
     "DatabaseError",
@@ -25,8 +25,13 @@ class DatabaseError(Exception):
     pass
 
 
-def _serialize_grant(g: Grant) -> tuple[dict, dict, str, dict]:
-    return g["subject"], g["resource"], str(g["permission"]), g["extra"]
+def _serialize_grant(g: Grant) -> tuple[str, str, str, str]:
+    return (
+        orjson.dumps(g["subject"]).decode("utf-8"),
+        orjson.dumps(g["resource"]).decode("utf-8"),
+        str(g["permission"]),
+        orjson.dumps(g["extra"]).decode("utf-8"),
+    )
 
 
 def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
@@ -34,10 +39,10 @@ def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
         return None
     return {
         "id": r["id"],
-        "subject": Subject(r["subject"]),
-        "resource": Resource(r["resource"]),
+        "subject": orjson.loads(r["subject"]),
+        "resource": orjson.loads(r["resource"]),
         "permission": PERMISSIONS_BY_STRING[r["permission"]],
-        "extra": r["extra"],
+        "extra": orjson.loads(r["extra"]),
     }
 
 
