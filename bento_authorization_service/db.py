@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, AsyncGenerator, Optional
 
-from .config import get_config, ConfigDependency
+from .config import ConfigDependency
 from .json_schemas import GROUP_SCHEMA_VALIDATOR, GRANT_SCHEMA_VALIDATOR
 from .policy_engine.permissions import PERMISSIONS_BY_STRING, Permission
 from .types import Grant, Group
@@ -16,7 +16,6 @@ from .types import Grant, Group
 __all__ = [
     "DatabaseError",
     "Database",
-    "db",
     "get_db",
     "DatabaseDependency",
 ]
@@ -161,10 +160,6 @@ class Database:
                 # The Postgres JSON access returns NULL if the field doesn't exist, so the below works.
                 await conn.execute("DELETE FROM grants WHERE (subject->>'group')::int = $1", group_id)
                 await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
-
-
-# TODO: convert to injectable thing for FastAPI
-db = Database(get_config().database_uri)
 
 
 @lru_cache()

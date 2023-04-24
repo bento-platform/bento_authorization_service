@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from ..db import db
+from ..db import DatabaseDependency
 from ..models import GrantModel
 from ..types import Grant
 
@@ -20,28 +20,29 @@ def _serialize_grant(g: Grant) -> dict:
 
 
 @grants_router.get("/")
-async def list_grants():
+async def list_grants(db: DatabaseDependency):
     return [_serialize_grant(g) for g in (await db.get_grants())]
 
 
 @grants_router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_grant(grant: GrantModel):
+async def create_grant(grant: GrantModel, db: DatabaseDependency):
+    await db.create_grant(grant.dict())
     # TODO
     pass
 
 
 @grants_router.get("/{grant_id}")
-async def get_grant(grant_id: int):
+async def get_grant(grant_id: int, db: DatabaseDependency):
     if grant := db.get_grant(grant_id):
         return _serialize_grant(grant)
     raise grant_not_found(grant_id)
 
 
 @grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_grant(grant_id: int):
+async def delete_grant(grant_id: int, db: DatabaseDependency):
     if (await db.get_group(grant_id)) is None:
         raise grant_not_found(grant_id)
     await db.delete_grant()
 
 
-# EXPLICITLY: No grant updating; they are immutable.
+# EXPLICITLY: No grant updating; they are immutable.x

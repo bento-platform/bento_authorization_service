@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from ..db import db
+from ..db import DatabaseDependency
 from ..models import GroupModel
 
 __all__ = [
@@ -15,12 +15,12 @@ def group_not_found(group_id: int) -> HTTPException:
 
 
 @groups_router.get("/")
-async def list_groups():
+async def list_groups(db: DatabaseDependency):
     return await db.get_groups()
 
 
 @groups_router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_group(group: GroupModel):
+async def create_group(group: GroupModel, db: DatabaseDependency):
     g_id = await db.create_group(group.dict())
     if g_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Group could not be created")
@@ -28,19 +28,19 @@ async def create_group(group: GroupModel):
 
 
 @groups_router.get("/{group_id}")
-async def get_group(group_id: int):
+async def get_group(group_id: int, db: DatabaseDependency):
     if group := await db.get_group(group_id):
         return group
     raise group_not_found(group_id)
 
 
 @groups_router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_group(group_id: int):
+async def delete_group(group_id: int, db: DatabaseDependency):
     if (await db.get_group(group_id)) is None:
         raise group_not_found(group_id)
     await db.delete_group_and_dependent_grants(group_id)
 
 
 @groups_router.put("/{group_id}")
-async def update_group(group_id: int, group: GroupModel):
+async def update_group(group_id: int, group: GroupModel, db: DatabaseDependency):
     pass

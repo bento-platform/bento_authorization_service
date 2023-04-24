@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from typing import Annotated
 
-from ..db import db
+from ..db import DatabaseDependency
 from ..idp_manager import IdPManagerDependency
 from ..models import ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate
@@ -23,9 +23,10 @@ class ListPermissionsRequest(BaseModel):
 
 @policy_router.post("/permissions")
 async def req_list_permissions(
-    idp_manager: IdPManagerDependency,
     authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     list_permissions_request: ListPermissionsRequest,
+    db: DatabaseDependency,
+    idp_manager: IdPManagerDependency,
 ):
     # Request structure:
     #   Header: Authorization: Bearer <token>
@@ -52,9 +53,10 @@ class EvaluationRequest(BaseModel):
 
 @policy_router.post("/evaluate")
 async def req_evaluate(
-    idp_manager: IdPManagerDependency,
     authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     evaluation_request: EvaluationRequest,
+    db: DatabaseDependency,
+    idp_manager: IdPManagerDependency,
 ):
     # Request structure:
     #   Header: Authorization: Bearer <token>
