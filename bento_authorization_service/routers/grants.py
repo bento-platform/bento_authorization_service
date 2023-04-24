@@ -26,9 +26,16 @@ async def list_grants(db: DatabaseDependency):
 
 @grants_router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_grant(grant: GrantModel, db: DatabaseDependency):
-    await db.create_grant(grant.dict())
-    # TODO
-    pass
+    grant_model_dict = grant.dict()
+
+    # Remove None fields (from simpler Pydantic model) if of {project: ...} type of resource
+    if "project" in grant_model_dict["resource"]:
+        grant_model_dict["resource"] = {k: v for k, v in grant_model_dict["resource"].items() if v is not None}
+
+    g_id = await db.create_grant(grant_model_dict)
+    if g_id is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Grant could not be created")
+    return _serialize_grant(await db.get_grant(g_id))
 
 
 @grants_router.get("/{grant_id}")
