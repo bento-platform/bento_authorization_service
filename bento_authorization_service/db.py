@@ -3,10 +3,12 @@ import asyncpg
 import contextlib
 import orjson
 
+from fastapi import Depends
+from functools import lru_cache
 from pathlib import Path
-from typing import AsyncGenerator, Optional
+from typing import Annotated, AsyncGenerator, Optional
 
-from .config import get_config
+from .config import get_config, ConfigDependency
 from .json_schemas import GROUP_SCHEMA_VALIDATOR, GRANT_SCHEMA_VALIDATOR
 from .policy_engine.permissions import PERMISSIONS_BY_STRING, Permission
 from .types import Grant, Group
@@ -15,6 +17,8 @@ __all__ = [
     "DatabaseError",
     "Database",
     "db",
+    "get_db",
+    "DatabaseDependency",
 ]
 
 
@@ -161,3 +165,11 @@ class Database:
 
 # TODO: convert to injectable thing for FastAPI
 db = Database(get_config().database_uri)
+
+
+@lru_cache()
+def get_db(config: ConfigDependency) -> Database:
+    return Database(config.database_uri)
+
+
+DatabaseDependency = Annotated[Database, Depends(get_db)]
