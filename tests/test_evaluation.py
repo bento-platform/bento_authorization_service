@@ -1,4 +1,9 @@
+import jwt
 import pytest
+from datetime import datetime
+from fastapi.testclient import TestClient
+from bento_authorization_service.db import Database
+from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
     InvalidGrant,
     InvalidGroupMembership,
@@ -8,9 +13,10 @@ from bento_authorization_service.policy_engine.evaluation import (
     check_if_grant_resource_matches_requested_resource,
     filter_matching_grants,
     determine_permissions,
+    evaluate,
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
-from bento_authorization_service.types import Group
+from bento_authorization_service.types import Grant, Group
 
 from . import shared_data as sd
 
@@ -125,3 +131,29 @@ def test_grant_filtering_and_permissions_set():
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
     assert len(matching_token_2) == 0  # Foreign issuer, not in group 0
+
+
+async def _eval_test_data(db: Database):
+    group_id = await db.create_group(sd.TEST_GROUPS[0][0])
+    grant_with_group = {**sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA, "subject": {"group": group_id}}
+    await db.create_grant(Grant(**grant_with_group))
+    ts = int(datetime.utcnow().timestamp())
+    tkn = jwt.encode({**sd.TEST_TOKEN, "iat": ts, "exp": ts + 900}, "secret", algorithm="HS256")
+    return tkn
+
+
+@pytest.mark.asyncio
+async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_client: TestClient):
+    tkn = await _eval_test_data(db)
+    res = await evaluate(idp_manager, db, tkn, sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
+    assert res
+
+
+@pytest.mark.asyncio
+async def test_evaluate_endpoint(db: Database, test_client: TestClient):
+    tkn = await _eval_test_data(db)
+    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
+        "requested_resource": sd.RESOURCE_PROJECT_1,
+        "required_permissions": [str(P_QUERY_DATA)],
+    })
+    assert res.json()["result"]
