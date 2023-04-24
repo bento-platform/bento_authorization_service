@@ -54,6 +54,10 @@ def test_subject_match():
     assert not check_if_grant_subject_matches_token(
         sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA)
 
+    # Client grant
+    assert check_if_grant_subject_matches_token(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA)
+
     # David:
     assert check_if_grant_subject_matches_token(
         sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)

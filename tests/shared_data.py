@@ -103,6 +103,12 @@ TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: Grant = {
     "permission": P_QUERY_DATA,
     "extra": {},
 }
+TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA: Grant = {
+    "subject": SUBJECT_CLIENT,
+    "resource": RESOURCE_PROJECT_1,
+    "permission": P_QUERY_DATA,
+    "extra": {},
+}
 TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: Grant = {
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_PROJECT_1,
