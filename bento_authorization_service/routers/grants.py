@@ -47,7 +47,7 @@ async def get_grant(grant_id: int, db: DatabaseDependency):
 
 @grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grant(grant_id: int, db: DatabaseDependency):
-    if (await db.get_group(grant_id)) is None:
+    if (await db.get_grant(grant_id)) is None:
         raise grant_not_found(grant_id)
     await db.delete_grant(grant_id)
 
