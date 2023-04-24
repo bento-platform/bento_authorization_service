@@ -40,7 +40,7 @@ async def create_grant(grant: GrantModel, db: DatabaseDependency):
 
 @grants_router.get("/{grant_id}")
 async def get_grant(grant_id: int, db: DatabaseDependency):
-    if grant := db.get_grant(grant_id):
+    if grant := (await db.get_grant(grant_id)):
         return _serialize_grant(grant)
     raise grant_not_found(grant_id)
 
@@ -49,7 +49,7 @@ async def get_grant(grant_id: int, db: DatabaseDependency):
 async def delete_grant(grant_id: int, db: DatabaseDependency):
     if (await db.get_group(grant_id)) is None:
         raise grant_not_found(grant_id)
-    await db.delete_grant()
+    await db.delete_grant(grant_id)
 
 
 # EXPLICITLY: No grant updating; they are immutable.x
