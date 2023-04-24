@@ -42,3 +42,10 @@ async def db():
     await db_instance.initialize()
     yield db_instance
     await db_instance.close()
+
+
+@pytest_asyncio.fixture
+async def idp_manager():
+    idp_manager_instance = MockIdPManager("")
+    await idp_manager_instance.initialize()
+    yield idp_manager_instance
