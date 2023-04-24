@@ -29,16 +29,16 @@ class BaseIdPManager(ABC):
         self._oidc_well_known_url: str = oidc_well_known_url
 
     @abstractmethod
-    async def initialize(self):
+    async def initialize(self):  # pragma: no cover
         pass
 
     @property
     @abstractmethod
-    def initialized(self) -> bool:
+    def initialized(self) -> bool:  # pragma: no cover
         pass
 
     @abstractmethod
-    async def decode(self, token: str) -> dict:
+    async def decode(self, token: str) -> dict:  # pragma: no cover
         pass
 
 
