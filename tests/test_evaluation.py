@@ -1,3 +1,4 @@
+import json
 import jwt
 import pytest
 from datetime import datetime
@@ -147,6 +148,15 @@ async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_cli
     tkn = await _eval_test_data(db)
     res = await evaluate(idp_manager, db, tkn, sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
     assert res
+
+
+@pytest.mark.asyncio
+async def test_permissions_endpoint(db: Database, test_client: TestClient):
+    tkn = await _eval_test_data(db)
+    res = test_client.post("/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json={
+        "requested_resource": sd.RESOURCE_PROJECT_1,
+    })
+    assert json.dumps(res.json()["result"]) == json.dumps([str(P_QUERY_DATA)])
 
 
 @pytest.mark.asyncio
