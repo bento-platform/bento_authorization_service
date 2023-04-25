@@ -140,5 +140,6 @@ P_DELETE_DATASET = Permission(DELETE_VERB, DATASET, min_level_required=LEVEL_DAT
 #   - dataset metadata editing
 P_EDIT_DATASET = Permission(EDIT_VERB, DATASET)
 
-# can edit permissions for the resource which granted this permission only:
+# can view edit permissions for the resource which granted this permission only:
+P_VIEW_PERMISSIONS = Permission(VIEW_VERB, PERMISSIONS_NOUN)
 P_EDIT_PERMISSIONS = Permission(EDIT_VERB, PERMISSIONS_NOUN)
