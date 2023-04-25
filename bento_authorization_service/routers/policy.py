@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-from typing import Annotated
-
 from ..db import DatabaseDependency
+from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManagerDependency
 from ..models import ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate
@@ -14,8 +12,6 @@ __all__ = ["policy_router"]
 
 policy_router = APIRouter(prefix="/policy")
 
-security = HTTPBearer()
-
 
 class ListPermissionsRequest(BaseModel):
     requested_resource: ResourceModel
@@ -23,11 +19,14 @@ class ListPermissionsRequest(BaseModel):
 
 @policy_router.post("/permissions")
 async def req_list_permissions(
-    authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    authorization: OptionalBearerToken,
     list_permissions_request: ListPermissionsRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
 ):
+    # Endpoint permissions: available to everyone, since this endpoint's contents are token-specific.
+    # A rate limiter should be placed in front of this service, especially this endpoint, since it is public.
+
     # Request structure:
     #   Header: Authorization: Bearer <token>
     #   Post body: {resource: {}}
@@ -53,11 +52,14 @@ class EvaluationRequest(BaseModel):
 
 @policy_router.post("/evaluate")
 async def req_evaluate(
-    authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    authorization: OptionalBearerToken,
     evaluation_request: EvaluationRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
 ):
+    # Endpoint permissions: available to everyone, since this endpoint's contents are token-specific.
+    # A rate limiter should be placed in front of this service, especially this endpoint, since it is public.
+
     # Request structure:
     #   Header: Authorization: Bearer <token>
     #   Post body: {requested_resource: {...}, required_permissions: [...]}
