@@ -29,6 +29,12 @@ TODO
 
 
 
+## Resource permissions cascade
+
+<img src="./docs/permissions_cascade.png" alt="Resource permissions cascade diagram" width="500" height="288" />
+
+
+
 ## Copyright &amp; License
 
 &copy; McGill University 2023.
