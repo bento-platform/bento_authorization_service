@@ -10,59 +10,64 @@ __all__ = [
 ]
 
 
-class IssuerAndClientModel(BaseModel):
+class BaseImmutableModel(BaseModel):
+    class Config:
+        frozen = True    # Immutable hashable record
+
+
+class IssuerAndClientModel(BaseImmutableModel):
     iss: str
     client: str
 
 
-class IssuerAndSubjectModel(BaseModel):
+class IssuerAndSubjectModel(BaseImmutableModel):
     iss: str
     sub: str
 
 
-class SubjectEveryoneModel(BaseModel):
+class SubjectEveryoneModel(BaseImmutableModel):
     everyone: Literal[True]
 
 
-class SubjectGroupModel(BaseModel):
+class SubjectGroupModel(BaseImmutableModel):
     group: int
 
 
-class SubjectModel(BaseModel):
+class SubjectModel(BaseImmutableModel):
     __root__: SubjectEveryoneModel | SubjectGroupModel | IssuerAndClientModel | IssuerAndSubjectModel
 
 
-class GroupMembershipExpr(BaseModel):
+class GroupMembershipExpr(BaseImmutableModel):
     expr: list  # JSON representation of query format
 
 
-class GroupMembershipItemModel(BaseModel):
+class GroupMembershipItemModel(BaseImmutableModel):
     __root__: IssuerAndClientModel | IssuerAndSubjectModel
 
 
-class GroupMembershipMembers(BaseModel):
+class GroupMembershipMembers(BaseImmutableModel):
     members: list[GroupMembershipItemModel]
 
 
-class GroupModel(BaseModel):
+class GroupModel(BaseImmutableModel):
     membership: GroupMembershipExpr | GroupMembershipMembers
 
 
-class ResourceEverythingModel(BaseModel):
+class ResourceEverythingModel(BaseImmutableModel):
     everything: Literal[True]
 
 
-class ResourceSpecificModel(BaseModel):
+class ResourceSpecificModel(BaseImmutableModel):
     project: str
     dataset: Optional[str] = None
     data_type: Optional[str] = None
 
 
-class ResourceModel(BaseModel):
+class ResourceModel(BaseImmutableModel):
     __root__: ResourceEverythingModel | ResourceSpecificModel
 
 
-class GrantModel(BaseModel):
+class GrantModel(BaseImmutableModel):
     subject: SubjectModel
     resource: ResourceModel
     permission: str
