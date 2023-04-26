@@ -166,7 +166,7 @@ class Database:
 
 
 @lru_cache()
-def get_db(config: ConfigDependency) -> Database:
+def get_db(config: ConfigDependency) -> Database:  # pragma: no cover
     return Database(config.database_uri)
 
 
