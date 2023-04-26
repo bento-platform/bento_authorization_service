@@ -47,12 +47,7 @@ def test_client():
         yield client
 
 
-@pytest_asyncio.fixture
-async def db():
-    db_instance = Database(get_config().database_uri)
-    await db_instance.initialize()
-    yield db_instance
-    await db_instance.close()
+db = pytest_asyncio.fixture(get_test_db, name="db")
 
 
 @pytest_asyncio.fixture
