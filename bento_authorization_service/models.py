@@ -12,7 +12,9 @@ __all__ = [
 
 class BaseImmutableModel(BaseModel):
     class Config:
-        frozen = True    # Immutable hashable record
+        # Immutable hashable record
+        allow_mutation = False
+        frozen = True
 
 
 class IssuerAndClientModel(BaseImmutableModel):

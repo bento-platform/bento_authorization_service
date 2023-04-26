@@ -30,7 +30,9 @@ class Config(BaseSettings):
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 
     class Config:
-        frozen = True  # Make parent Config instances hashable
+        # Make parent Config instances hashable + immutable
+        allow_mutation = False
+        frozen = True
 
 
 @lru_cache()
