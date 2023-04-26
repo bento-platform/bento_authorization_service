@@ -6,5 +6,5 @@ __all__ = [
     "OptionalBearerToken",
 ]
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 OptionalBearerToken = Annotated[HTTPAuthorizationCredentials | None, Depends(security)]
