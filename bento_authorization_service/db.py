@@ -85,8 +85,11 @@ class Database:
 
     @contextlib.asynccontextmanager
     async def connect(self) -> AsyncGenerator[asyncpg.Connection, None]:
+        # TODO: raise raise DatabaseError("Pool is not available") when FastAPI has lifespan dependencies
+        #  + manage pool lifespan in lifespan fn.
+
         if self._pool is None:
-            raise DatabaseError("Pool is not available")
+            await self.initialize()  # initialize if this is the first time we're using the pool
 
         conn: asyncpg.Connection
         async with self._pool.acquire() as conn:

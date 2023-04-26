@@ -11,21 +11,24 @@ from .routers.grants import grants_router
 from .routers.groups import groups_router
 from .routers.policy import policy_router
 from .routers.schemas import schema_router
+from .logger import logger
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Startup
     config = get_config()
-    db = get_db(config)
-    await db.initialize()  # Initialize the database connection pool
+    # TODO: when FastAPI can do lifespan dependencies:
+    #  db = get_db(config)
+    #  await db.initialize()  # Initialize the database connection pool
     await get_idp_manager(config).initialize()  # Initialize the IdP manager / token validator
 
     # -----
     yield
 
     # Shutdown
-    await db.close()  # Attempt to close all open database connections
+    # TODO: when FastAPI can do lifespan dependencies
+    #  await db.close()  # Attempt to close all open database connections
 
 
 app = FastAPI(lifespan=lifespan)

@@ -12,9 +12,8 @@ async def test_db_open_close(db: Database):
     assert db._pool is None
 
     # should not be able to connect
-    with pytest.raises(DatabaseError):
-        async with db.connect():
-            pass
+    async with db.connect():
+        assert db._pool is not None  # Connection auto-initialized
 
     # try re-opening
     await db.initialize()
