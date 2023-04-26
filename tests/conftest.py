@@ -11,6 +11,8 @@ from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager
 
+from .shared_data import TEST_TOKEN_SECRET, bootstrap_meta_permissions_for_david
+
 
 class MockIdPManager(BaseIdPManager):
 
@@ -22,16 +24,22 @@ class MockIdPManager(BaseIdPManager):
         return True
 
     async def decode(self, token: str) -> dict:
-        return jwt.decode(token, "secret", audience="account", algorithms=["HS256"])  # hard-coded test secret
+        return jwt.decode(
+            token,
+            TEST_TOKEN_SECRET,
+            audience=TEST_TOKEN_SECRET,
+            algorithms=["HS256"],
+        )  # hard-coded test secret
 
 
 async def get_test_db() -> AsyncGenerator[Database, None]:
-    db_ = Database(get_config().database_uri)
-    await db_.initialize()
+    db_instance = Database(get_config().database_uri)
+    await db_instance.initialize()
+    await bootstrap_meta_permissions_for_david(db_instance)
     try:
-        yield db_
+        yield db_instance
     finally:
-        await db_.close()
+        await db_instance.close()
 
 
 @lru_cache()

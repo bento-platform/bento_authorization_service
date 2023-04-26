@@ -1,6 +1,13 @@
-from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
+import jwt
+from datetime import datetime
+
+from bento_authorization_service.db import Database
+from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from bento_authorization_service.types import Subject, Resource, Grant, Group, GroupMembership
 
+
+TEST_TOKEN_SECRET = "secret"
+TEST_TOKEN_AUD = "account"
 
 ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
@@ -9,12 +16,28 @@ SUB = "david"
 TEST_TOKEN = {
     "iss": ISS,
     "sub": SUB,
-    "aud": "account",
+    "aud": TEST_TOKEN_SECRET,
     "azp": CLIENT,
     "typ": "Bearer",
     "exp": 100,  # Not checked here
     "iat": 0,  # Not checked here
 }
+
+
+def make_fresh_david_token():
+    dt = int(datetime.utcnow().timestamp())
+    return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
+
+
+def make_fresh_david_token_encoded() -> str:
+    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, "HS256")
+
+
+async def bootstrap_meta_permissions_for_david(db: Database) -> None:
+    # bootstrap create a permission for managing permissions
+    await db.create_grant(SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_PERMISSIONS)
+    await db.create_grant(SPECIAL_GRANT_DAVID_EVERYTHING_EDIT_PERMISSIONS)
+
 
 TEST_TOKEN_NOT_DAVID = {
     "iss": ISS,
@@ -113,5 +136,18 @@ TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: Grant = {
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
+    "extra": {},
+}
+
+SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_PERMISSIONS: Grant = {
+    "subject": SUBJECT_DAVID,
+    "resource": RESOURCE_EVERYTHING,
+    "permission": P_VIEW_PERMISSIONS,
+    "extra": {},
+}
+SPECIAL_GRANT_DAVID_EVERYTHING_EDIT_PERMISSIONS: Grant = {
+    "subject": SUBJECT_DAVID,
+    "resource": RESOURCE_EVERYTHING,
+    "permission": P_EDIT_PERMISSIONS,
     "extra": {},
 }
