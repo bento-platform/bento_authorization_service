@@ -80,8 +80,10 @@ class IdPManager(BaseIdPManager):
     async def decode(self, token: str) -> dict:
         # This relies on access tokens following RFC9068, rather than using the introspection endpoint.
 
-        if not self._initialized:
-            raise UninitializedIdPManagerError("Uninitialized IdpManager")
+        if not self._initialized:  # Initialize the IdPManager lazily on first decode request
+            await self.initialize()
+            if not self._initialized:  # Initialization failed
+                raise UninitializedIdPManagerError("IdpManager initialization failed")
         if not self._jwks_client:
             raise UninitializedIdPManagerError("Missing JWKS Manager")
 
