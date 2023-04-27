@@ -12,10 +12,13 @@ TEST_TOKEN_AUD = "account"
 ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
 SUB = "david"
+ALG = "RS256" # standard
+              # TODO?: ES256/ES384/ES512  ref: https://github.com/keycloak/keycloak/issues/11036
 
 TEST_TOKEN = {
     "iss": ISS,
     "sub": SUB,
+    "alg": ALG,
     "aud": TEST_TOKEN_SECRET,
     "azp": CLIENT,
     "typ": "Bearer",
@@ -42,6 +45,7 @@ async def bootstrap_meta_permissions_for_david(db: Database) -> None:
 TEST_TOKEN_NOT_DAVID = {
     "iss": ISS,
     "sub": "not_david",
+    "alg": ALG,
     "aud": "account",
     "azp": CLIENT,
     "typ": "Bearer",
@@ -52,6 +56,7 @@ TEST_TOKEN_NOT_DAVID = {
 TEST_TOKEN_FOREIGN_ISS = {
     "iss": "https://google.com",
     "sub": SUB,
+    "alg": "HS256-DANGER",
     "aud": "account",
     "azp": CLIENT,
     "typ": "Bearer",
@@ -60,9 +65,9 @@ TEST_TOKEN_FOREIGN_ISS = {
 }
 
 SUBJECT_EVERYONE: Subject = {"everyone": True}
-SUBJECT_CLIENT: Subject = {"iss": ISS, "client": CLIENT}
-SUBJECT_DAVID: Subject = {"iss": ISS, "sub": SUB}
-SUBJECT_NOT_ME: Subject = {"iss": ISS, "sub": "not_me"}
+SUBJECT_CLIENT: Subject = {"iss": ISS, "client": CLIENT, "alg": ALG}
+SUBJECT_DAVID: Subject = {"iss": ISS, "sub": SUB, "alg": ALG}
+SUBJECT_NOT_ME: Subject = {"iss": ISS, "sub": "not_me", "alg": ALG}
 
 RESOURCE_EVERYTHING: Resource = {"everything": True}
 RESOURCE_PROJECT_1: Resource = {"project": "1"}
@@ -74,7 +79,7 @@ RESOURCE_PROJECT_2_DATASET_C: Resource = {"project": "1", "dataset": "B"}
 TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
     # Member lists
 
-    ({"members": [{"iss": ISS, "client": CLIENT}]}, True),  # All users from a particular issuer+client
+    ({"members": [SUBJECT_CLIENT]}, True),  # All users from a particular issuer+client
 
     ({"members": [SUBJECT_DAVID]}, True),  # A specific user
 
@@ -86,7 +91,27 @@ TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
     # Expressions
 
     ({
-         "expr": ["#and", ["#eq", ["#resolve", "sub"], SUB], ["#eq", ["#resolve", "iss"], ISS]]
+         "expr": [
+            "#and", 
+            [
+                "#eq", 
+                ["#resolve", "sub"], 
+                SUB
+            ], 
+            [
+                "#and", 
+                [
+                    "#eq", 
+                    ["#resolve", "iss"], 
+                    ISS
+                ],
+                [
+                    "#eq", 
+                    ["#resolve", "alg"], 
+                    ALG
+                ] 
+            ]
+        ]
      }, True),  # Expression for specific subject and issuer
 ]
 TEST_GROUPS: list[tuple[Group, bool]] = [
