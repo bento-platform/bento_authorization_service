@@ -73,18 +73,21 @@ def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bo
 
     if (g_members := membership.get("members")) is not None:
         for member in g_members:
-            if "iss" not in member:
+            if "iss" not in member or "alg" not in member:
                 raise InvalidGroupMembership()  # No issuer field in member object
 
             m_iss = member["iss"]
+            m_alg = member["alg"]
             t_iss = token_data.get("iss")
+            t_alg = token_data.get("alg")
+
             if (m_client := member.get("client")) is not None:
-                if m_iss == t_iss and m_client == token_data.get("azp"):
-                    # Issuer and client IDs match, so this token bearer is a member of this group
+                if m_iss == t_iss and m_alg == t_alg and m_client == token_data.get("azp"):
+                    # Issuer, algorithm, and client IDs match, so this token bearer is a member of this group
                     return True
             elif (m_sub := member.get("sub")) is not None:
-                if m_iss == t_iss and m_sub == token_data.get("sub"):
-                    # Issuer and subjects match, so this token bearer is a member of this group
+                if m_iss == t_iss and m_alg == t_alg and m_sub == token_data.get("sub"):
+                    # Issuer, algorithm, and subjects match, so this token bearer is a member of this group
                     return True
             else:
                 raise InvalidGroupMembership()  # No client/subject field in member object
@@ -113,11 +116,12 @@ def check_if_grant_subject_matches_token(
 ) -> bool:
     t = token_data or {}
     t_iss = t.get("iss")
+    t_alg = t.get("alg")
 
     # First, check if the subject matches.
     #  - If the grant applies to everyone, it automatically includes the current token/anonymous user.
     #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
-    #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
+    #  - Otherwise, check the specifics of the grant to see if there is an issuer+algorithm/client or issuer+algorithm/subject match.
     if grant["subject"].get("everyone"):
         return True
     elif (group_id := grant["subject"].get("group")) is not None:
@@ -126,14 +130,15 @@ def check_if_grant_subject_matches_token(
             logger.error(f"Invalid grant encountered in database: {grant} (group not found: {group_id})")
             raise InvalidGrant(str(grant))
         return check_if_token_is_in_group(token_data, group_def)
-    elif g_iss := grant["subject"].get("iss"):
+    elif ((g_iss := grant["subject"].get("iss")) and (g_alg := grant["subject"].get("alg"))):
         iss_match: bool = t_iss is not None and g_iss == t_iss
+        alg_match: bool = t_alg is not None and g_alg == t_alg
         if g_client := grant["subject"].get("client"):  # {iss, client}
             # g_client is not None by the if-check
-            return iss_match and g_client == t.get("azp")
+            return iss_match and alg_match and g_client == t.get("azp")
         elif g_sub := grant["subject"].get("sub"):
             # g_sub is not None by the if-check
-            return iss_match and g_sub == t.get("sub")
+            return iss_match and alg_match and g_sub == t.get("sub")
         else:
             logger.error(f"Invalid grant encountered in database: {grant} (subject has iss but missing azp|sub)")
             raise InvalidGrant(str(grant))
