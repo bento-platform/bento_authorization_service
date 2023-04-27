@@ -31,11 +31,13 @@ class SubjectGroup(TypedDict):
 
 class SubjectClient(TypedDict):
     iss: str
+    alg: str
     client: str
 
 
 class SubjectUser(TypedDict):
     iss: str
+    alg: str
     sub: str
 
 
