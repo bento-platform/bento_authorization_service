@@ -56,6 +56,7 @@ class InvalidGroupMembership(Exception):
 
 class TokenData(TypedDict, total=False):
     iss: str
+    alg: str
     sub: str
     aud: str
     azp: str  # Will contain client ID
