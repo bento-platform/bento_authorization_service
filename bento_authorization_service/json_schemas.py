@@ -37,14 +37,6 @@ TOKEN_DATA = {
                 "queryable": "internal",
             },
         },
-        # Signing Algorithm
-        "alg": {
-            "type": "string",
-            "search": {
-                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
-                "queryable": "internal",
-            },
-        },
         # Subject
         "sub": {
             "type": "string",
@@ -94,7 +86,7 @@ TOKEN_DATA = {
             }
         },
     },
-    "required": ["iss", "alg", "exp", "iat"],
+    "required": ["iss", "exp", "iat"],
 }
 
 
@@ -105,10 +97,9 @@ SUBJECT_ISSUER_AND_CLIENT_ID = {
     "type": "object",
     "properties": {
         "iss": {"type": "string"},  # Issuer
-        "alg": {"type": "string"},  # Signing algorithm
         "client": {"type": "string"},  # Client ID - for service accounts, i.e., API tokens where sub not present
     },
-    "required": ["iss", "alg", "client"],
+    "required": ["iss", "client"],
 }
 
 
@@ -119,10 +110,9 @@ SUBJECT_ISSUER_AND_SUBJECT_ID = {
     "type": "object",
     "properties": {
         "iss": {"type": "string"},  # Issuer
-        "alg": {"type": "string"},  # Signing algorithm
         "sub": {"type": "string"},  # Subject
     },
-    "required": ["iss", "alg", "sub"],
+    "required": ["iss", "sub"],
 }
 
 
