@@ -139,15 +139,17 @@ async def _eval_test_data(db: Database):
     return sd.make_fresh_david_token_encoded()
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_client: TestClient):
+async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = await evaluate(idp_manager, db, tkn, sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
     assert res
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_permissions_endpoint(db: Database, test_client: TestClient):
+async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json={
         "requested_resource": sd.RESOURCE_PROJECT_1,
@@ -155,8 +157,9 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient):
     assert str(P_QUERY_DATA) in res.json()["result"]
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_evaluate_endpoint(db: Database, test_client: TestClient):
+async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
         "requested_resource": sd.RESOURCE_PROJECT_1,

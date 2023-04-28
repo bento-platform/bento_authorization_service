@@ -77,8 +77,13 @@ async def create_grant(
     await raise_if_no_resource_access(
         extract_token(authorization), grant_model_dict["resource"], P_EDIT_PERMISSIONS, db, idp_manager)
 
-    if (g_id := await db.create_grant(grant_model_dict)) is not None:
-        return _serialize_grant(await db.get_grant(g_id))  # Successfully created, return serialized version
+    g_id, g_created = await db.create_grant(grant_model_dict)
+    if g_id is not None:
+        if g_created:
+            return _serialize_grant(await db.get_grant(g_id))  # Successfully created, return serialized version
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Grant with this subject + resource + permission already exists")
 
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Grant could not be created")
 

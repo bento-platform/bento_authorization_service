@@ -1,3 +1,4 @@
+import asyncpg
 import jwt
 import pytest
 import pytest_asyncio
@@ -34,12 +35,28 @@ class MockIdPManager(BaseIdPManager):
 
 async def get_test_db() -> AsyncGenerator[Database, None]:
     db_instance = Database(get_config().database_uri)
-    await db_instance.initialize()
+    await db_instance.initialize(pool_size=15)  # Large pool size for testing
     await bootstrap_meta_permissions_for_david(db_instance)
-    try:
-        yield db_instance
-    finally:
-        await db_instance.close()
+    # try:
+    # app.state.db = db_instance
+    yield db_instance
+    # finally:
+    #     await db_instance.close()
+
+
+db_fixture = pytest_asyncio.fixture(get_test_db, name="db")
+
+
+@pytest_asyncio.fixture
+async def db_cleanup(db: Database):
+    yield
+    conn: asyncpg.Connection
+    async with db.connect() as conn:
+        await conn.execute("DROP TABLE IF EXISTS groups")
+        await conn.execute("DROP TABLE IF EXISTS grants")
+        await conn.execute("DROP TABLE IF EXISTS samples")
+        await conn.execute("DROP TABLE IF EXISTS resources")
+    await db.close()
 
 
 @lru_cache()
@@ -47,15 +64,13 @@ def get_mock_idp_manager():
     return MockIdPManager("")
 
 
+# noinspection PyUnusedLocal
 @pytest.fixture
-def test_client():
+def test_client(db: Database):
     with TestClient(app) as client:
         app.dependency_overrides[get_db] = get_test_db
         app.dependency_overrides[get_idp_manager] = get_mock_idp_manager
         yield client
-
-
-db = pytest_asyncio.fixture(get_test_db, name="db")
 
 
 @pytest_asyncio.fixture

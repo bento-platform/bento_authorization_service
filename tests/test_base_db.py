@@ -1,9 +1,10 @@
 import pytest
-from bento_authorization_service.db import DatabaseError, Database
+from bento_authorization_service.db import Database
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_db_open_close(db: Database):
+async def test_db_open_close(db: Database, db_cleanup):
     await db.close()
     assert db._pool is None
 
