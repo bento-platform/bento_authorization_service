@@ -209,9 +209,10 @@ GROUP_SCHEMA = {
     "type": "object",
     "properties": {
         "id": {"type": "integer"},
+        "name": {"type": "string", "minLength": 1},
         "membership": GROUP_MEMBERSHIP_SCHEMA,
     },
-    "required": ["membership"],
+    "required": ["name", "membership"],
     "additionalProperties": False,
 }
 GROUP_SCHEMA_VALIDATOR = jsonschema.Draft202012Validator(GROUP_SCHEMA)
