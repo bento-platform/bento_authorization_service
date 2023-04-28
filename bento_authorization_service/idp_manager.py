@@ -11,6 +11,7 @@ from .config import ConfigDependency
 from .logger import logger
 
 __all__ = [
+    "GeneralIdPManagerError",
     "UninitializedIdPManagerError",
     "BaseIdPManager",
     "IdPManager",
@@ -20,6 +21,8 @@ __all__ = [
 
 
 class UninitializedIdPManagerError(Exception):
+    pass
+class GeneralIdPManagerError(Exception):
     pass
 
 
@@ -88,7 +91,14 @@ class IdPManager(BaseIdPManager):
         sk = self._jwks_client.get_signing_key_from_jwt(token)
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        return jwt.decode(token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"])
+        decoded_token = jwt.decode(token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"])
+
+        # Check if the algorithm used to sign the token is acceptable
+        if (decoded_token.get("alg") is not None and 
+            decoded_token.get("alg") in config.permitted_token_algorithms) :
+            raise GeneralIdPManagerError("ID token signing algorithm not permitted")
+
+        return decoded_token
 
 
 @lru_cache()

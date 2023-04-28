@@ -12,8 +12,7 @@ TEST_TOKEN_AUD = "account"
 ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
 SUB = "david"
-ALG = "RS256" # standard
-              # TODO?: ES256/ES384/ES512  ref: https://github.com/keycloak/keycloak/issues/11036
+ALG = "RS256"
 
 TEST_TOKEN = {
     "iss": ISS,
