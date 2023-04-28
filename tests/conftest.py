@@ -35,7 +35,7 @@ class MockIdPManager(BaseIdPManager):
 
 async def get_test_db() -> AsyncGenerator[Database, None]:
     db_instance = Database(get_config().database_uri)
-    await db_instance.initialize(pool_size=15)  # Large pool size for testing
+    await db_instance.initialize(pool_size=12)  # Large pool size for testing
     await bootstrap_meta_permissions_for_david(db_instance)
     # try:
     # app.state.db = db_instance
