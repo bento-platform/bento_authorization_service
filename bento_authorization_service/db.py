@@ -153,13 +153,13 @@ class Database:
         async with self.connect() as conn:
             async with conn.transaction():
                 return await conn.fetchval(
-                    "INSERT INTO groups (membership) VALUES ($1) RETURNING id", group_db_serialize(group)[1])
+                    "INSERT INTO groups (name, membership) VALUES ($1, $2) RETURNING id", group_db_serialize(group)[1:])
 
     async def set_group(self, group: Group) -> None:
         GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            await conn.execute("UPDATE groups SET membership = $2 WHERE id = $1", *group_db_serialize(group))
+            await conn.execute("UPDATE groups SET name = $2, membership = $3 WHERE id = $1", *group_db_serialize(group))
 
     async def delete_group_and_dependent_grants(self, group_id: int) -> None:
         conn: asyncpg.Connection
