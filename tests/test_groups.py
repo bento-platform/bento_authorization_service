@@ -29,7 +29,7 @@ async def test_db_group(db: Database):
     assert len(groups_list) == len(groups_dict)
 
     # Update membership: just David
-    await db.set_group({"id": g_id, "membership": TEST_GROUPS[1][0]["membership"]})
+    await db.set_group({"id": g_id, "name": g["name"], "membership": TEST_GROUPS[1][0]["membership"]})
     g_db = await db.get_group(g_id)
     assert json.dumps(g_db["membership"], sort_keys=True) == json.dumps(TEST_GROUPS[1][0]["membership"], sort_keys=True)
 

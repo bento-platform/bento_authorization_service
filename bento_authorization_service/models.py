@@ -52,6 +52,7 @@ class GroupMembershipMembers(BaseImmutableModel):
 
 
 class GroupModel(BaseImmutableModel):
+    name: str
     membership: GroupMembershipExpr | GroupMembershipMembers
 
 

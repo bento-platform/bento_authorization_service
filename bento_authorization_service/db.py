@@ -53,14 +53,14 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> Grant | None:
     }
 
 
-def group_db_serialize(g: Group) -> tuple[int | None, str]:
-    return g.get("id"), orjson_str_dumps(g["membership"])
+def group_db_serialize(g: Group) -> tuple[int | None, str, str]:
+    return g.get("id"), g["name"], orjson_str_dumps(g["membership"])
 
 
 def group_db_deserialize(r: asyncpg.Record | None) -> Group | None:
     if r is None:
         return None
-    return {"id": r["id"], "membership": orjson.loads(r["membership"])}
+    return {"id": r["id"], "name": r["name"], "membership": orjson.loads(r["membership"])}
 
 
 class Database:
@@ -134,13 +134,14 @@ class Database:
     async def get_group(self, id_: int) -> Group | None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            res: Optional[asyncpg.Record] = await conn.fetchrow("SELECT id, membership FROM groups WHERE id = $1", id_)
+            res: Optional[asyncpg.Record] = await conn.fetchrow(
+                "SELECT id, name, membership FROM groups WHERE id = $1", id_)
             return group_db_deserialize(res)
 
     async def get_groups(self) -> tuple[Group, ...]:
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            res = await conn.fetch("SELECT id, membership FROM groups")
+            res = await conn.fetch("SELECT id, name, membership FROM groups")
             return tuple(group_db_deserialize(g) for g in res)
 
     async def get_groups_dict(self) -> dict[int, Group]:
