@@ -89,7 +89,7 @@ class Database:
         conn: asyncpg.Connection
 
         if not self._pool:  # Initialize the connection pool if needed
-            self._pool = await asyncpg.create_pool(self._db_uri, max_size=pool_size)
+            self._pool = await asyncpg.create_pool(self._db_uri, min_size=pool_size, max_size=pool_size)
 
         # Connect to the database and execute the schema script
         async with aiofiles.open(SCHEMA_PATH, "r") as sf:
