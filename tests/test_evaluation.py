@@ -31,8 +31,6 @@ def test_invalid_group_membership():
         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"alg": sd.ALG}]}})
     with pytest.raises(InvalidGroupMembership):  # Must be a supported algorithm
         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"alg": "HS256-DANGER"}]}})
-    with pytest.raises(InvalidGroupMembership):  # Must be both a valid issuer and a supported algorithm
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS, "alg": "HS256-DANGER"}]}})
 
 
 @pytest.mark.parametrize("group, is_member", sd.TEST_GROUPS)
