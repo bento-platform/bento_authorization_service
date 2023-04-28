@@ -147,13 +147,14 @@ class Database:
     async def get_groups_dict(self) -> dict[int, Group]:
         return {g["id"]: g for g in (await self.get_groups())}
 
-    async def create_group(self, group: Group) -> Optional[int]:
+    async def create_group(self, group: Group) -> int | None:
         GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():
                 return await conn.fetchval(
-                    "INSERT INTO groups (name, membership) VALUES ($1, $2) RETURNING id", group_db_serialize(group)[1:])
+                    "INSERT INTO groups (name, membership) VALUES ($1, $2) RETURNING id",
+                    *group_db_serialize(group)[1:])
 
     async def set_group(self, group: Group) -> None:
         GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
