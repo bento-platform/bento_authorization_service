@@ -90,7 +90,7 @@ TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
      }, True),  # Expression for specific subject and issuer
 ]
 TEST_GROUPS: list[tuple[Group, bool]] = [
-    ({"id": i, "membership": x}, r)
+    ({"id": i, "name": f"group{i}", "membership": x}, r)
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
 ]
 TEST_GROUPS_DICT: dict[int, Group] = {x["id"]: x for x, _ in TEST_GROUPS}

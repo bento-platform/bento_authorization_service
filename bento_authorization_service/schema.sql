@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS grants (
 );
 
 CREATE TABLE IF NOT EXISTS groups (
-    id SERIAL PRIMARY KEY,
-    membership JSONB NOT NULL
+    id         SERIAL PRIMARY KEY,
+    name       TEXT   NOT NULL CHECK (name <> ''),
+    membership JSONB  NOT NULL,
+
+    CONSTRAINT group_name_unique UNIQUE (name)
 );

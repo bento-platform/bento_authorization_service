@@ -81,6 +81,7 @@ GroupMembership = GroupMembershipList | GroupMembershipExpression
 
 
 class _GroupBase(TypedDict):
+    name: str
     membership: GroupMembership
 
 

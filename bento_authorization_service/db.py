@@ -28,16 +28,20 @@ class DatabaseError(Exception):
     pass
 
 
-def _serialize_grant(g: Grant) -> tuple[str, str, str, str]:
+def orjson_str_dumps(obj: list | tuple | dict | int | float | str | None) -> str:
+    return orjson.dumps(obj, option=orjson.OPT_SORT_KEYS).decode("utf-8")
+
+
+def grant_db_serialize(g: Grant) -> tuple[str, str, str, str]:
     return (
-        orjson.dumps(g["subject"]).decode("utf-8"),
-        orjson.dumps(g["resource"]).decode("utf-8"),
+        orjson_str_dumps(g["subject"]),
+        orjson_str_dumps(g["resource"]),
         str(g["permission"]),
-        orjson.dumps(g["extra"]).decode("utf-8"),
+        orjson_str_dumps(g["extra"]),
     )
 
 
-def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
+def grant_db_deserialize(r: asyncpg.Record | None) -> Grant | None:
     if r is None:
         return None
     return {
@@ -49,14 +53,14 @@ def _deserialize_grant(r: asyncpg.Record | None) -> Grant | None:
     }
 
 
-def _serialize_group(g: Group) -> tuple[int | None, str]:
-    return g.get("id"), orjson.dumps(g["membership"]).decode("utf-8")
+def group_db_serialize(g: Group) -> tuple[int | None, str, str]:
+    return g.get("id"), g["name"], orjson_str_dumps(g["membership"])
 
 
-def _deserialize_group(r: asyncpg.Record | None) -> Group | None:
+def group_db_deserialize(r: asyncpg.Record | None) -> Group | None:
     if r is None:
         return None
-    return {"id": r["id"], "membership": orjson.loads(r["membership"])}
+    return {"id": r["id"], "name": r["name"], "membership": orjson.loads(r["membership"])}
 
 
 class Database:
@@ -100,13 +104,13 @@ class Database:
         async with self.connect() as conn:
             row: Optional[asyncpg.Record] = await conn.fetchrow(
                 "SELECT id, subject, resource, permission, extra FROM grants WHERE id = $1", id_)
-            return _deserialize_grant(row)
+            return grant_db_deserialize(row)
 
     async def get_grants(self) -> tuple[Grant, ...]:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             res = await conn.fetch("SELECT id, subject, resource, permission, extra FROM grants")
-            return tuple(_deserialize_grant(r) for r in res)
+            return tuple(grant_db_deserialize(r) for r in res)
 
     async def create_grant(self, grant: Grant) -> Optional[int]:
         gp = grant.get("permission")
@@ -120,7 +124,7 @@ class Database:
             # TODO: Run DB-level checks first
             return await conn.fetchval(
                 "INSERT INTO grants (subject, resource, permission, extra) VALUES ($1, $2, $3, $4) RETURNING id",
-                *_serialize_grant(grant))
+                *grant_db_serialize(grant))
 
     async def delete_grant(self, grant_id: int) -> None:
         conn: asyncpg.Connection
@@ -130,31 +134,33 @@ class Database:
     async def get_group(self, id_: int) -> Group | None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            res: Optional[asyncpg.Record] = await conn.fetchrow("SELECT id, membership FROM groups WHERE id = $1", id_)
-            return _deserialize_group(res)
+            res: Optional[asyncpg.Record] = await conn.fetchrow(
+                "SELECT id, name, membership FROM groups WHERE id = $1", id_)
+            return group_db_deserialize(res)
 
     async def get_groups(self) -> tuple[Group, ...]:
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            res = await conn.fetch("SELECT id, membership FROM groups")
-            return tuple(_deserialize_group(g) for g in res)
+            res = await conn.fetch("SELECT id, name, membership FROM groups")
+            return tuple(group_db_deserialize(g) for g in res)
 
     async def get_groups_dict(self) -> dict[int, Group]:
         return {g["id"]: g for g in (await self.get_groups())}
 
-    async def create_group(self, group: Group) -> Optional[int]:
+    async def create_group(self, group: Group) -> int | None:
         GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():
                 return await conn.fetchval(
-                    "INSERT INTO groups (membership) VALUES ($1) RETURNING id", _serialize_group(group)[1])
+                    "INSERT INTO groups (name, membership) VALUES ($1, $2) RETURNING id",
+                    *group_db_serialize(group)[1:])
 
     async def set_group(self, group: Group) -> None:
         GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            await conn.execute("UPDATE groups SET membership = $2 WHERE id = $1", *_serialize_group(group))
+            await conn.execute("UPDATE groups SET name = $2, membership = $3 WHERE id = $1", *group_db_serialize(group))
 
     async def delete_group_and_dependent_grants(self, group_id: int) -> None:
         conn: asyncpg.Connection
