@@ -19,13 +19,11 @@ class BaseImmutableModel(BaseModel):
 
 class IssuerAndClientModel(BaseImmutableModel):
     iss: str
-    alg: str
     client: str
 
 
 class IssuerAndSubjectModel(BaseImmutableModel):
     iss: str
-    alg: str
     sub: str
 
 
