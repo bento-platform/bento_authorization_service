@@ -30,8 +30,9 @@ PARTIAL_IDS_AND_SCHEMAS = (
 )
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.parametrize("partial_id, schema", PARTIAL_IDS_AND_SCHEMAS)
-def test_schema_endpoints(partial_id: str, schema: dict, test_client: TestClient):
+def test_schema_endpoints(partial_id: str, schema: dict, test_client: TestClient, db_cleanup):
     res = test_client.get(f"/schemas/{partial_id}.json")
     assert res.status_code == 200
     assert json.dumps(schema, sort_keys=True) == json.dumps(res.json(), sort_keys=True)

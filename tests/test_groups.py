@@ -8,8 +8,9 @@ from bento_authorization_service.types import Group
 from .shared_data import TEST_GROUPS
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_db_group(db: Database):
+async def test_db_group(db: Database, db_cleanup):
     g: Group = Group(**TEST_GROUPS[0][0])
     g_id: int = await db.create_group(g)
     g_db: Group = await db.get_group(g_id)
@@ -37,14 +38,17 @@ async def test_db_group(db: Database):
     await db.delete_group_and_dependent_grants(g_db["id"])
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_db_group_non_existant(db: Database):
+async def test_db_group_non_existant(db: Database, db_cleanup):
     assert (await db.get_group(-1)) is None
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_creation(group: Group, _is_member: bool, test_client: TestClient, db: Database):
+async def test_group_endpoints_creation(group: Group, _is_member: bool, test_client: TestClient, db: Database,
+                                        db_cleanup):
     # Group can be created via endpoint
     g = {**group}
     del g["id"]
@@ -53,17 +57,20 @@ async def test_group_endpoints_creation(group: Group, _is_member: bool, test_cli
 
     # Verify group exists in database
     g_rest = res.json()
+    print(g_rest, await db.get_groups())
     assert json.dumps(await db.get_group(g_rest["id"]), sort_keys=True) == json.dumps(g_rest, sort_keys=True)
 
 
-def test_group_endpoints_fetch_404(test_client: TestClient):
+# noinspection PyUnusedLocal
+def test_group_endpoints_fetch_404(test_client: TestClient, db_cleanup):
     res = test_client.get("/groups/0")  # Below serial 1
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_fetch(group: Group, _is_member: bool, test_client: TestClient, db: Database):
+async def test_group_endpoints_fetch(group: Group, _is_member: bool, test_client: TestClient, db: Database, db_cleanup):
     # Create group in database directly
     g_db = await db.create_group(group)
 
@@ -74,9 +81,10 @@ async def test_group_endpoints_fetch(group: Group, _is_member: bool, test_client
     assert json.dumps({**group, "id": g_db}, sort_keys=True) == json.dumps(res_data, sort_keys=True)
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_list(group: Group, _is_member: bool, test_client: TestClient, db: Database):
+async def test_group_endpoints_list(group: Group, _is_member: bool, test_client: TestClient, db: Database, db_cleanup):
     # Create group in database directly
     g_db = await db.create_group(group)
 
@@ -88,9 +96,11 @@ async def test_group_endpoints_list(group: Group, _is_member: bool, test_client:
     assert json.dumps({**group, "id": g_db}, sort_keys=True) == json.dumps(group_in_list, sort_keys=True)
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_delete(group: Group, _is_member: bool, test_client: TestClient, db: Database):
+async def test_group_endpoints_delete(group: Group, _is_member: bool, test_client: TestClient, db: Database,
+                                      db_cleanup):
     # Create group in database directly
     g_db = await db.create_group(group)
 
