@@ -3,6 +3,7 @@ import asyncpg
 import contextlib
 import orjson
 
+from datetime import datetime
 from fastapi import Depends
 from functools import lru_cache
 from pathlib import Path
@@ -49,12 +50,13 @@ def resource_db_deserialize(r: asyncpg.Record | None) -> Resource | None:
     return None if r is None else orjson.loads(r["def"])
 
 
-def grant_db_serialize(g: Grant) -> tuple[str, str, str, str]:
+def grant_db_serialize(g: Grant) -> tuple[str, str, str, str, datetime]:
     return (
         orjson_str_dumps(g["subject"]),
         orjson_str_dumps(g["resource"]),
         str(g["permission"]),
         orjson_str_dumps(g["extra"]),
+        g["expiry"],
     )
 
 
@@ -72,8 +74,8 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> Grant | None:
     }
 
 
-def group_db_serialize(g: Group) -> tuple[int | None, str, str]:
-    return g.get("id"), g["name"], orjson_str_dumps(g["membership"])
+def group_db_serialize(g: Group) -> tuple[int | None, str, str, datetime]:
+    return g.get("id"), g["name"], orjson_str_dumps(g["membership"]), g["expiry"]
 
 
 def group_db_deserialize(r: asyncpg.Record | None) -> Group | None:
@@ -266,14 +268,15 @@ class Database:
         async with self.connect() as conn:
             async with conn.transaction():
                 return await conn.fetchval(
-                    "INSERT INTO groups (name, membership) VALUES ($1, $2) RETURNING id",
+                    "INSERT INTO groups (name, membership, expiry) VALUES ($1, $2, $3) RETURNING id",
                     *group_db_serialize(group)[1:])
 
     async def set_group(self, group: Group) -> None:
         GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            await conn.execute("UPDATE groups SET name = $2, membership = $3 WHERE id = $1", *group_db_serialize(group))
+            await conn.execute(
+                "UPDATE groups SET name = $2, membership = $3, expiry = $4, WHERE id = $1", *group_db_serialize(group))
 
     async def delete_group_and_dependent_grants(self, group_id: int) -> None:
         conn: asyncpg.Connection
