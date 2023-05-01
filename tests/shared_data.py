@@ -25,14 +25,31 @@ TEST_TOKEN = {
     "iat": 0,  # Not checked here
 }
 
+TEST_TOKEN_NO_ALG = {
+    "iss": ISS,
+    "sub": SUB,
+    "aud": TEST_TOKEN_SECRET,
+    "azp": CLIENT,
+    "typ": "Bearer",
+    "exp": 100,  # Not checked here
+    "iat": 0,  # Not checked here
+}
+
 
 def make_fresh_david_token():
     dt = int(datetime.utcnow().timestamp())
     return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
 
+def make_fresh_no_alg_token():
+    dt = int(datetime.utcnow().timestamp())
+    return {**TEST_TOKEN_NO_ALG, "iat": dt, "exp": dt + 900}
+
 
 def make_fresh_david_token_encoded() -> str:
     return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+
+def make_fresh_david_no_alg_encoded() -> str:
+    return jwt.encode(make_fresh_no_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
 async def bootstrap_meta_permissions_for_david(db: Database) -> None:

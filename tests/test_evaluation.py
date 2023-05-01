@@ -2,7 +2,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 from bento_authorization_service.db import Database
-from bento_authorization_service.idp_manager import IdPManager
+from bento_authorization_service.idp_manager import IdPManager, GeneralIdPManagerError
 from bento_authorization_service.policy_engine.evaluation import (
     InvalidGrant,
     InvalidGroupMembership,
@@ -19,6 +19,11 @@ from bento_authorization_service.types import Grant, Group
 
 from . import shared_data as sd
 
+
+@pytest.mark.asyncio
+async def test_invalid_token_algo(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
+    with pytest.raises(GeneralIdPManagerError):
+        res = await evaluate(idp_manager, db, sd.make_fresh_david_no_alg_encoded(), sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
 
 def test_invalid_group_membership():
     with pytest.raises(InvalidGroupMembership):
