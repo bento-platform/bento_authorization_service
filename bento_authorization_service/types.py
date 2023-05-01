@@ -89,7 +89,7 @@ class _GroupBase(TypedDict):
     membership: GroupMembership
 
     created: datetime
-    expiry: datetime
+    expiry: datetime | None
 
 
 class Group(_GroupBase, total=False):

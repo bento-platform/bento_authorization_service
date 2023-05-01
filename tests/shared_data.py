@@ -89,8 +89,15 @@ TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
          "expr": ["#and", ["#eq", ["#resolve", "sub"], SUB], ["#eq", ["#resolve", "iss"], ISS]]
      }, True),  # Expression for specific subject and issuer
 ]
+TEST_GROUP_CREATED: datetime = datetime.fromisoformat("2023-05-01T17:20:40.000000")
 TEST_GROUPS: list[tuple[Group, bool]] = [
-    ({"id": i, "name": f"group{i}", "membership": x}, r)
+    ({
+        "id": i,
+        "name": f"group{i}",
+        "membership": x,
+        "created": TEST_GROUP_CREATED,
+        "expiry": None,
+     }, r)
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
 ]
 TEST_GROUPS_DICT: dict[int, Group] = {x["id"]: x for x, _ in TEST_GROUPS}
@@ -101,42 +108,56 @@ TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: Grant = {
     "resource": RESOURCE_EVERYTHING,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: Grant = {
     "subject": SUBJECT_EVERYONE,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: Grant = {
     "subject": {"group": 0},
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: Grant = {
     "subject": {"group": 0},
     "resource": RESOURCE_PROJECT_2,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: Grant = {
     "subject": {"group": 2},
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA: Grant = {
     "subject": SUBJECT_CLIENT,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: Grant = {
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 
 SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_PERMISSIONS: Grant = {
@@ -144,10 +165,14 @@ SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_PERMISSIONS: Grant = {
     "resource": RESOURCE_EVERYTHING,
     "permission": P_VIEW_PERMISSIONS,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
 SPECIAL_GRANT_DAVID_EVERYTHING_EDIT_PERMISSIONS: Grant = {
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_EVERYTHING,
     "permission": P_EDIT_PERMISSIONS,
     "extra": {},
+    "created": TEST_GROUP_CREATED,
+    "expiry": None,
 }
