@@ -66,7 +66,7 @@ class _GrantBase(TypedDict):
     extra: dict
 
     created: datetime
-    expiry: datetime
+    expiry: datetime | None
 
 
 class Grant(_GrantBase, total=False):
