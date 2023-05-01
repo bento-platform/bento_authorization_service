@@ -17,6 +17,7 @@ __all__ = [
     "IdPManager",
     "get_idp_manager",
     "IdPManagerDependency",
+    "check_token_signing_alg"
 ]
 
 
@@ -96,11 +97,14 @@ class IdPManager(BaseIdPManager):
         decoded_token = jwt.decode(token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"])
 
         # Check if the algorithm used to sign the token is acceptable
-        if (decoded_token.get("alg") is not None and 
-            decoded_token.get("alg") in config.permitted_token_algorithms) :
-            raise GeneralIdPManagerError("ID token signing algorithm not permitted")
+        check_token_signing_alg(decoded_token, config.permitted_token_algorithms)
 
         return decoded_token
+
+def check_token_signing_alg(decoded_token: dict, permitted_token_algorithms: frozenset):
+    if (decoded_token.get("alg") is None or 
+        decoded_token.get("alg") not in permitted_token_algorithms) :
+        raise GeneralIdPManagerError("ID token signing algorithm not permitted")
 
 
 @lru_cache()
