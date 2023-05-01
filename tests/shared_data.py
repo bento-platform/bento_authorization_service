@@ -8,6 +8,7 @@ from bento_authorization_service.types import Subject, Resource, Grant, Group, G
 
 TEST_TOKEN_SECRET = "secret"
 TEST_TOKEN_AUD = "account"
+TEST_TOKEN_SIGNING_ALG = "HS256"
 
 ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
@@ -17,6 +18,7 @@ TEST_TOKEN = {
     "iss": ISS,
     "sub": SUB,
     "aud": TEST_TOKEN_SECRET,
+    "alg": TEST_TOKEN_SIGNING_ALG,
     "azp": CLIENT,
     "typ": "Bearer",
     "exp": 100,  # Not checked here
@@ -30,7 +32,7 @@ def make_fresh_david_token():
 
 
 def make_fresh_david_token_encoded() -> str:
-    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, "HS256")
+    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
 async def bootstrap_meta_permissions_for_david(db: Database) -> None:

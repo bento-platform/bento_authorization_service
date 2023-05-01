@@ -12,7 +12,7 @@ from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager, check_token_signing_alg
 
-from .shared_data import TEST_TOKEN_SECRET, bootstrap_meta_permissions_for_david
+from .shared_data import TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG, bootstrap_meta_permissions_for_david
 
 
 class MockIdPManager(BaseIdPManager):
@@ -29,11 +29,11 @@ class MockIdPManager(BaseIdPManager):
             token,
             TEST_TOKEN_SECRET,
             audience=TEST_TOKEN_SECRET,
-            algorithms=["HS256"],
+            algorithms=[TEST_TOKEN_SIGNING_ALG],
         )  # hard-coded test secret
 
         # hard-coded permitted algos
-        check_token_signing_alg(decoded_token, frozenset(["HS256"])) 
+        check_token_signing_alg(decoded_token, frozenset([TEST_TOKEN_SIGNING_ALG])) 
         return decoded_token
 
 
