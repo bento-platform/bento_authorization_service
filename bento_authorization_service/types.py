@@ -1,4 +1,5 @@
 from bento_lib.search.queries import Query
+from datetime import datetime
 from typing import Literal, TypedDict
 
 from .policy_engine.permissions import Permission
@@ -64,6 +65,9 @@ class _GrantBase(TypedDict):
     permission: Permission
     extra: dict
 
+    created: datetime
+    expiry: datetime
+
 
 class Grant(_GrantBase, total=False):
     id: int
@@ -83,6 +87,9 @@ GroupMembership = GroupMembershipList | GroupMembershipExpression
 class _GroupBase(TypedDict):
     name: str
     membership: GroupMembership
+
+    created: datetime
+    expiry: datetime
 
 
 class Group(_GroupBase, total=False):

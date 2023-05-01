@@ -67,6 +67,8 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> Grant | None:
         "resource": orjson.loads(r["resource"]),
         "permission": PERMISSIONS_BY_STRING[r["permission"]],
         "extra": orjson.loads(r["extra"]),
+        "created": r["created"],
+        "expiry": r["expiry"],
     }
 
 
@@ -77,7 +79,13 @@ def group_db_serialize(g: Group) -> tuple[int | None, str, str]:
 def group_db_deserialize(r: asyncpg.Record | None) -> Group | None:
     if r is None:
         return None
-    return {"id": r["id"], "name": r["name"], "membership": orjson.loads(r["membership"])}
+    return {
+        "id": r["id"],
+        "name": r["name"],
+        "membership": orjson.loads(r["membership"]),
+        "created": r["created"],
+        "expiry": r["expiry"],
+    }
 
 
 class Database:
@@ -167,7 +175,9 @@ class Database:
                     s.def AS subject, 
                     r.def AS resource, 
                     g.permission AS permission, 
-                    g.extra AS extra
+                    g.extra AS extra,
+                    g.created AS created,
+                    g.expiry AS expiry
                 FROM grants g 
                     JOIN subjects s  ON g.subject  = s.id
                     JOIN resources r ON g.resource = r.id 
@@ -185,7 +195,9 @@ class Database:
                     s.def AS subject, 
                     r.def AS resource, 
                     g.permission AS permission, 
-                    g.extra AS extra
+                    g.extra AS extra,
+                    g.created AS created,
+                    g.expiry AS expiry
                 FROM grants g 
                     JOIN subjects s  ON g.subject  = s.id
                     JOIN resources r ON g.resource = r.id
@@ -209,10 +221,14 @@ class Database:
                     await self.create_subject_or_get_id(grant["subject"], conn),
                     await self.create_resource_or_get_id(grant["resource"], conn),
                     str(grant["permission"]),
+                    grant["expiry"],
                 )
 
+                # Consider an existing grant to be one which has the same subject, resource, and permission and
+                # which expires at the same time or AFTER the current one being created (i.e., old outlasts new).
                 existing_id: int | None = await conn.fetchval(
-                    "SELECT id FROM grants WHERE subject = $1 AND resource = $2 AND permission = $3", *sub_res_perm)
+                    "SELECT id FROM grants WHERE subject = $1 AND resource = $2 AND permission = $3 AND expiry >= $4",
+                    *sub_res_perm)
 
                 if existing_id is not None:
                     return existing_id, False

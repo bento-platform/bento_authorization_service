@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 from typing import Literal, Optional
 
@@ -54,6 +55,7 @@ class GroupMembershipMembers(BaseImmutableModel):
 class GroupModel(BaseImmutableModel):
     name: str
     membership: GroupMembershipExpr | GroupMembershipMembers
+    expiry: datetime | None
 
 
 class ResourceEverythingModel(BaseImmutableModel):
@@ -62,8 +64,8 @@ class ResourceEverythingModel(BaseImmutableModel):
 
 class ResourceSpecificModel(BaseImmutableModel):
     project: str
-    dataset: Optional[str] = None
-    data_type: Optional[str] = None
+    dataset: str | None = None
+    data_type: str | None = None
 
 
 class ResourceModel(BaseImmutableModel):
@@ -75,3 +77,4 @@ class GrantModel(BaseImmutableModel):
     resource: ResourceModel
     permission: str
     extra: dict
+    expiry: datetime | None

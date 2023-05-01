@@ -2,8 +2,9 @@ import json
 
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
+from datetime import datetime, timezone
 
-from typing import Generator, TypedDict
+from typing import Callable, Generator, TypedDict
 
 from ..db import Database
 from ..idp_manager import BaseIdPManager
@@ -65,9 +66,25 @@ class TokenData(TypedDict, total=False):
     exp: int
 
 
-def check_if_token_is_in_group(token_data: TokenData | None, group: Group) -> bool:
+def check_if_token_is_in_group(
+    token_data: TokenData | None,
+    group: Group,
+    get_now: Callable[[], datetime] = datetime.utcnow,
+) -> bool:
+    """
+    TODO
+    :param token_data: TODO
+    :param group: TODO
+    :param get_now: TODO
+    :return: TODO
+    """
+
     if token_data is None:
         return False  # anonymous users cannot CURRENTLY be part of groups
+
+    g_expiry = group["expiry"]
+    if g_expiry is not None and g_expiry <= get_now().astimezone(tz=timezone.utc):
+        return False  # Expired group, no membership
 
     membership: GroupMembership = group["membership"]
 
@@ -201,6 +218,7 @@ def filter_matching_grants(
     groups_dict: dict[int, Group],
     token_data: TokenData | None,
     requested_resource: Resource,
+    get_now: Callable[[], datetime] = datetime.utcnow,
 ) -> Generator[Grant, None, None]:
     """
     TODO
@@ -208,10 +226,16 @@ def filter_matching_grants(
     :param groups_dict: Dictionary of group IDs and group definitions.
     :param token_data: TODO
     :param requested_resource: TODO
+    :param get_now: TODO
     :return: TODO
     """
 
+    dt_now = get_now().astimezone(tz=timezone.utc)
+
     for g in grants:
+        if g["expiry"] <= dt_now:
+            continue  # Skip expired grants
+
         subject_matches: bool = check_if_grant_subject_matches_token(groups_dict, token_data, g)
         resource_matches: bool = check_if_grant_resource_matches_requested_resource(requested_resource, g)
         if subject_matches and resource_matches:
