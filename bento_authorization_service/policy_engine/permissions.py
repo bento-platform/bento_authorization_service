@@ -28,8 +28,10 @@ PERMISSIONS: list["Permission"] = []
 PERMISSIONS_BY_STRING: dict[str, "Permission"] = {}
 
 
-class Permission:
+class Permission(str):
     def __init__(self, verb: PermissionVerb, noun: PermissionNoun, min_level_required: Level = LEVEL_DATASET):
+        super().__init__()
+
         self._verb: PermissionVerb = verb
         self._noun: PermissionNoun = noun
         self._min_level_required: Level = min_level_required
@@ -42,16 +44,15 @@ class Permission:
         PERMISSIONS.append(self)
         PERMISSIONS_BY_STRING[str_rep] = self
 
-    def __eq__(self, other):
-        if isinstance(other, Permission):
-            return str(self) == str(other)
-        elif isinstance(other, str):
-            return str(self) == other
-        else:
-            return False
+    def __new__(cls, verb: PermissionVerb, noun: PermissionNoun, min_level_required: Level = LEVEL_DATASET):
+        return super().__new__(cls, cls._str_form(verb, noun))
+
+    @classmethod
+    def _str_form(cls, verb: PermissionVerb, noun: PermissionNoun) -> str:
+        return f"{verb}:{noun}"
 
     def __str__(self):
-        return f"{self._verb}:{self._noun}"
+        return self._str_form(self._verb, self._noun)
 
     def __repr__(self):
         return f"Permission({str(self)})"

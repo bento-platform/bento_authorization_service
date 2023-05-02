@@ -1,23 +1,69 @@
 import json
 import pytest
+from fastapi import status
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager, GeneralIdPManagerError
 from bento_authorization_service.policy_engine.evaluation import (
-    InvalidGrant,
-    InvalidGroupMembership,
-    InvalidResourceRequest,
+    InvalidSubject,
+    check_token_against_issuer_based_model_obj,
     check_if_token_is_in_group,
-    check_if_grant_subject_matches_token,
-    check_if_grant_resource_matches_requested_resource,
+    check_if_token_matches_subject,
+    resource_is_equivalent_or_contained,
     filter_matching_grants,
     determine_permissions,
     evaluate,
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
-from bento_authorization_service.types import Grant, Group
+from bento_authorization_service.models import (
+    BaseIssuerModel,
+    IssuerAndClientModel,
+    IssuerAndSubjectModel,
+    GroupModel,
+    GrantModel,
+)
 
 from . import shared_data as sd
+
+
+class FakeIssBased(BaseIssuerModel):
+    evil: str = ">:)"
+
+
+class FakeGroupType1(BaseModel):
+    expiry: None = None
+    membership: str = ">:("
+
+
+class FakeSubjectType1Inner(BaseModel):
+    evil: str = "eeeevil"
+
+
+class FakeSubjectType1(BaseModel):
+    __root__: FakeSubjectType1Inner
+
+
+class FakeResource(BaseModel):
+    __root__: int | str
+
+
+fake_resource = FakeResource(__root__=4)
+
+
+def test_token_issuer_based_comparison():
+    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss="other", sub=sd.SUB))
+
+    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub=sd.SUB))
+    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub="other"))
+
+    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(iss=sd.ISS, client=sd.CLIENT))
+    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(
+        iss=sd.ISS, client="other"))
+
+    with pytest.raises(NotImplementedError):
+        check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
+
 
 
 @pytest.mark.asyncio
@@ -26,121 +72,178 @@ async def test_invalid_token_algo(db: Database, idp_manager: IdPManager, test_cl
         res = await evaluate(idp_manager, db, sd.make_fresh_david_no_alg_encoded(), sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
 
 def test_invalid_group_membership():
-    with pytest.raises(InvalidGroupMembership):
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {}})
-    with pytest.raises(InvalidGroupMembership):  # Must not be a malformatted member
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"bad": True}]}})
-    with pytest.raises(InvalidGroupMembership):  # Must specify client or subject
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
+    with pytest.raises(NotImplementedError):
+        # noinspection PyTypeChecker
+        check_if_token_is_in_group(sd.TEST_TOKEN, FakeGroupType1())
+
+#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {}})
+#     with pytest.raises(InvalidGroupMembership):  # Must not be a malformatted member
+#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"bad": True}]}})
+#     with pytest.raises(InvalidGroupMembership):  # Must specify client or subject
+#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
+
+
+def test_group_expiry():
+    assert not check_if_token_is_in_group(sd.TEST_TOKEN, sd.TEST_EXPIRED_GROUP)
 
 
 @pytest.mark.parametrize("group, is_member", sd.TEST_GROUPS)
-def test_group_membership(group: Group, is_member: bool):
+def test_group_membership(group: GroupModel, is_member: bool):
     assert not check_if_token_is_in_group(None, group)
     assert check_if_token_is_in_group(sd.TEST_TOKEN, group) == is_member
     assert not check_if_token_is_in_group(sd.TEST_TOKEN_FOREIGN_ISS, group)  # All groups have local issuer
 
 
 def test_subject_match():
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)  # Everyone
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)  # Everyone
     # Everyone (even foreign issuer):
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
     # No token:
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
 
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)  # Everyone
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject)  # Everyone
 
     # Members of group 0 (iss/client-based):
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
 
     # NOT a member of group 2:
-    assert not check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA)
+    assert not check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject)
 
     # Client grant
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject)
 
     # David:
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
 
     # NOT David:
-    assert not check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert not check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
 
 
-def test_invalid_grants():
+def test_invalid_subject():
     # Missing group raise:
-    with pytest.raises(InvalidGrant):
+    with pytest.raises(InvalidSubject):
         # No groups defined
-        check_if_grant_subject_matches_token({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+        check_if_token_matches_subject({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
+
+    # New subject type (not handled):
+    with pytest.raises(NotImplementedError):
+        # noinspection PyTypeChecker
+        check_if_token_matches_subject({}, sd.TEST_TOKEN, FakeSubjectType1(__root__=FakeSubjectType1Inner()))
 
 
 def test_resource_match():
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    # equivalent: both everything
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
+    assert resource_is_equivalent_or_contained(
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_EVERYTHING)
 
     # Project 1 is a subset of everything:
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
+    # ... but everything is not contained in / equivalent to Project 1
+    assert not resource_is_equivalent_or_contained(
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_PROJECT_1_DATASET_A)
 
     # Permission applies to Project 1, but we are checking for Everything, so it should be False:
-    assert not check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
+    assert not resource_is_equivalent_or_contained(
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
 
     # Same project, optionally requesting a specific dataset of the project
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
 
 
-def test_invalid_resource_request():
-    with pytest.raises(InvalidResourceRequest):
-        check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
-    with pytest.raises(InvalidResourceRequest):
-        check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+@pytest.mark.parametrize("r1, r2", (
+    (sd.RESOURCE_EVERYTHING, fake_resource),
+    (fake_resource, sd.RESOURCE_EVERYTHING),
+    (sd.RESOURCE_PROJECT_1_DATASET_A, fake_resource),
+    (fake_resource, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource),
+))
+def test_invalid_resource(r1, r2):
+    # Fake resources, raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        # noinspection PyTypeChecker
+        resource_is_equivalent_or_contained(r1, r2)
 
 
-def test_grant_filtering_and_permissions_set():
-    grants_1 = (sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
-    args_1 = (grants_1, sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A)
-    matching_token_1 = tuple(filter_matching_grants(*args_1))
-    permissions_set_1 = determine_permissions(*args_1)
-    assert len(matching_token_1) == 2  # Matches subject and resource on both
-    assert permissions_set_1 == frozenset({P_QUERY_DATA})
+@pytest.mark.parametrize("args, num_matching, true_permissions_set", (
+    (
+        ((
+            sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+            sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+        ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
+        2,
+        frozenset({P_QUERY_DATA})
+    ),
+    (
+        (
+            (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
+        ),
+        0,  # Wrong project
+        frozenset()
+    ),
+    (
+        (
+            (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
+        ),
+        0,  # Expired
+        frozenset()
+    ),
+    (
+        # Missing group - will throw SubjectError which will get caught and logged
+        ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), {}, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
+        0,
+        frozenset()
+    ),
+))
+def test_grant_permissions_set(args, num_matching, true_permissions_set):
+    matching_token = tuple(filter_matching_grants(*args))
+    permissions_set = determine_permissions(*args)
+    assert len(matching_token) == num_matching  # Missing group definition, so doesn't apply
+    assert permissions_set == true_permissions_set
 
-    args_2 = ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN,
-              sd.RESOURCE_PROJECT_1_DATASET_A)
-    matching_token_1 = tuple(filter_matching_grants(*args_2))
-    permissions_set_2 = determine_permissions(*args_2)
-    assert len(matching_token_1) == 0  # Different project
-    assert permissions_set_2 == frozenset()
 
-    matching_token_2 = tuple(filter_matching_grants((
+def test_grant_filtering_1():
+    matching_token = tuple(filter_matching_grants((
         sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
-    assert len(matching_token_2) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
+    assert len(matching_token) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
 
-    matching_token_2 = tuple(filter_matching_grants((
+
+def test_grant_filtering_2():
+    matching_token = tuple(filter_matching_grants((
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
-    assert len(matching_token_2) == 0  # Foreign issuer, not in group 0
+    assert len(matching_token) == 0  # Foreign issuer, not in group 0
 
 
 async def _eval_test_data(db: Database):
     group_id = await db.create_group(sd.TEST_GROUPS[0][0])
-    grant_with_group = {**sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA, "subject": {"group": group_id}}
-    await db.create_grant(Grant(**grant_with_group))
+    grant_with_group = {**sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(), "subject": {"group": group_id}}
+    await db.create_grant(GrantModel(**grant_with_group))
     return sd.make_fresh_david_token_encoded()
 
 
@@ -157,9 +260,10 @@ async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_cli
 async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "requested_resource": sd.RESOURCE_PROJECT_1,
+        "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
     })
-    assert str(P_QUERY_DATA) in res.json()["result"]
+    assert res.status_code == status.HTTP_200_OK
+    assert P_QUERY_DATA in res.json()["result"]
 
 
 # noinspection PyUnusedLocal
@@ -167,7 +271,8 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cl
 async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "requested_resource": sd.RESOURCE_PROJECT_1,
-        "required_permissions": [str(P_QUERY_DATA)],
+        "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
+        "required_permissions": [P_QUERY_DATA],
     })
+    assert res.status_code == status.HTTP_200_OK
     assert res.json()["result"]

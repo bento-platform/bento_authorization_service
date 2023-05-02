@@ -19,13 +19,19 @@ CREATE TABLE IF NOT EXISTS grants (
     permission  VARCHAR(127),
     extra JSONB NOT NULL DEFAULT '{}'::jsonb,
 
-    CONSTRAINT grant_unique UNIQUE (subject, resource, permission)
+    created     TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+    expiry      TIMESTAMP(0) WITH TIME ZONE,
+
+    CONSTRAINT grant_unique UNIQUE (subject, resource, permission, expiry)  -- TODO: what to do?
 );
 
 CREATE TABLE IF NOT EXISTS groups (
     id         SERIAL PRIMARY KEY,
     name       TEXT   NOT NULL CHECK (name <> ''),
     membership JSONB  NOT NULL,
+
+    created     TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+    expiry      TIMESTAMP(0) WITH TIME ZONE,
 
     CONSTRAINT group_name_unique UNIQUE (name)
 );

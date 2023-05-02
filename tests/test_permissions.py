@@ -22,5 +22,9 @@ def test_equality():
     assert P_QUERY_DATA != 5
 
 
+def test_repr():
+    assert repr(P_QUERY_DATA) == "Permission(query:data)"
+
+
 def test_hash():
     assert len({P_QUERY_DATA, P_QUERY_DATA, P_DELETE_DATA}) == 2

@@ -40,7 +40,7 @@ async def req_list_permissions(
             grants=await db.get_grants(),
             groups_dict=await db.get_groups_dict(),
             token_data=(await idp_manager.decode(authorization.credentials)) if authorization is not None else None,
-            requested_resource=list_permissions_request.requested_resource.dict()["__root__"],
+            requested_resource=list_permissions_request.requested_resource,
         )),
     }
 
@@ -73,7 +73,7 @@ async def req_evaluate(
             db=db,
             token=None if authorization is None else authorization.credentials,
             # See https://github.com/pydantic/pydantic/discussions/4938 for below:
-            requested_resource=evaluation_request.requested_resource.dict()["__root__"],
+            requested_resource=evaluation_request.requested_resource,
             required_permissions=frozenset(PERMISSIONS_BY_STRING[p] for p in evaluation_request.required_permissions),
         ),
     }
