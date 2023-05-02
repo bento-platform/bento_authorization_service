@@ -1,6 +1,5 @@
 import json
 import pytest
-from datetime import datetime, timedelta, timezone
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
@@ -21,7 +20,6 @@ from bento_authorization_service.models import (
     BaseIssuerModel,
     IssuerAndClientModel,
     IssuerAndSubjectModel,
-    GroupMembershipMembers,
     GroupModel,
     GrantModel,
 )
@@ -44,6 +42,13 @@ class FakeSubjectType1Inner(BaseModel):
 
 class FakeSubjectType1(BaseModel):
     __root__: FakeSubjectType1Inner
+
+
+class FakeResource(BaseModel):
+    __root__: int | str
+
+
+fake_resource = FakeResource(__root__=4)
 
 
 def test_token_issuer_based_comparison():
