@@ -2,7 +2,6 @@ import aiofiles
 import asyncpg
 import contextlib
 import json
-import orjson
 
 from datetime import datetime
 from fastapi import Depends
@@ -74,7 +73,7 @@ def group_db_deserialize(r: asyncpg.Record | None) -> StoredGroupModel | None:
     return StoredGroupModel(
         id=r["id"],
         name=r["name"],
-        membership=orjson.loads(r["membership"]),
+        membership=json.loads(r["membership"]),
         created=r["created"],
         expiry=r["expiry"],
     )
