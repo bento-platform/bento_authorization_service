@@ -94,6 +94,28 @@ class TokenData(TypedDict, total=False):
     exp: int
 
 
+def check_token_against_issuer_based_model_obj(token_data: TokenData | None, m: BaseIssuerModel) -> bool:
+    td = token_data or {}
+
+    if m.iss != td.get("iss"):  # Token issuer isn't the same as this member, so skip this entry early.
+        return False
+
+    if isinstance(m, IssuerAndClientModel):
+        if m.client == td.get("azp"):
+            # Issuer and client IDs match, so this token bearer is a member of this group
+            return True
+        # Otherwise, do nothing & keep checking members
+    elif isinstance(m, IssuerAndSubjectModel):
+        if m.sub == td.get("sub"):
+            # Issuer and subjects match, so this token bearer is a member of this group
+            return True
+        # Otherwise, do nothing & keep checking members
+    else:
+        raise NotImplementedError("Issuer-based object is not one of iss+client | iss+sub")
+
+    return False
+
+
 def check_if_token_is_in_group(
     token_data: TokenData | None,
     group: GroupModel,
@@ -116,28 +138,10 @@ def check_if_token_is_in_group(
     membership: GroupMembership = group.membership
 
     if isinstance(membership, GroupMembershipMembers):
-        t_iss = token_data.get("iss")
-
-        for member in membership.members:
-            mr = member.__root__
-
-            if mr.iss != t_iss:  # Token issuer isn't the same as this member, so skip this entry early.
-                continue
-
-            if isinstance(mr, IssuerAndClientModel):
-                if mr.client == token_data.get("azp"):
-                    # Issuer and client IDs match, so this token bearer is a member of this group
-                    return True
-                # Otherwise, do nothing & keep checking members
-            elif isinstance(mr, IssuerAndSubjectModel):
-                if mr.sub == token_data.get("sub"):
-                    # Issuer and subjects match, so this token bearer is a member of this group
-                    return True
-                # Otherwise, do nothing & keep checking members
-            else:
-                raise NotImplementedError("Group member is not one of iss+client | iss+sub")
-
-        return False
+        # Check if any issuer and (client ID | subject ID) match --> token bearer is a member of this group
+        return any(
+            check_token_against_issuer_based_model_obj(token_data, member.__root__)
+            for member in membership.members)
 
     elif isinstance(membership, GroupMembershipExpr):
         return check_ast_against_data_structure(
@@ -157,11 +161,6 @@ def check_if_token_matches_subject(
     token_data: TokenData | None,
     subject: SubjectModel,
 ) -> bool:
-    t = token_data or {}
-    t_iss = t.get("iss")
-
-    s = subject.__root__
-
     def _not_implemented(err: str) -> NotImplementedError:
         logger.error(err)
         return NotImplementedError(err)
@@ -171,6 +170,7 @@ def check_if_token_matches_subject(
     #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
     #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
 
+    s = subject.__root__
     if isinstance(s, SubjectEveryoneModel) and s.everyone:
         return True
     elif isinstance(s, SubjectGroupModel):
@@ -179,15 +179,7 @@ def check_if_token_matches_subject(
         logger.error(f"Invalid subject encountered: {subject} (group not found: {s.group})")
         raise InvalidSubject(str(subject))
     elif isinstance(s, BaseIssuerModel):
-        g_iss = s.iss
-        iss_match: bool = t_iss is not None and g_iss == t_iss
-        if isinstance(s, IssuerAndClientModel):  # {iss, client}
-            return iss_match and s.client == t.get("azp")
-        elif isinstance(s, IssuerAndSubjectModel):
-            # g_sub is not None by the if-check
-            return iss_match and s.sub == t.get("sub")
-        else:
-            raise _not_implemented(f"Can only handle iss+client or iss+sub subjects but got {s}")
+        return check_token_against_issuer_based_model_obj(token_data, s)
     else:
         raise _not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {s}")
 
