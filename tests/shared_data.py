@@ -129,10 +129,7 @@ TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(**{
     "expiry": None,
 })
 TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED: GrantModel = GrantModel(**{
-    "subject": SUBJECT_EVERYONE,
-    "resource": RESOURCE_EVERYTHING,
-    "permission": P_QUERY_DATA,
-    "extra": {},
+    **TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.dict(),
     "expiry": TEST_EXPIRED_TIME,
 })
 
@@ -149,6 +146,10 @@ TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "permission": P_QUERY_DATA,
     "extra": {},
     "expiry": None,
+})
+TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED: GrantModel = GrantModel(**{
+    **TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(),
+    "expiry": TEST_EXPIRED_TIME,
 })
 TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": {"group": 0},

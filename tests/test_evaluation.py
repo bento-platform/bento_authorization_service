@@ -174,30 +174,48 @@ def test_invalid_resource(r1, r2):
         resource_is_equivalent_or_contained(r1, r2)
 
 
-def test_grant_permissions_set_1():
-    grants = (
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
-        sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
-    )
-    args = (grants, sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A)
+@pytest.mark.parametrize("args, num_matching, true_permissions_set", (
+    (
+        ((
+            sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+            sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+        ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
+        2,
+        frozenset({P_QUERY_DATA})
+    ),
+    (
+        (
+            (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
+        ),
+        0,  # Wrong project
+        frozenset()
+    ),
+    (
+        (
+            (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
+        ),
+        0,  # Expired
+        frozenset()
+    ),
+    (
+        # Missing group - will throw SubjectError which will get caught and logged
+        ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), {}, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
+        0,
+        frozenset()
+    ),
+))
+def test_grant_permissions_set(args, num_matching, true_permissions_set):
     matching_token = tuple(filter_matching_grants(*args))
     permissions_set = determine_permissions(*args)
-    assert len(matching_token) == 2  # Matches subject and resource on both
-    assert permissions_set == frozenset({P_QUERY_DATA})
-
-
-def test_grant_permissions_set_2():
-    args = (
-        (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
-        sd.TEST_GROUPS_DICT,
-        sd.TEST_TOKEN,
-        sd.RESOURCE_PROJECT_1_DATASET_A,
-    )
-    matching_token = tuple(filter_matching_grants(*args))
-    permissions_set = determine_permissions(*args)
-    assert len(matching_token) == 0  # Different project
-    assert permissions_set == frozenset()
+    assert len(matching_token) == num_matching  # Missing group definition, so doesn't apply
+    assert permissions_set == true_permissions_set
 
 
 def test_grant_filtering_1():
