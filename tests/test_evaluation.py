@@ -174,36 +174,46 @@ def test_invalid_resource(r1, r2):
         resource_is_equivalent_or_contained(r1, r2)
 
 
-def test_grant_filtering_and_permissions_set():
-    grants_1 = (
+def test_grant_permissions_set_1():
+    grants = (
         sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
         sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     )
-    args_1 = (grants_1, sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A)
-    matching_token_1 = tuple(filter_matching_grants(*args_1))
-    permissions_set_1 = determine_permissions(*args_1)
-    assert len(matching_token_1) == 2  # Matches subject and resource on both
-    assert permissions_set_1 == frozenset({P_QUERY_DATA})
+    args = (grants, sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A)
+    matching_token = tuple(filter_matching_grants(*args))
+    permissions_set = determine_permissions(*args)
+    assert len(matching_token) == 2  # Matches subject and resource on both
+    assert permissions_set == frozenset({P_QUERY_DATA})
 
-    args_2 = ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN,
-              sd.RESOURCE_PROJECT_1_DATASET_A)
-    matching_token_1 = tuple(filter_matching_grants(*args_2))
-    permissions_set_2 = determine_permissions(*args_2)
-    assert len(matching_token_1) == 0  # Different project
-    assert permissions_set_2 == frozenset()
 
-    matching_token_2 = tuple(filter_matching_grants((
+def test_grant_permissions_set_2():
+    args = (
+        (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
+        sd.TEST_GROUPS_DICT,
+        sd.TEST_TOKEN,
+        sd.RESOURCE_PROJECT_1_DATASET_A,
+    )
+    matching_token = tuple(filter_matching_grants(*args))
+    permissions_set = determine_permissions(*args)
+    assert len(matching_token) == 0  # Different project
+    assert permissions_set == frozenset()
+
+
+def test_grant_filtering_1():
+    matching_token = tuple(filter_matching_grants((
         sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
-    assert len(matching_token_2) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
+    assert len(matching_token) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
 
-    matching_token_2 = tuple(filter_matching_grants((
+
+def test_grant_filtering_2():
+    matching_token = tuple(filter_matching_grants((
         sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
-    assert len(matching_token_2) == 0  # Foreign issuer, not in group 0
+    assert len(matching_token) == 0  # Foreign issuer, not in group 0
 
 
 async def _eval_test_data(db: Database):
