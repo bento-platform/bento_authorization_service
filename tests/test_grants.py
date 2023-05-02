@@ -102,6 +102,17 @@ async def test_grant_endpoints_create(test_client: TestClient, db: Database, db_
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_grant_endpoints_create_expired(test_client: TestClient, db: Database, db_cleanup):
+    headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
+    json_grant = json.loads(sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED.json())
+
+    # not valid - expired
+    res = test_client.post("/grants/", json=json_grant, headers=headers)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cleanup):
     headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
 

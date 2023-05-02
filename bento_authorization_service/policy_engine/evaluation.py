@@ -176,7 +176,7 @@ def check_if_token_matches_subject(
         return True
     elif isinstance(s, SubjectGroupModel):
         if (group_def := groups_dict.get(s.group)) is not None:
-            return check_if_token_is_in_group(token_data, group_def)
+            return check_if_token_is_in_group(token_data, group_def)  # Will validate group expiry too
         logger.error(f"Invalid subject encountered: {subject} (group not found: {s.group})")
         raise InvalidSubject(str(subject))
     elif isinstance(s, BaseIssuerModel):

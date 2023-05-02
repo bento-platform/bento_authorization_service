@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -69,6 +70,9 @@ async def create_grant(
     authorization: OptionalBearerToken,
 ) -> StoredGrantModel:
     await raise_if_no_resource_access(extract_token(authorization), grant.resource, P_EDIT_PERMISSIONS, db, idp_manager)
+
+    if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
 
     g_id, g_created = await db.create_grant(grant)
     if g_id is not None:
