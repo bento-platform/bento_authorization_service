@@ -1,36 +1,46 @@
 import json
 import pytest
+from fastapi import status
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
     InvalidGrant,
-    InvalidGroupMembership,
-    InvalidResourceRequest,
+    # InvalidResourceRequest,
     check_if_token_is_in_group,
     check_if_grant_subject_matches_token,
-    check_if_grant_resource_matches_requested_resource,
+    # check_if_grant_resource_matches_requested_resource,
+    resource_is_equivalent_or_contained,
     filter_matching_grants,
     determine_permissions,
     evaluate,
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
-from bento_authorization_service.types import Grant, Group
+from bento_authorization_service.models import GroupModel, GrantModel
 
 from . import shared_data as sd
 
 
+class FakeGroupType1(BaseModel):
+    expiry: None = None
+    membership: str = ">:("
+
+
 def test_invalid_group_membership():
-    with pytest.raises(InvalidGroupMembership):
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {}})
-    with pytest.raises(InvalidGroupMembership):  # Must not be a malformatted member
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"bad": True}]}})
-    with pytest.raises(InvalidGroupMembership):  # Must specify client or subject
-        check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
+    with pytest.raises(NotImplementedError):
+        # noinspection PyTypeChecker
+        check_if_token_is_in_group(sd.TEST_TOKEN, FakeGroupType1())
+
+#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {}})
+#     with pytest.raises(InvalidGroupMembership):  # Must not be a malformatted member
+#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"bad": True}]}})
+#     with pytest.raises(InvalidGroupMembership):  # Must specify client or subject
+#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
 
 
 @pytest.mark.parametrize("group, is_member", sd.TEST_GROUPS)
-def test_group_membership(group: Group, is_member: bool):
+def test_group_membership(group: GroupModel, is_member: bool):
     assert not check_if_token_is_in_group(None, group)
     assert check_if_token_is_in_group(sd.TEST_TOKEN, group) == is_member
     assert not check_if_token_is_in_group(sd.TEST_TOKEN_FOREIGN_ISS, group)  # All groups have local issuer
@@ -80,29 +90,29 @@ def test_invalid_grants():
 
 
 def test_resource_match():
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
 
     # Project 1 is a subset of everything:
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
 
     # Permission applies to Project 1, but we are checking for Everything, so it should be False:
-    assert not check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
+    assert not resource_is_equivalent_or_contained(
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
 
     # Same project, optionally requesting a specific dataset of the project
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
-    assert check_if_grant_resource_matches_requested_resource(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
+    assert resource_is_equivalent_or_contained(
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
 
 
-def test_invalid_resource_request():
-    with pytest.raises(InvalidResourceRequest):
-        check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
-    with pytest.raises(InvalidResourceRequest):
-        check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+# def test_invalid_resource_request():
+#     with pytest.raises(InvalidResourceRequest):
+#         check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+#     with pytest.raises(InvalidResourceRequest):
+#         check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
 
 
 def test_grant_filtering_and_permissions_set():
@@ -134,8 +144,8 @@ def test_grant_filtering_and_permissions_set():
 
 async def _eval_test_data(db: Database):
     group_id = await db.create_group(sd.TEST_GROUPS[0][0])
-    grant_with_group = {**sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA, "subject": {"group": group_id}}
-    await db.create_grant(Grant(**grant_with_group))
+    grant_with_group = {**sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(), "subject": {"group": group_id}}
+    await db.create_grant(GrantModel(**grant_with_group))
     return sd.make_fresh_david_token_encoded()
 
 
@@ -152,9 +162,10 @@ async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_cli
 async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "requested_resource": sd.RESOURCE_PROJECT_1,
+        "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
     })
-    assert str(P_QUERY_DATA) in res.json()["result"]
+    assert res.status_code == status.HTTP_200_OK
+    assert P_QUERY_DATA in res.json()["result"]
 
 
 # noinspection PyUnusedLocal
@@ -162,7 +173,8 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cl
 async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "requested_resource": sd.RESOURCE_PROJECT_1,
-        "required_permissions": [str(P_QUERY_DATA)],
+        "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
+        "required_permissions": [P_QUERY_DATA],
     })
+    assert res.status_code == status.HTTP_200_OK
     assert res.json()["result"]

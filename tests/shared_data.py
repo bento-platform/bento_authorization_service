@@ -2,8 +2,16 @@ import jwt
 from datetime import datetime
 
 from bento_authorization_service.db import Database
+from bento_authorization_service.models import (
+    ResourceModel,
+    SubjectModel,
+    GroupMembershipExpr,
+    GroupMembershipMembers,
+    GroupMembership,
+    StoredGroupModel,
+    GrantModel,
+)
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
-from bento_authorization_service.types import Subject, Resource, Grant, Group, GroupMembership
 
 
 TEST_TOKEN_SECRET = "secret"
@@ -59,120 +67,112 @@ TEST_TOKEN_FOREIGN_ISS = {
     "iat": 0,  # Not checked here
 }
 
-SUBJECT_EVERYONE: Subject = {"everyone": True}
-SUBJECT_CLIENT: Subject = {"iss": ISS, "client": CLIENT}
-SUBJECT_DAVID: Subject = {"iss": ISS, "sub": SUB}
-SUBJECT_NOT_ME: Subject = {"iss": ISS, "sub": "not_me"}
+SUBJECT_EVERYONE: SubjectModel = SubjectModel(__root__={"everyone": True})
+SUBJECT_CLIENT: SubjectModel = SubjectModel(__root__={"iss": ISS, "client": CLIENT})
+SUBJECT_DAVID: SubjectModel = SubjectModel(__root__={"iss": ISS, "sub": SUB})
+SUBJECT_NOT_ME: SubjectModel = SubjectModel(__root__={"iss": ISS, "sub": "not_me"})
 
-RESOURCE_EVERYTHING: Resource = {"everything": True}
-RESOURCE_PROJECT_1: Resource = {"project": "1"}
-RESOURCE_PROJECT_1_DATASET_A: Resource = {"project": "1", "dataset": "A"}
-RESOURCE_PROJECT_1_DATASET_B: Resource = {"project": "1", "dataset": "B"}
-RESOURCE_PROJECT_2: Resource = {"project": "2"}
-RESOURCE_PROJECT_2_DATASET_C: Resource = {"project": "1", "dataset": "B"}
+RESOURCE_EVERYTHING: ResourceModel = ResourceModel(__root__={"everything": True})
+RESOURCE_PROJECT_1: ResourceModel = ResourceModel(__root__={"project": "1"})
+RESOURCE_PROJECT_1_DATASET_A: ResourceModel = ResourceModel(__root__={"project": "1", "dataset": "A"})
+RESOURCE_PROJECT_1_DATASET_B: ResourceModel = ResourceModel(__root__={"project": "1", "dataset": "B"})
+RESOURCE_PROJECT_2: ResourceModel = ResourceModel(__root__={"project": "2"})
+RESOURCE_PROJECT_2_DATASET_C: ResourceModel = ResourceModel(__root__={"project": "1", "dataset": "B"})
 
 TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
     # Member lists
 
-    ({"members": [{"iss": ISS, "client": CLIENT}]}, True),  # All users from a particular issuer+client
+    # All users from a particular issuer+client
+    (GroupMembershipMembers(members=[{"iss": ISS, "client": CLIENT}]), True),
 
-    ({"members": [SUBJECT_DAVID]}, True),  # A specific user
+    (GroupMembershipMembers(members=[SUBJECT_DAVID]), True),  # A specific user
 
-    ({"members": [SUBJECT_NOT_ME]}, False),  # Not me!
+    (GroupMembershipMembers(members=[SUBJECT_NOT_ME]), False),  # Not me!
 
-    ({"members": [SUBJECT_DAVID, SUBJECT_NOT_ME]}, True),  # Me and not me!
-    ({"members": [SUBJECT_NOT_ME, SUBJECT_DAVID]}, True),  # Me and not me!
+    (GroupMembershipMembers(members=[SUBJECT_DAVID, SUBJECT_NOT_ME]), True),  # Me and not me!
+    (GroupMembershipMembers(members=[SUBJECT_NOT_ME, SUBJECT_DAVID]), True),  # Me and not me!
 
     # Expressions
 
-    ({
-         "expr": ["#and", ["#eq", ["#resolve", "sub"], SUB], ["#eq", ["#resolve", "iss"], ISS]]
-     }, True),  # Expression for specific subject and issuer
+    # Expression for specific subject and issuer
+    (GroupMembershipExpr(expr=["#and", ["#eq", ["#resolve", "sub"], SUB], ["#eq", ["#resolve", "iss"], ISS]]), True),
 ]
 TEST_GROUP_CREATED: datetime = datetime.fromisoformat("2023-05-01T17:20:40.000000")
-TEST_GROUPS: list[tuple[Group, bool]] = [
-    ({
+TEST_GROUPS: list[tuple[StoredGroupModel, bool]] = [
+    (StoredGroupModel(**{
         "id": i,
         "name": f"group{i}",
         "membership": x,
         "created": TEST_GROUP_CREATED,
         "expiry": None,
-     }, r)
+     }), r)
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
 ]
-TEST_GROUPS_DICT: dict[int, Group] = {x["id"]: x for x, _ in TEST_GROUPS}
+TEST_GROUPS_DICT: dict[int, StoredGroupModel] = {x.id: x for x, _ in TEST_GROUPS}
 
 
-TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: Grant = {
+TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": SUBJECT_EVERYONE,
     "resource": RESOURCE_EVERYTHING,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: Grant = {
+})
+TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": SUBJECT_EVERYONE,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: Grant = {
+})
+TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": {"group": 0},
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: Grant = {
+})
+TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": {"group": 0},
     "resource": RESOURCE_PROJECT_2,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: Grant = {
+})
+TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": {"group": 2},
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA: Grant = {
+})
+TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": SUBJECT_CLIENT,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: Grant = {
+})
+TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_PROJECT_1,
     "permission": P_QUERY_DATA,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
+})
 
-SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_PERMISSIONS: Grant = {
+SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_PERMISSIONS: GrantModel = GrantModel(**{
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_EVERYTHING,
     "permission": P_VIEW_PERMISSIONS,
     "extra": {},
-    "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
-SPECIAL_GRANT_DAVID_EVERYTHING_EDIT_PERMISSIONS: Grant = {
+})
+SPECIAL_GRANT_DAVID_EVERYTHING_EDIT_PERMISSIONS: GrantModel = GrantModel(**{
     "subject": SUBJECT_DAVID,
     "resource": RESOURCE_EVERYTHING,
     "permission": P_EDIT_PERMISSIONS,
     "extra": {},
     "created": TEST_GROUP_CREATED,
     "expiry": None,
-}
+})

@@ -3,35 +3,47 @@ import pytest
 
 from fastapi import status
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from bento_authorization_service.db import Database
-from bento_authorization_service.policy_engine.evaluation import (
-    InvalidGrant,
-    check_if_grant_subject_matches_token,
-    check_if_grant_resource_matches_requested_resource,
-)
-from bento_authorization_service.types import Grant
+from bento_authorization_service.models import GrantModel, StoredGrantModel
+# from bento_authorization_service.policy_engine.evaluation import (
+#     InvalidGrant,
+#     check_if_grant_subject_matches_token,
+#     check_if_grant_resource_matches_requested_resource,
+# )
 
 from . import shared_data as sd
 
 
 def test_bad_grant_subject():
-    # noinspection PyTypeChecker
-    bad_grant: Grant = {**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA, "subject": {}}
-    with pytest.raises(InvalidGrant):
-        check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
+    with pytest.raises(ValidationError):
+        GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {}})
 
-    # noinspection PyTypeChecker
-    bad_grant: Grant = {**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA, "subject": {"iss": sd.ISS}}
-    with pytest.raises(InvalidGrant):
-        check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
+    # TODO: NotImplementedError tests
+    # with pytest.raises(InvalidGrant):
+    #     check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
+
+    with pytest.raises(ValidationError):
+        GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {"iss": sd.ISS}})
+
+    # TODO: NotImplementedError tests
+    # with pytest.raises(InvalidGrant):
+    #     check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
 
 
 def test_bad_grant_resource():
-    # noinspection PyTypeChecker
-    bad_grant: Grant = {**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA, "resource": {}}
-    with pytest.raises(InvalidGrant):
-        check_if_grant_resource_matches_requested_resource(sd.RESOURCE_PROJECT_1, bad_grant)
+    with pytest.raises(ValidationError):
+        GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "resource": {}})
+    with pytest.raises(ValidationError):
+        GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "resource": ""})
+
+
+def test_not_implemented_grant_resource():
+    # TODO - check if we define a new resource type we get NotImplementedError
+    pass
+    # with pytest.raises(InvalidGrant):
+    #     check_if_grant_resource_matches_requested_resource(sd.RESOURCE_PROJECT_1, bad_grant)
 
 
 # noinspection PyUnusedLocal
@@ -40,8 +52,8 @@ async def test_grant_endpoints_create(test_client: TestClient, db: Database, db_
     headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
 
     json_grant = {
-        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA,
-        "permission": str(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA["permission"]),
+        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(),
+        "permission": sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.permission,
     }
 
     # no token - forbidden
@@ -54,11 +66,8 @@ async def test_grant_endpoints_create(test_client: TestClient, db: Database, db_
 
     res_data = res.json()
 
-    db_grant: dict = await db.get_grant(res_data["id"])
-    if db_grant:
-        db_grant["permission"] = str(db_grant["permission"])
-
-    assert json.dumps(res_data, sort_keys=True) == json.dumps(db_grant, sort_keys=True)
+    db_grant: StoredGrantModel = await db.get_grant(res_data["id"])
+    assert json.dumps(res_data, sort_keys=True) == db_grant.json(sort_keys=True)
 
 
 # noinspection PyUnusedLocal
@@ -72,9 +81,8 @@ async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cle
 
     # create grant in database
     g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
-    db_grant: dict = await db.get_grant(g_id)
-    if db_grant:
-        db_grant["permission"] = str(db_grant["permission"])
+    db_grant: StoredGrantModel = await db.get_grant(g_id)
+    db_grant_json = db_grant.json(sort_keys=True)
 
     # test that without a token, we cannot see anything
     res = test_client.get(f"/grants/{g_id}")
@@ -83,7 +91,7 @@ async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cle
     # test that we can fetch it
     res = test_client.get(f"/grants/{g_id}", headers=headers)
     assert res.status_code == status.HTTP_200_OK
-    assert json.dumps(res.json(), sort_keys=True) == json.dumps(db_grant, sort_keys=True)
+    assert json.dumps(res.json(), sort_keys=True) == db_grant_json
 
 
 # noinspection PyUnusedLocal
@@ -93,9 +101,8 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
 
     # create grant in database
     g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
-    db_grant: dict = await db.get_grant(g_id)
-    if db_grant:
-        db_grant["permission"] = str(db_grant["permission"])
+    db_grant: StoredGrantModel = await db.get_grant(g_id)
+    db_grant_json = db_grant.json(sort_keys=True)
 
     # test that without a token, we cannot see anything
     #  TODO
@@ -105,7 +112,7 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
     # test that we can find it in the list
     res = test_client.get("/grants/", headers=headers)
     assert res.status_code == status.HTTP_200_OK
-    assert any(True for g in res.json() if json.dumps(g, sort_keys=True) == json.dumps(db_grant, sort_keys=True))
+    assert any(True for g in res.json() if json.dumps(g, sort_keys=True) == db_grant_json)
 
 
 # noinspection PyUnusedLocal

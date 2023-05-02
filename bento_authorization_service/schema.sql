@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS grants (
     created     TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     expiry      TIMESTAMP(0) WITH TIME ZONE,
 
-    CONSTRAINT grant_unique UNIQUE (subject, resource, permission)
+    CONSTRAINT grant_unique UNIQUE (subject, resource, permission, expiry)  -- TODO: what to do?
 );
 
 CREATE TABLE IF NOT EXISTS groups (

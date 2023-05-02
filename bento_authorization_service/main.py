@@ -7,7 +7,6 @@ from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .routers.grants import grants_router
 from .routers.groups import groups_router
 from .routers.policy import policy_router
-from .routers.schemas import schema_router
 
 
 app = FastAPI()
@@ -15,7 +14,6 @@ app = FastAPI()
 app.include_router(grants_router)
 app.include_router(groups_router)
 app.include_router(policy_router)
-app.include_router(schema_router)
 
 
 @app.get("/service-info")

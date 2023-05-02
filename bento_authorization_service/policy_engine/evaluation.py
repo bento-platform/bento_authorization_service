@@ -9,21 +9,35 @@ from typing import Callable, Generator, TypedDict
 from ..db import Database
 from ..idp_manager import BaseIdPManager
 from ..json_schemas import TOKEN_DATA
+from ..models import (
+    ResourceEverythingModel,
+    ResourceSpecificModel,
+    ResourceModel,
+    SubjectEveryoneModel,
+    SubjectGroupModel,
+    BaseIssuerModel,
+    IssuerAndClientModel,
+    IssuerAndSubjectModel,
+    GroupMembership,
+    GroupModel,
+    StoredGroupModel,
+    GroupMembershipExpr,
+    GroupMembershipMembers,
+    GrantModel,
+)
 from ..logger import logger
-from ..types import Resource, Grant, Group, GroupMembership
-from .permissions import Permission
+from .permissions import PERMISSIONS_BY_STRING, Permission
 
 
 __all__ = [
     "InvalidGrant",
     "InvalidResourceRequest",
-    "InvalidGroupMembership",
 
     "TokenData",
 
     "check_if_token_is_in_group",
     "check_if_grant_subject_matches_token",
-    "check_if_grant_resource_matches_requested_resource",
+    "resource_is_equivalent_or_contained",
     "filter_matching_grants",
     "determine_permissions",
     "evaluate",
@@ -47,11 +61,19 @@ class InvalidGrant(Exception):
     pass
 
 
-class InvalidResourceRequest(Exception):
+class InvalidResource(Exception):
     pass
 
 
-class InvalidGroupMembership(Exception):
+class InvalidRequestedResource(InvalidResource):
+    pass
+
+
+class InvalidGrantResource(InvalidResource):
+    pass
+
+
+class InvalidResourceRequest(Exception):
     pass
 
 
@@ -68,7 +90,7 @@ class TokenData(TypedDict, total=False):
 
 def check_if_token_is_in_group(
     token_data: TokenData | None,
-    group: Group,
+    group: GroupModel,
     get_now: Callable[[], datetime] = datetime.utcnow,
 ) -> bool:
     """
@@ -82,117 +104,138 @@ def check_if_token_is_in_group(
     if token_data is None:
         return False  # anonymous users cannot CURRENTLY be part of groups
 
-    g_expiry = group["expiry"]
+    g_expiry = group.expiry
     if g_expiry is not None and g_expiry <= get_now().astimezone(tz=timezone.utc):
         return False  # Expired group, no membership
 
-    membership: GroupMembership = group["membership"]
+    membership: GroupMembership = group.membership
 
-    if (g_members := membership.get("members")) is not None:
-        for member in g_members:
-            if "iss" not in member:
-                raise InvalidGroupMembership()  # No issuer field in member object
+    if isinstance(membership, GroupMembershipMembers):
+        t_iss = token_data.get("iss")
 
-            m_iss = member["iss"]
-            t_iss = token_data.get("iss")
-            if (m_client := member.get("client")) is not None:
-                if m_iss == t_iss and m_client == token_data.get("azp"):
+        for member in membership.members:
+            mr = member.__root__
+
+            if mr.iss != t_iss:  # Token issuer isn't the same as this member, so skip this entry early.
+                continue
+
+            if isinstance(mr, IssuerAndClientModel):
+                if mr.client == token_data.get("azp"):
                     # Issuer and client IDs match, so this token bearer is a member of this group
                     return True
-            elif (m_sub := member.get("sub")) is not None:
-                if m_iss == t_iss and m_sub == token_data.get("sub"):
+                # Otherwise, do nothing & keep checking members
+            elif isinstance(mr, IssuerAndSubjectModel):
+                if mr.sub == token_data.get("sub"):
                     # Issuer and subjects match, so this token bearer is a member of this group
                     return True
+                # Otherwise, do nothing & keep checking members
             else:
-                raise InvalidGroupMembership()  # No client/subject field in member object
+                raise NotImplementedError("Group member is not one of iss+client | iss+sub")
 
         return False
 
-    elif (g_expr := membership.get("expr")) is not None:
-        expr_ast = convert_query_to_ast_and_preprocess(g_expr)
-
+    elif isinstance(membership, GroupMembershipExpr):
         return check_ast_against_data_structure(
-            expr_ast,
-            token_data,
+            ast=convert_query_to_ast_and_preprocess(membership.expr),
+            data_structure=token_data,
             schema=TOKEN_DATA,
             internal=True,
             return_all_index_combinations=False,
         )
 
     else:
-        raise InvalidGroupMembership()
+        raise NotImplementedError("Group membership is not one of members[], expr")
 
 
 def check_if_grant_subject_matches_token(
-    groups_dict: dict[int, Group],
+    groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
-    grant: Grant,
+    grant: GrantModel,
 ) -> bool:
     t = token_data or {}
     t_iss = t.get("iss")
+
+    gs = grant.subject.__root__
+
+    def _not_implemented(err: str) -> NotImplementedError:
+        logger.error(err)
+        return NotImplementedError(err)
 
     # First, check if the subject matches.
     #  - If the grant applies to everyone, it automatically includes the current token/anonymous user.
     #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
     #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
-    if grant["subject"].get("everyone"):
+
+    if isinstance(gs, SubjectEveryoneModel) and gs.everyone:
         return True
-    elif (group_id := grant["subject"].get("group")) is not None:
-        group_def = groups_dict.get(group_id)
-        if group_def is None:
-            logger.error(f"Invalid grant encountered in database: {grant} (group not found: {group_id})")
-            raise InvalidGrant(str(grant))
-        return check_if_token_is_in_group(token_data, group_def)
-    elif g_iss := grant["subject"].get("iss"):
-        iss_match: bool = t_iss is not None and g_iss == t_iss
-        if g_client := grant["subject"].get("client"):  # {iss, client}
-            # g_client is not None by the if-check
-            return iss_match and g_client == t.get("azp")
-        elif g_sub := grant["subject"].get("sub"):
-            # g_sub is not None by the if-check
-            return iss_match and g_sub == t.get("sub")
-        else:
-            logger.error(f"Invalid grant encountered in database: {grant} (subject has iss but missing azp|sub)")
-            raise InvalidGrant(str(grant))
-    else:
-        logger.error(f"Invalid grant encountered in database: {grant} (subject missing everyone|group|iss)")
+    elif isinstance(gs, SubjectGroupModel):
+        if (group_def := groups_dict.get(gs.group)) is not None:
+            return check_if_token_is_in_group(token_data, group_def)
+        logger.error(f"Invalid grant encountered in database: {grant} (group not found: {gs.group})")
         raise InvalidGrant(str(grant))
+    elif isinstance(gs, BaseIssuerModel):
+        g_iss = gs.iss
+        iss_match: bool = t_iss is not None and g_iss == t_iss
+        if isinstance(gs, IssuerAndClientModel):  # {iss, client}
+            return iss_match and gs.client == t.get("azp")
+        elif isinstance(gs, IssuerAndSubjectModel):
+            # g_sub is not None by the if-check
+            return iss_match and gs.sub == t.get("sub")
+        else:
+            raise _not_implemented(f"Can only handle iss+client or iss+sub subjects but got {gs}")
+    else:
+        raise _not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {gs}")
 
 
-def check_if_grant_resource_matches_requested_resource(requested_resource: Resource, grant: Grant) -> bool:
+# TODO: make resource_is_equivalent_or_contained part of a Bento-specific module/class
+def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant_resource: ResourceModel) -> bool:
+    """
+    Given two resources, check that the first resource is a sub-resource or equivalent to the second. Be careful,
+    order matters a LOT here and screwing it up could impact security.
+    :param requested_resource: The first resource; if this resource is a sub-resource or equivalent to the next,
+      this function returns True.
+    :param grant_resource: The second resource; if this resource is a parent resource or equivalent to the first,
+      this function returns True.
+    :return: Whether the first (requested) resource is a sub-resource or equivalent to the second (grant) resource.
+    """
+
     # Check if a grant resource matches the requested resource.
+
+    rr = requested_resource.__root__
+    rr_is_everything = isinstance(rr, ResourceEverythingModel)
+    gr = grant_resource.__root__
+
+    def _not_implemented(unimpl_for: str) -> NotImplementedError:
+        err_ = f"Unimplemented handling for {unimpl_for} (missing everything|project)"
+        logger.error(err_)
+        return NotImplementedError(err_)  # TODO: indicate if requested or grant
+
+    # TODO: idea for making this more generic
+    #  Have concepts of resources with top-level ID specifier (project) and a list of lists of narrowing parameters
+    #  like ("project", ("dataset", "data_type")) as a generic way of representing a resource hierarchy.
+
     #   - First, if the grant applies to everything. If it does, it automatically matches the specified resource.
-
-    def _invalid_requested_resource():
-        logger.error(f"Invalid resource request: {requested_resource} (missing everything|project)")
-        # Missing resource request project or {everything: True}
-        raise InvalidResourceRequest(str(requested_resource))
-
-    rr_everything = requested_resource.get("everything")
-    rr_project = requested_resource.get("project")
-
-    if grant["resource"].get("everything"):
-        if rr_everything or rr_project:
+    if isinstance(gr, ResourceEverythingModel):
+        if rr_is_everything or isinstance(rr, ResourceSpecificModel):
             return True
-        _invalid_requested_resource()
+        raise _not_implemented(f"resource request: {rr}")
 
-    elif g_project := grant["resource"].get("project"):  # we have {project: ..., possibly with dataset, data_type}
+    elif isinstance(gr, ResourceSpecificModel):
+        # we have {project: ..., possibly with dataset, data_type}
         # The grant applies to a project, or dataset, or project data type, or dataset data type.
 
-        g_dataset = grant["resource"].get("dataset")
-        g_data_type = grant["resource"].get("data_type")
+        g_project = gr.project
+        g_dataset = gr.dataset
+        g_data_type = gr.data_type
 
-        if requested_resource.get("everything"):
+        if rr_is_everything:
             # They want access to everything/something node-wide, but this grant is for something specific. No!
             return False
-        elif rr_project is not None:
+        elif isinstance(rr, ResourceSpecificModel):
             # The requested resource is at least a project, or possibly more specific:
             #   - project, or
             #   - project + dataset, or
             #   - project + data type
-
-            rr_dataset = requested_resource.get("dataset")
-            rr_data_type = requested_resource.get("data_type")
 
             # Match cases are as follows:
             # projects match AND
@@ -200,26 +243,25 @@ def check_if_grant_resource_matches_requested_resource(requested_resource: Resou
             #       OR grant dataset ID == resource request dataset ID
             # AND
             #  - grant data
-
             return (
-                g_project == rr_project and
-                (g_dataset is None or g_dataset == rr_dataset) and
-                (g_data_type is None or g_data_type == rr_data_type)
+                g_project == rr.project and
+                (g_dataset is None or g_dataset == rr.dataset) and
+                (g_data_type is None or g_data_type == rr.data_type)
             )
         else:  # requested resource doesn't match any known resource pattern, somehow.
-            _invalid_requested_resource()
-    else:  # grant resource is invalid
-        logger.error(f"Invalid grant encountered in database: {grant} (resource missing everything|project)")
-        raise InvalidGrant(str(grant))  # Missing grant project or {everything: True}
+            raise _not_implemented(f"resource request: {rr}")
+
+    else:  # grant resource hasn't been implemented in this function
+        raise _not_implemented(f"grant resource: {grant_resource}")
 
 
 def filter_matching_grants(
-    grants: tuple[Grant, ...],
-    groups_dict: dict[int, Group],
+    grants: tuple[GrantModel, ...],
+    groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
-    requested_resource: Resource,
+    requested_resource: ResourceModel,
     get_now: Callable[[], datetime] = datetime.utcnow,
-) -> Generator[Grant, None, None]:
+) -> Generator[GrantModel, None, None]:
     """
     TODO
     :param grants: List of grants to filter out non-matches.
@@ -233,11 +275,11 @@ def filter_matching_grants(
     dt_now = get_now().astimezone(tz=timezone.utc)
 
     for g in grants:
-        if g["expiry"] <= dt_now:
+        if g.expiry is not None and g.expiry <= dt_now:
             continue  # Skip expired grants
 
         subject_matches: bool = check_if_grant_subject_matches_token(groups_dict, token_data, g)
-        resource_matches: bool = check_if_grant_resource_matches_requested_resource(requested_resource, g)
+        resource_matches: bool = resource_is_equivalent_or_contained(requested_resource, g.resource)
         if subject_matches and resource_matches:
             # Grant applies to the token in question, and the requested resource in question, so it is part of the
             # set of grants which determine the permissions the token bearer has on this resource.
@@ -245,10 +287,10 @@ def filter_matching_grants(
 
 
 def determine_permissions(
-    grants: tuple[Grant, ...],
-    groups_dict: dict[int, Group],
+    grants: tuple[GrantModel, ...],
+    groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
-    requested_resource: Resource,
+    requested_resource: ResourceModel,
 ) -> frozenset[Permission]:
     """
     Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
@@ -259,14 +301,15 @@ def determine_permissions(
     :return: The permissions frozen set
     """
     return frozenset(
-        g["permission"] for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
+        PERMISSIONS_BY_STRING[g.permission]
+        for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
 
 
 async def evaluate(
     idp_manager: BaseIdPManager,
     db: Database,
     token: str | None,
-    requested_resource: Resource,
+    requested_resource: ResourceModel,
     required_permissions: frozenset[Permission],
 ) -> bool:
     # If an access token is specified, validate it and extract its data.
@@ -288,7 +331,7 @@ async def evaluate(
     user_str = {"anonymous": True}
     if token_data is not None:
         user_str = {k: token_data.get(k) for k in ("iss", "azp", "sub")}
-    log_obj = {"user": user_str, "requested_resource": requested_resource, "decision": decision}
+    log_obj = {"user": user_str, "requested_resource": requested_resource.dict()["__root__"], "decision": decision}
     logger.info(f"evaluate: {json.dumps(log_obj)})")
 
     return decision
