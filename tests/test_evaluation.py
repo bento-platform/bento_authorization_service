@@ -19,7 +19,13 @@ from bento_authorization_service.policy_engine.evaluation import (
     evaluate,
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
-from bento_authorization_service.models import GroupModel, GrantModel
+from bento_authorization_service.models import (
+    IssuerAndSubjectModel,
+    GroupMembershipItemModel,
+    GroupMembershipMembers,
+    GroupModel,
+    GrantModel,
+)
 
 from . import shared_data as sd
 
@@ -47,6 +53,15 @@ def test_invalid_group_membership():
 #         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"bad": True}]}})
 #     with pytest.raises(InvalidGroupMembership):  # Must specify client or subject
 #         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
+
+
+def test_group_expiry():
+    good_but_expired_group = GroupModel(
+        name="test",
+        membership=GroupMembershipMembers(members=[IssuerAndSubjectModel(iss=sd.ISS, sub=sd.SUB)]),
+        expiry=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+    assert not check_if_token_is_in_group(sd.TEST_TOKEN, good_but_expired_group)
 
 
 @pytest.mark.parametrize("group, is_member", sd.TEST_GROUPS)
