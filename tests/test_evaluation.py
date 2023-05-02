@@ -10,6 +10,7 @@ from bento_authorization_service.policy_engine.evaluation import (
     InvalidGrant,
     InvalidSubject,
     # InvalidResourceRequest,
+    check_token_against_issuer_based_model_obj,
     check_if_token_is_in_group,
     check_if_token_matches_subject,
     # check_if_grant_resource_matches_requested_resource,
@@ -20,6 +21,8 @@ from bento_authorization_service.policy_engine.evaluation import (
 )
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
 from bento_authorization_service.models import (
+    BaseIssuerModel,
+    IssuerAndClientModel,
     IssuerAndSubjectModel,
     GroupMembershipItemModel,
     GroupMembershipMembers,
@@ -28,6 +31,10 @@ from bento_authorization_service.models import (
 )
 
 from . import shared_data as sd
+
+
+class FakeIssBased(BaseIssuerModel):
+    evil: str = ">:)"
 
 
 class FakeGroupType1(BaseModel):
@@ -41,6 +48,20 @@ class FakeSubjectType1Inner(BaseModel):
 
 class FakeSubjectType1(BaseModel):
     __root__: FakeSubjectType1Inner
+
+
+def test_token_issuer_based_comparison():
+    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss="other", sub=sd.SUB))
+
+    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub=sd.SUB))
+    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub="other"))
+
+    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(iss=sd.ISS, client=sd.CLIENT))
+    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(
+        iss=sd.ISS, client="other"))
+
+    with pytest.raises(NotImplementedError):
+        check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
 
 
 def test_invalid_group_membership():

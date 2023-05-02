@@ -37,6 +37,7 @@ __all__ = [
 
     "TokenData",
 
+    "check_token_against_issuer_based_model_obj",
     "check_if_token_is_in_group",
     "check_if_token_matches_subject",
     "resource_is_equivalent_or_contained",
