@@ -97,7 +97,7 @@ class TokenData(TypedDict, total=False):
 def check_if_token_is_in_group(
     token_data: TokenData | None,
     group: GroupModel,
-    get_now: Callable[[], datetime] = datetime.utcnow,
+    get_now: Callable[[], datetime] = datetime.now,
 ) -> bool:
     """
     TODO
@@ -110,8 +110,7 @@ def check_if_token_is_in_group(
     if token_data is None:
         return False  # anonymous users cannot CURRENTLY be part of groups
 
-    g_expiry = group.expiry
-    if g_expiry is not None and g_expiry <= get_now().astimezone(tz=timezone.utc):
+    if (g_expiry := group.expiry) is not None and g_expiry <= get_now().astimezone(tz=timezone.utc):
         return False  # Expired group, no membership
 
     membership: GroupMembership = group.membership
@@ -266,7 +265,7 @@ def filter_matching_grants(
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     requested_resource: ResourceModel,
-    get_now: Callable[[], datetime] = datetime.utcnow,
+    get_now: Callable[[], datetime] = datetime.now,
 ) -> Generator[GrantModel, None, None]:
     """
     TODO

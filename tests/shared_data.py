@@ -1,5 +1,5 @@
 import jwt
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import (
@@ -33,7 +33,7 @@ TEST_TOKEN = {
 
 
 def make_fresh_david_token():
-    dt = int(datetime.utcnow().timestamp())
+    dt = int(datetime.now(timezone.utc).timestamp())
     return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
 
 
