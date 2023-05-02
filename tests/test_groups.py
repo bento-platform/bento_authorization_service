@@ -5,7 +5,7 @@ import pytest
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import GroupModel, StoredGroupModel
 
-from .shared_data import TEST_GROUPS
+from .shared_data import TEST_GROUPS, TEST_EXPIRED_GROUP
 
 
 # noinspection PyUnusedLocal
@@ -45,6 +45,12 @@ async def test_db_group(db: Database, db_cleanup):
 @pytest.mark.asyncio
 async def test_db_group_non_existant(db: Database, db_cleanup):
     assert (await db.get_group(-1)) is None
+
+
+# noinspection PyUnusedLocal
+def test_expired_group_creation_error(test_client: TestClient, db_cleanup):
+    res = test_client.post("/groups/", json=json.loads(TEST_EXPIRED_GROUP.json()))
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
 
 
 # noinspection PyUnusedLocal

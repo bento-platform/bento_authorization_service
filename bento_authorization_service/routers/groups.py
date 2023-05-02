@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import DatabaseDependency
@@ -25,8 +26,12 @@ async def list_groups(db: DatabaseDependency) -> list[StoredGroupModel]:
 
 @groups_router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_group(group: GroupModel, db: DatabaseDependency) -> StoredGroupModel:
+    if group.expiry is not None and group.expiry <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
+
     if (g_id := await db.create_group(group)) is not None and (created_group := await db.get_group(g_id)):
         return created_group
+
     raise group_not_created()
 
 

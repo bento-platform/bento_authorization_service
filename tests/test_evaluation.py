@@ -7,13 +7,10 @@ from pydantic import BaseModel
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
-    InvalidGrant,
     InvalidSubject,
-    # InvalidResourceRequest,
     check_token_against_issuer_based_model_obj,
     check_if_token_is_in_group,
     check_if_token_matches_subject,
-    # check_if_grant_resource_matches_requested_resource,
     resource_is_equivalent_or_contained,
     filter_matching_grants,
     determine_permissions,
@@ -24,7 +21,6 @@ from bento_authorization_service.models import (
     BaseIssuerModel,
     IssuerAndClientModel,
     IssuerAndSubjectModel,
-    GroupMembershipItemModel,
     GroupMembershipMembers,
     GroupModel,
     GrantModel,
@@ -77,12 +73,7 @@ def test_invalid_group_membership():
 
 
 def test_group_expiry():
-    good_but_expired_group = GroupModel(
-        name="test",
-        membership=GroupMembershipMembers(members=[IssuerAndSubjectModel(iss=sd.ISS, sub=sd.SUB)]),
-        expiry=datetime.now(timezone.utc) - timedelta(hours=1),
-    )
-    assert not check_if_token_is_in_group(sd.TEST_TOKEN, good_but_expired_group)
+    assert not check_if_token_is_in_group(sd.TEST_TOKEN, sd.TEST_EXPIRED_GROUP)
 
 
 @pytest.mark.parametrize("group, is_member", sd.TEST_GROUPS)

@@ -1,13 +1,15 @@
 import jwt
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import (
+    IssuerAndSubjectModel,
     ResourceModel,
     SubjectModel,
     GroupMembershipExpr,
     GroupMembershipMembers,
     GroupMembership,
+    GroupModel,
     StoredGroupModel,
     GrantModel,
 )
@@ -109,6 +111,12 @@ TEST_GROUPS: list[tuple[StoredGroupModel, bool]] = [
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
 ]
 TEST_GROUPS_DICT: dict[int, StoredGroupModel] = {x.id: x for x, _ in TEST_GROUPS}
+
+TEST_EXPIRED_GROUP = GroupModel(
+    name="test",
+    membership=GroupMembershipMembers(members=[IssuerAndSubjectModel(iss=ISS, sub=SUB)]),
+    expiry=datetime.now(timezone.utc) - timedelta(hours=1),
+)
 
 
 TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(**{
