@@ -7,9 +7,10 @@ from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
     InvalidGrant,
+    InvalidSubject,
     # InvalidResourceRequest,
     check_if_token_is_in_group,
-    check_if_grant_subject_matches_token,
+    check_if_token_matches_subject,
     # check_if_grant_resource_matches_requested_resource,
     resource_is_equivalent_or_contained,
     filter_matching_grants,
@@ -25,6 +26,14 @@ from . import shared_data as sd
 class FakeGroupType1(BaseModel):
     expiry: None = None
     membership: str = ">:("
+
+
+class FakeSubjectType1Inner(BaseModel):
+    evil: str = "eeeevil"
+
+
+class FakeSubjectType1(BaseModel):
+    __root__: FakeSubjectType1Inner
 
 
 def test_invalid_group_membership():
@@ -47,46 +56,51 @@ def test_group_membership(group: GroupModel, is_member: bool):
 
 
 def test_subject_match():
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)  # Everyone
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)  # Everyone
     # Everyone (even foreign issuer):
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
     # No token:
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
 
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA)  # Everyone
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject)  # Everyone
 
     # Members of group 0 (iss/client-based):
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
 
     # NOT a member of group 2:
-    assert not check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA)
+    assert not check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject)
 
     # Client grant
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject)
 
     # David:
-    assert check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
 
     # NOT David:
-    assert not check_if_grant_subject_matches_token(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert not check_if_token_matches_subject(
+        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
 
 
-def test_invalid_grants():
+def test_invalid_subject():
     # Missing group raise:
-    with pytest.raises(InvalidGrant):
+    with pytest.raises(InvalidSubject):
         # No groups defined
-        check_if_grant_subject_matches_token({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+        check_if_token_matches_subject({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
+
+    # New subject type (not handled):
+    with pytest.raises(NotImplementedError):
+        # noinspection PyTypeChecker
+        check_if_token_matches_subject({}, sd.TEST_TOKEN, FakeSubjectType1(__root__=FakeSubjectType1Inner()))
 
 
 def test_resource_match():
