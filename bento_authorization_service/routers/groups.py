@@ -51,4 +51,6 @@ async def delete_group(group_id: int, db: DatabaseDependency):
 
 @groups_router.put("/{group_id}")
 async def update_group(group_id: int, group: GroupModel, db: DatabaseDependency):
-    pass
+    if (await db.get_group(group_id)) is None:
+        raise group_not_found(group_id)
+    await db.set_group(group_id, group)

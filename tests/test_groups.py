@@ -127,12 +127,47 @@ async def test_group_endpoints_list(group: GroupModel, _is_member: bool, test_cl
 async def test_group_endpoints_delete(group: GroupModel, _is_member: bool, test_client: TestClient, db: Database,
                                       db_cleanup):
     # Create group in database directly
-    g_db = await db.create_group(group)
+    g_db_id = await db.create_group(group)
 
     # Test that we can delete the group
-    res = test_client.delete(f"/groups/{g_db}")
+    res = test_client.delete(f"/groups/{g_db_id}")
     assert res.status_code == status.HTTP_204_NO_CONTENT
 
     # Test that we can delete again - it is a 404, but not an internal error
-    res = test_client.delete(f"/groups/{g_db}")
+    res = test_client.delete(f"/groups/{g_db_id}")
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_group_endpoints_update(test_client: TestClient, db: Database, db_cleanup):
+    group_1 = TEST_GROUPS[0][0]
+    group_2 = TEST_GROUPS[1][0]
+
+    # Create group in database directly
+    g_db_id = await db.create_group(group_1)
+
+    # Check it matches the first one
+    g_db = await db.get_group(g_db_id)
+    assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_1.json(
+        exclude={"id", "created"}, sort_keys=True)
+
+    res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()))
+    assert res.status_code == status.HTTP_200_OK
+
+    # Check it now matches the second one
+    g_db = await db.get_group(g_db_id)
+    assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_2.json(
+        exclude={"id", "created"}, sort_keys=True)
+
+    # Check idempotency
+    res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()))
+    assert res.status_code == status.HTTP_200_OK
+    g_db = await db.get_group(g_db_id)
+    assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_2.json(
+        exclude={"id", "created"}, sort_keys=True)
+
+    # Check it 404s for a not-found group
+
+    res = test_client.put(f"/groups/0", json=json.loads(group_2.json()))
     assert res.status_code == status.HTTP_404_NOT_FOUND
