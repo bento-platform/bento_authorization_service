@@ -16,6 +16,36 @@ from bento_authorization_service.models import GrantModel, StoredGrantModel
 from . import shared_data as sd
 
 
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_subject_creation(db: Database, db_cleanup):
+    sub_id = await db.create_subject_or_get_id(sd.SUBJECT_DAVID)
+    assert sub_id is not None
+
+    # Test recreation returns the same ID
+    assert sub_id == await db.create_subject_or_get_id(sd.SUBJECT_DAVID)
+
+    # Test that we can get the subject
+    sub_db = await db.get_subject(sub_id)
+    assert sub_db is not None
+    assert sd.SUBJECT_DAVID.json(sort_keys=True) == sub_db.json(sort_keys=True)
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_resource_creation(db: Database, db_cleanup):
+    res_id = await db.create_resource_or_get_id(sd.RESOURCE_PROJECT_1_DATASET_A)
+    assert res_id is not None
+
+    # Test recreation returns the same ID
+    assert res_id == await db.create_resource_or_get_id(sd.RESOURCE_PROJECT_1_DATASET_A)
+
+    # Test that we can get the resource
+    res_db = await db.get_resource(res_id)
+    assert res_db is not None
+    assert sd.RESOURCE_PROJECT_1_DATASET_A.json(sort_keys=True) == res_db.json(sort_keys=True)
+
+
 def test_bad_grant_subject():
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {}})
