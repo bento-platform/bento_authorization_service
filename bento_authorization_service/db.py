@@ -35,16 +35,6 @@ def resource_db_deserialize(r: asyncpg.Record | None) -> ResourceModel | None:
     return None if r is None else ResourceModel(__root__=json.loads(r["def"]))
 
 
-def grant_db_serialize(g: GrantModel) -> tuple[str, str, str, str, datetime]:
-    return (
-        g.subject.json(sort_keys=True),
-        g.resource.json(sort_keys=True),
-        g.permission,
-        json.dumps(g.extra, sort_keys=True),
-        g.expiry,
-    )
-
-
 def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
     if r is None:
         return None
