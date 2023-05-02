@@ -137,12 +137,18 @@ def test_invalid_subject():
 
 
 def test_resource_match():
+    # equivalent: both everything
     assert resource_is_equivalent_or_contained(
         sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
+    assert resource_is_equivalent_or_contained(
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_EVERYTHING)
 
     # Project 1 is a subset of everything:
     assert resource_is_equivalent_or_contained(
         sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
+    # ... but everything is not contained in / equivalent to Project 1
+    assert not resource_is_equivalent_or_contained(
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_PROJECT_1_DATASET_A)
 
     # Permission applies to Project 1, but we are checking for Everything, so it should be False:
     assert not resource_is_equivalent_or_contained(
