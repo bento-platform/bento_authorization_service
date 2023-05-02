@@ -112,10 +112,12 @@ TEST_GROUPS: list[tuple[StoredGroupModel, bool]] = [
 ]
 TEST_GROUPS_DICT: dict[int, StoredGroupModel] = {x.id: x for x, _ in TEST_GROUPS}
 
+TEST_EXPIRED_TIME = datetime.now(timezone.utc) - timedelta(hours=1)
+
 TEST_EXPIRED_GROUP = GroupModel(
     name="test",
     membership=GroupMembershipMembers(members=[IssuerAndSubjectModel(iss=ISS, sub=SUB)]),
-    expiry=datetime.now(timezone.utc) - timedelta(hours=1),
+    expiry=TEST_EXPIRED_TIME,
 )
 
 
@@ -126,6 +128,14 @@ TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(**{
     "extra": {},
     "expiry": None,
 })
+TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED: GrantModel = GrantModel(**{
+    "subject": SUBJECT_EVERYONE,
+    "resource": RESOURCE_EVERYTHING,
+    "permission": P_QUERY_DATA,
+    "extra": {},
+    "expiry": TEST_EXPIRED_TIME,
+})
+
 TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
     "subject": SUBJECT_EVERYONE,
     "resource": RESOURCE_PROJECT_1,
