@@ -15,6 +15,7 @@ from ..models import (
     ResourceModel,
     SubjectEveryoneModel,
     SubjectGroupModel,
+    SubjectModel,
     BaseIssuerModel,
     IssuerAndClientModel,
     IssuerAndSubjectModel,
@@ -31,12 +32,13 @@ from .permissions import PERMISSIONS_BY_STRING, Permission
 
 __all__ = [
     "InvalidGrant",
+    "InvalidSubject",
     "InvalidResourceRequest",
 
     "TokenData",
 
     "check_if_token_is_in_group",
-    "check_if_grant_subject_matches_token",
+    "check_if_token_matches_subject",
     "resource_is_equivalent_or_contained",
     "filter_matching_grants",
     "determine_permissions",
@@ -58,6 +60,10 @@ __all__ = [
 
 
 class InvalidGrant(Exception):
+    pass
+
+
+class InvalidSubject(Exception):
     pass
 
 
@@ -147,15 +153,15 @@ def check_if_token_is_in_group(
         raise NotImplementedError("Group membership is not one of members[], expr")
 
 
-def check_if_grant_subject_matches_token(
+def check_if_token_matches_subject(
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
-    grant: GrantModel,
+    subject: SubjectModel,
 ) -> bool:
     t = token_data or {}
     t_iss = t.get("iss")
 
-    gs = grant.subject.__root__
+    s = subject.__root__
 
     def _not_implemented(err: str) -> NotImplementedError:
         logger.error(err)
@@ -166,25 +172,25 @@ def check_if_grant_subject_matches_token(
     #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
     #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
 
-    if isinstance(gs, SubjectEveryoneModel) and gs.everyone:
+    if isinstance(s, SubjectEveryoneModel) and s.everyone:
         return True
-    elif isinstance(gs, SubjectGroupModel):
-        if (group_def := groups_dict.get(gs.group)) is not None:
+    elif isinstance(s, SubjectGroupModel):
+        if (group_def := groups_dict.get(s.group)) is not None:
             return check_if_token_is_in_group(token_data, group_def)
-        logger.error(f"Invalid grant encountered in database: {grant} (group not found: {gs.group})")
-        raise InvalidGrant(str(grant))
-    elif isinstance(gs, BaseIssuerModel):
-        g_iss = gs.iss
+        logger.error(f"Invalid subject encountered: {subject} (group not found: {s.group})")
+        raise InvalidSubject(str(subject))
+    elif isinstance(s, BaseIssuerModel):
+        g_iss = s.iss
         iss_match: bool = t_iss is not None and g_iss == t_iss
-        if isinstance(gs, IssuerAndClientModel):  # {iss, client}
-            return iss_match and gs.client == t.get("azp")
-        elif isinstance(gs, IssuerAndSubjectModel):
+        if isinstance(s, IssuerAndClientModel):  # {iss, client}
+            return iss_match and s.client == t.get("azp")
+        elif isinstance(s, IssuerAndSubjectModel):
             # g_sub is not None by the if-check
-            return iss_match and gs.sub == t.get("sub")
+            return iss_match and s.sub == t.get("sub")
         else:
-            raise _not_implemented(f"Can only handle iss+client or iss+sub subjects but got {gs}")
+            raise _not_implemented(f"Can only handle iss+client or iss+sub subjects but got {s}")
     else:
-        raise _not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {gs}")
+        raise _not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {s}")
 
 
 # TODO: make resource_is_equivalent_or_contained part of a Bento-specific module/class
@@ -278,12 +284,16 @@ def filter_matching_grants(
         if g.expiry is not None and g.expiry <= dt_now:
             continue  # Skip expired grants
 
-        subject_matches: bool = check_if_grant_subject_matches_token(groups_dict, token_data, g)
-        resource_matches: bool = resource_is_equivalent_or_contained(requested_resource, g.resource)
-        if subject_matches and resource_matches:
-            # Grant applies to the token in question, and the requested resource in question, so it is part of the
-            # set of grants which determine the permissions the token bearer has on this resource.
-            yield g
+        try:
+            subject_matches: bool = check_if_token_matches_subject(groups_dict, token_data, g.subject)
+            resource_matches: bool = resource_is_equivalent_or_contained(requested_resource, g.resource)
+            if subject_matches and resource_matches:
+                # Grant applies to the token in question, and the requested resource in question, so it is part of the
+                # set of grants which determine the permissions the token bearer has on this resource.
+                yield g
+
+        except InvalidSubject:  # already logged; from missing grant - just skip this grant
+            pass
 
 
 def determine_permissions(
