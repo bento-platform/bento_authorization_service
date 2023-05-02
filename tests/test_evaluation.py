@@ -150,11 +150,17 @@ def test_resource_match():
         sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
 
 
-# def test_invalid_resource_request():
-#     with pytest.raises(InvalidResourceRequest):
-#         check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA)
-#     with pytest.raises(InvalidResourceRequest):
-#         check_if_grant_resource_matches_requested_resource({}, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+@pytest.mark.parametrize("r1, r2", (
+    (sd.RESOURCE_EVERYTHING, fake_resource),
+    (fake_resource, sd.RESOURCE_EVERYTHING),
+    (sd.RESOURCE_PROJECT_1_DATASET_A, fake_resource),
+    (fake_resource, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource),
+))
+def test_invalid_resource(r1, r2):
+    # Fake resources, raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        # noinspection PyTypeChecker
+        resource_is_equivalent_or_contained(r1, r2)
 
 
 def test_grant_filtering_and_permissions_set():
