@@ -169,7 +169,11 @@ def test_invalid_resource(r1, r2):
 
 
 def test_grant_filtering_and_permissions_set():
-    grants_1 = (sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA)
+    grants_1 = (
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
+        sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+    )
     args_1 = (grants_1, sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A)
     matching_token_1 = tuple(filter_matching_grants(*args_1))
     permissions_set_1 = determine_permissions(*args_1)
@@ -190,6 +194,7 @@ def test_grant_filtering_and_permissions_set():
     assert len(matching_token_2) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
 
     matching_token_2 = tuple(filter_matching_grants((
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
         sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
     ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
     assert len(matching_token_2) == 0  # Foreign issuer, not in group 0
