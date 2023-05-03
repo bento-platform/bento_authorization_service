@@ -11,7 +11,7 @@ from .config import ConfigDependency
 from .logger import logger
 
 __all__ = [
-    "GeneralIdPManagerError",
+    "IdPManagerBadAlgorithmError",
     "UninitializedIdPManagerError",
     "BaseIdPManager",
     "IdPManager",
@@ -21,9 +21,15 @@ __all__ = [
 ]
 
 
-class UninitializedIdPManagerError(Exception):
+class IdPManagerError(Exception):
     pass
-class GeneralIdPManagerError(Exception):
+
+
+class UninitializedIdPManagerError(IdPManagerError):
+    pass
+
+
+class IdPManagerBadAlgorithmError(IdPManagerError):
     pass
 
 
@@ -104,7 +110,7 @@ class IdPManager(BaseIdPManager):
 def check_token_signing_alg(decoded_token: dict, permitted_token_algorithms: frozenset):
     if (decoded_token.get("alg") is None or 
         decoded_token.get("alg") not in permitted_token_algorithms) :
-        raise GeneralIdPManagerError("ID token signing algorithm not permitted")
+        raise IdPManagerBadAlgorithmError("ID token signing algorithm not permitted")
 
 
 @lru_cache()
