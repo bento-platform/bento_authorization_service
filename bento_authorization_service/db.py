@@ -205,24 +205,11 @@ class Database:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():
-                # TODO: Run DB-level checks first
-
                 sub_res_perm = (
                     await self.create_subject_or_get_id(grant.subject, conn),
                     await self.create_resource_or_get_id(grant.resource, conn),
                     grant.expiry,
                 )
-
-                # TODO
-
-                # # Consider an existing grant to be one which has the same subject, resource, and permission and
-                # # which expires at the same time or AFTER the current one being created (i.e., old outlasts new).
-                # existing_id: int | None = await conn.fetchval(
-                #     "SELECT id FROM grants WHERE subject = $1 AND resource = $2 AND permission = $3 AND expiry >= $4",
-                #     *sub_res_perm)
-
-                # if existing_id is not None:
-                #     return existing_id, False
 
                 try:
                     async with conn.transaction():
