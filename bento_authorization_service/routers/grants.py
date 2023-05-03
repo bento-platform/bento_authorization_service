@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials
 
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
@@ -8,6 +7,7 @@ from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import GrantModel, StoredGrantModel, ResourceModel
 from ..policy_engine.evaluation import evaluate
 from ..policy_engine.permissions import Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
+from .utils import raise_if_no_resource_access, extract_token
 
 __all__ = [
     "grants_router",
@@ -16,32 +16,12 @@ __all__ = [
 grants_router = APIRouter(prefix="/grants")
 
 
-def extract_token(authorization: HTTPAuthorizationCredentials | None) -> str | None:
-    return authorization.credentials if authorization is not None else None
-
-
 def grant_not_found(grant_id: int) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Grant '{grant_id}' not found")
 
 
-def forbidden() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-
-
 def grant_could_not_be_created() -> HTTPException:
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Grant could not be created")
-
-
-async def raise_if_no_resource_access(
-    token: str,
-    resource: ResourceModel,
-    required_permission: Permission,
-    db: Database,
-    idp_manager: IdPManager,
-) -> None:
-    if not (await evaluate(idp_manager, db, token, resource, frozenset({required_permission}))):
-        # Forbidden from accessing or deleting this grant
-        raise forbidden()
 
 
 async def get_grant_and_check_access(
