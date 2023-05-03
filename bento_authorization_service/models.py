@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal
 
 __all__ = [
@@ -75,6 +75,7 @@ class GroupModel(BaseImmutableModel):
     name: str
     membership: GroupMembership
     expiry: datetime | None
+    notes: str = ""
 
 
 class StoredGroupModel(GroupModel):
@@ -97,11 +98,13 @@ class ResourceModel(BaseImmutableModel):
 
 
 class GrantModel(BaseImmutableModel):
+
     subject: SubjectModel
     resource: ResourceModel
-    permission: str
-    extra: dict
     expiry: datetime | None
+    notes: str = ""
+
+    permissions: frozenset[str] = Field(..., min_items=1)
 
 
 class StoredGrantModel(GrantModel):

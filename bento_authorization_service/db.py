@@ -42,17 +42,20 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
         id=r["id"],
         subject=SubjectModel(__root__=json.loads(r["subject"])),
         resource=ResourceModel(__root__=json.loads(r["resource"])),
-        permission=r["permission"],  # TODO: what to do with permissions class vs. string?
-        extra=json.loads(r["extra"]),
+        notes=r["notes"],
         created=r["created"],
         expiry=r["expiry"],
+
+        # Aggregated from grant_permissions
+        permissions=set(r["permissions"]),  # TODO: what to do with permissions class vs. string?
     )
 
 
-def group_db_serialize(g: GroupModel) -> tuple[str, str, datetime]:
+def group_db_serialize(g: GroupModel) -> tuple[str, str, str, datetime]:
     return (
         g.name,
         g.membership.json(sort_keys=True),
+        g.notes,
         g.expiry,
     )
 
@@ -64,6 +67,8 @@ def group_db_deserialize(r: asyncpg.Record | None) -> StoredGroupModel | None:
         id=r["id"],
         name=r["name"],
         membership=json.loads(r["membership"]),
+        notes=r["notes"],
+
         created=r["created"],
         expiry=r["expiry"],
     )
@@ -154,17 +159,21 @@ class Database:
             row: asyncpg.Record | None = await conn.fetchrow(
                 """
                 SELECT 
-                    g.id AS id, 
-                    s.def AS subject, 
-                    r.def AS resource, 
-                    g.permission AS permission, 
-                    g.extra AS extra,
-                    g.created AS created,
-                    g.expiry AS expiry
-                FROM grants g 
-                    JOIN subjects s  ON g.subject  = s.id
-                    JOIN resources r ON g.resource = r.id 
-                WHERE g.id = $1
+                    j."id" AS id, 
+                    s."def" AS subject, 
+                    r."def" AS resource,
+                    j."notes" AS notes,
+                    j."created" AS created,
+                    j."expiry" AS expiry,
+                    j."permissions" AS permissions
+                FROM (
+                    SELECT g.*, array_agg(gp."permission") AS permissions
+                    FROM grants g LEFT JOIN grant_permissions gp ON g."id" = gp."grant"
+                    WHERE g."id" = $1
+                    GROUP BY g."id"
+                ) j 
+                JOIN subjects s ON j."subject" = s."id" 
+                JOIN resources r ON j."resource" = r."id"
                 """, id_)
             return grant_db_deserialize(row)
 
@@ -174,16 +183,20 @@ class Database:
             res = await conn.fetch(
                 """
                 SELECT 
-                    g.id AS id, 
-                    s.def AS subject, 
-                    r.def AS resource, 
-                    g.permission AS permission, 
-                    g.extra AS extra,
-                    g.created AS created,
-                    g.expiry AS expiry
-                FROM grants g 
-                    JOIN subjects s  ON g.subject  = s.id
-                    JOIN resources r ON g.resource = r.id
+                    j."id" AS id, 
+                    s."def" AS subject, 
+                    r."def" AS resource,
+                    j."notes" AS notes,
+                    j."created" AS created,
+                    j."expiry" AS expiry,
+                    j."permissions" AS permissions
+                FROM (
+                    SELECT g.*, array_agg(gp."permission") AS permissions
+                    FROM grants g LEFT JOIN grant_permissions gp ON g."id" = gp."grant"
+                    GROUP BY g."id"
+                ) j 
+                JOIN subjects s ON j."subject" = s."id" 
+                JOIN resources r ON j."resource" = r."id"
                 """
             )
             return tuple(grant_db_deserialize(r) for r in res)
@@ -197,23 +210,35 @@ class Database:
                 sub_res_perm = (
                     await self.create_subject_or_get_id(grant.subject, conn),
                     await self.create_resource_or_get_id(grant.resource, conn),
-                    grant.permission,
                     grant.expiry,
                 )
 
-                # Consider an existing grant to be one which has the same subject, resource, and permission and
-                # which expires at the same time or AFTER the current one being created (i.e., old outlasts new).
-                existing_id: int | None = await conn.fetchval(
-                    "SELECT id FROM grants WHERE subject = $1 AND resource = $2 AND permission = $3 AND expiry >= $4",
-                    *sub_res_perm)
+                # TODO
 
-                if existing_id is not None:
-                    return existing_id, False
+                # # Consider an existing grant to be one which has the same subject, resource, and permission and
+                # # which expires at the same time or AFTER the current one being created (i.e., old outlasts new).
+                # existing_id: int | None = await conn.fetchval(
+                #     "SELECT id FROM grants WHERE subject = $1 AND resource = $2 AND permission = $3 AND expiry >= $4",
+                #     *sub_res_perm)
 
-                res: int | None = await conn.fetchval(
-                    "INSERT INTO grants (subject, resource, permission, expiry, extra) "
-                    "VALUES ($1, $2, $3, $4, $5) RETURNING id",
-                    *sub_res_perm, json.dumps(grant.extra, sort_keys=True))
+                # if existing_id is not None:
+                #     return existing_id, False
+
+                try:
+                    async with conn.transaction():
+                        res: int | None = await conn.fetchval(
+                            'INSERT INTO grants ("subject", "resource", "expiry", "notes") '
+                            'VALUES ($1, $2, $3, $4) RETURNING "id"',
+                            *sub_res_perm, grant.notes)
+
+                        assert res is not None  # Roll back transaction if insert didn't work somehow
+
+                        await conn.executemany(
+                            'INSERT INTO grant_permissions ("grant", "permission") VALUES ($1, $2)',
+                            [(res, p) for p in grant.permissions])
+
+                except AssertionError:  # Failed for some reason
+                    return None, False
 
                 return res, res is not None
 
@@ -226,13 +251,13 @@ class Database:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             res: asyncpg.Record | None = await conn.fetchrow(
-                "SELECT id, name, membership, created, expiry FROM groups WHERE id = $1", id_)
+                "SELECT id, name, membership, notes, created, expiry FROM groups WHERE id = $1", id_)
             return group_db_deserialize(res)
 
     async def get_groups(self) -> tuple[StoredGroupModel, ...]:
         conn: asyncpg.Connection
         async with self.connect() as conn:
-            res = await conn.fetch("SELECT id, name, membership, created, expiry FROM groups")
+            res = await conn.fetch("SELECT id, name, membership, notes, created, expiry FROM groups")
             return tuple(group_db_deserialize(g) for g in res)
 
     async def get_groups_dict(self) -> dict[int, StoredGroupModel]:
@@ -244,14 +269,14 @@ class Database:
         async with self.connect() as conn:
             async with conn.transaction():
                 return await conn.fetchval(
-                    "INSERT INTO groups (name, membership, expiry) VALUES ($1, $2, $3) RETURNING id",
+                    "INSERT INTO groups (name, membership, notes, expiry) VALUES ($1, $2, $3, $4) RETURNING id",
                     *group_db_serialize(group))
 
     async def set_group(self, id_: int, group: GroupModel) -> None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             await conn.execute(
-                "UPDATE groups SET name = $2, membership = $3, expiry = $4 WHERE id = $1",
+                "UPDATE groups SET name = $2, membership = $3, notes = $4, expiry = $5 WHERE id = $1",
                 id_, *group_db_serialize(group))
 
     async def delete_group_and_dependent_grants(self, group_id: int) -> None:

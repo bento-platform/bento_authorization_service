@@ -302,9 +302,11 @@ def determine_permissions(
     :param requested_resource: The resource the token wishes to operate on.
     :return: The permissions frozen set
     """
-    return frozenset(
-        PERMISSIONS_BY_STRING[g.permission]
-        for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
+    return frozenset({
+        PERMISSIONS_BY_STRING[p]
+        for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource)
+        for p in g.permissions
+    })
 
 
 async def evaluate(

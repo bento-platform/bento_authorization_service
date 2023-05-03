@@ -88,40 +88,35 @@ def test_group_membership(group: GroupModel, is_member: bool):
     assert not check_if_token_is_in_group(sd.TEST_TOKEN_FOREIGN_ISS, group)  # All groups have local issuer
 
 
-def test_subject_match():
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)  # Everyone
+@pytest.mark.parametrize("groups_dict, token, subject, res", (
+    # Everyone:
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
     # Everyone (even foreign issuer):
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
     # No token:
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
-
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject)  # Everyone
+    (sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
+    # Everyone:
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject, True),
 
     # Members of group 0 (iss/client-based):
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
 
     # NOT a member of group 2:
-    assert not check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject)
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject, False),
 
-    # Client grant
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject)
+    # Client grant:
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
 
     # David:
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
 
     # NOT David:
-    assert not check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
+    (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, False),
+))
+def test_subject_match(groups_dict, token, subject, res):
+    print(groups_dict, token, subject, res, flush=True)
+    assert check_if_token_matches_subject(groups_dict, token, subject) == res
 
 
 def test_invalid_subject():
