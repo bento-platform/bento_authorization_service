@@ -107,6 +107,7 @@ class IdPManager(BaseIdPManager):
 
         return decoded_token
 
+
 def check_token_signing_alg(decoded_token: dict, permitted_token_algorithms: frozenset):
     if (decoded_token.get("alg") is None or 
         decoded_token.get("alg") not in permitted_token_algorithms) :
