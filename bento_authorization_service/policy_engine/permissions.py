@@ -51,14 +51,8 @@ class Permission(str):
     def _str_form(cls, verb: PermissionVerb, noun: PermissionNoun) -> str:
         return f"{verb}:{noun}"
 
-    def __str__(self):
-        return self._str_form(self._verb, self._noun)
-
     def __repr__(self):
         return f"Permission({str(self)})"
-
-    def __hash__(self):
-        return hash(str(self))
 
 
 QUERY_VERB = PermissionVerb("query")
