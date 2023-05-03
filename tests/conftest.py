@@ -16,7 +16,6 @@ from .shared_data import TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG, bootstrap_me
 
 
 class MockIdPManager(BaseIdPManager):
-
     async def initialize(self):
         pass
 
@@ -57,6 +56,7 @@ async def db_cleanup(db: Database):
     conn: asyncpg.Connection
     async with db.connect() as conn:
         await conn.execute("DROP TABLE IF EXISTS groups")
+        await conn.execute("DROP TABLE IF EXISTS grant_permissions")
         await conn.execute("DROP TABLE IF EXISTS grants")
         await conn.execute("DROP TABLE IF EXISTS samples")
         await conn.execute("DROP TABLE IF EXISTS resources")

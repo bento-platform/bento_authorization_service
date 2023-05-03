@@ -34,9 +34,7 @@ __all__ = [
     "InvalidGrant",
     "InvalidSubject",
     "InvalidResourceRequest",
-
     "TokenData",
-
     "check_token_against_issuer_based_model_obj",
     "check_if_token_is_in_group",
     "check_if_token_matches_subject",
@@ -141,8 +139,8 @@ def check_if_token_is_in_group(
     if isinstance(membership, GroupMembershipMembers):
         # Check if any issuer and (client ID | subject ID) match --> token bearer is a member of this group
         return any(
-            check_token_against_issuer_based_model_obj(token_data, member.__root__)
-            for member in membership.members)
+            check_token_against_issuer_based_model_obj(token_data, member.__root__) for member in membership.members
+        )
 
     elif isinstance(membership, GroupMembershipExpr):
         return check_ast_against_data_structure(
@@ -242,9 +240,9 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
             # AND
             #  - grant data
             return (
-                g_project == rr.project and
-                (g_dataset is None or g_dataset == rr.dataset) and
-                (g_data_type is None or g_data_type == rr.data_type)
+                g_project == rr.project
+                and (g_dataset is None or g_dataset == rr.dataset)
+                and (g_data_type is None or g_data_type == rr.data_type)
             )
         else:  # requested resource doesn't match any known resource pattern, somehow.
             raise _not_implemented(f"resource request: {rr}")
@@ -303,8 +301,12 @@ def determine_permissions(
     :return: The permissions frozen set
     """
     return frozenset(
-        PERMISSIONS_BY_STRING[g.permission]
-        for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource))
+        {
+            PERMISSIONS_BY_STRING[p]
+            for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource)
+            for p in g.permissions
+        }
+    )
 
 
 async def evaluate(

@@ -7,11 +7,6 @@ from pydantic import ValidationError
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import GrantModel, StoredGrantModel
-# from bento_authorization_service.policy_engine.evaluation import (
-#     InvalidGrant,
-#     check_if_grant_subject_matches_token,
-#     check_if_grant_resource_matches_requested_resource,
-# )
 
 from . import shared_data as sd
 
@@ -50,16 +45,8 @@ def test_bad_grant_subject():
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {}})
 
-    # TODO: NotImplementedError tests
-    # with pytest.raises(InvalidGrant):
-    #     check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
-
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {"iss": sd.ISS}})
-
-    # TODO: NotImplementedError tests
-    # with pytest.raises(InvalidGrant):
-    #     check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
 
 
 def test_bad_grant_resource():
@@ -69,11 +56,9 @@ def test_bad_grant_resource():
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "resource": ""})
 
 
-def test_not_implemented_grant_resource():
-    # TODO - check if we define a new resource type we get NotImplementedError
-    pass
-    # with pytest.raises(InvalidGrant):
-    #     check_if_grant_resource_matches_requested_resource(sd.RESOURCE_PROJECT_1, bad_grant)
+def test_bad_grant_permission_length():
+    with pytest.raises(ValidationError):
+        GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "permissions": frozenset()})
 
 
 # noinspection PyUnusedLocal
@@ -82,8 +67,8 @@ async def test_grant_endpoints_create(test_client: TestClient, db: Database, db_
     headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
 
     json_grant = {
-        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(),
-        "permission": sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.permission,
+        **json.loads(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.json()),
+        "permissions": list(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.permissions),
     }
 
     # no token - forbidden

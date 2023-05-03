@@ -58,8 +58,9 @@ def test_token_issuer_based_comparison():
     assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub="other"))
 
     assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(iss=sd.ISS, client=sd.CLIENT))
-    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(
-        iss=sd.ISS, client="other"))
+    assert not check_token_against_issuer_based_model_obj(
+        sd.TEST_TOKEN, IssuerAndClientModel(iss=sd.ISS, client="other")
+    )
 
     with pytest.raises(NotImplementedError):
         check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
@@ -77,6 +78,7 @@ def test_invalid_group_membership():
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
         check_if_token_is_in_group(sd.TEST_TOKEN, FakeGroupType1())
+
 
 #         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {}})
 #     with pytest.raises(InvalidGroupMembership):  # Must not be a malformatted member
@@ -96,40 +98,33 @@ def test_group_membership(group: GroupModel, is_member: bool):
     assert not check_if_token_is_in_group(sd.TEST_TOKEN_FOREIGN_ISS, group)  # All groups have local issuer
 
 
-def test_subject_match():
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)  # Everyone
-    # Everyone (even foreign issuer):
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
-    # No token:
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject)
-
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject)  # Everyone
-
-    # Members of group 0 (iss/client-based):
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
-
-    # NOT a member of group 2:
-    assert not check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject)
-
-    # Client grant
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject)
-
-    # David:
-    assert check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
-
-    # NOT David:
-    assert not check_if_token_matches_subject(
-        sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject)
+@pytest.mark.parametrize(
+    "groups_dict, token, subject, res",
+    (
+        # Everyone:
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
+        # Everyone (even foreign issuer):
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
+        # No token:
+        (sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
+        # Everyone:
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject, True),
+        # Members of group 0 (iss/client-based):
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
+        # NOT a member of group 2:
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject, False),
+        # Client grant:
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
+        # David:
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
+        # NOT David:
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, False),
+    ),
+)
+def test_subject_match(groups_dict, token, subject, res):
+    print(groups_dict, token, subject, res, flush=True)
+    assert check_if_token_matches_subject(groups_dict, token, subject) == res
 
 
 def test_invalid_subject():
@@ -147,34 +142,44 @@ def test_invalid_subject():
 def test_resource_match():
     # equivalent: both everything
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource
+    )
     assert resource_is_equivalent_or_contained(
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_EVERYTHING)
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_EVERYTHING
+    )
 
     # Project 1 is a subset of everything:
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource)
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource
+    )
     # ... but everything is not contained in / equivalent to Project 1
     assert not resource_is_equivalent_or_contained(
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_PROJECT_1_DATASET_A)
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_PROJECT_1_DATASET_A
+    )
 
     # Permission applies to Project 1, but we are checking for Everything, so it should be False:
     assert not resource_is_equivalent_or_contained(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource
+    )
 
     # Same project, optionally requesting a specific dataset of the project
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
+        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource
+    )
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource)
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource
+    )
 
 
-@pytest.mark.parametrize("r1, r2", (
-    (sd.RESOURCE_EVERYTHING, fake_resource),
-    (fake_resource, sd.RESOURCE_EVERYTHING),
-    (sd.RESOURCE_PROJECT_1_DATASET_A, fake_resource),
-    (fake_resource, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource),
-))
+@pytest.mark.parametrize(
+    "r1, r2",
+    (
+        (sd.RESOURCE_EVERYTHING, fake_resource),
+        (fake_resource, sd.RESOURCE_EVERYTHING),
+        (sd.RESOURCE_PROJECT_1_DATASET_A, fake_resource),
+        (fake_resource, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource),
+    ),
+)
 def test_invalid_resource(r1, r2):
     # Fake resources, raise NotImplementedError
     with pytest.raises(NotImplementedError):
@@ -182,43 +187,51 @@ def test_invalid_resource(r1, r2):
         resource_is_equivalent_or_contained(r1, r2)
 
 
-@pytest.mark.parametrize("args, num_matching, true_permissions_set", (
-    (
-        ((
-            sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
-            sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
-            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
-        ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
-        2,
-        frozenset({P_QUERY_DATA})
-    ),
+@pytest.mark.parametrize(
+    "args, num_matching, true_permissions_set",
     (
         (
-            (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
-            sd.TEST_GROUPS_DICT,
-            sd.TEST_TOKEN,
-            sd.RESOURCE_PROJECT_1_DATASET_A,
+            (
+                (
+                    sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+                    sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
+                    sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+                ),
+                sd.TEST_GROUPS_DICT,
+                sd.TEST_TOKEN,
+                sd.RESOURCE_PROJECT_1_DATASET_A,
+            ),
+            2,
+            frozenset({P_QUERY_DATA}),
         ),
-        0,  # Wrong project
-        frozenset()
-    ),
-    (
         (
-            (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
-            sd.TEST_GROUPS_DICT,
-            sd.TEST_TOKEN,
-            sd.RESOURCE_PROJECT_1_DATASET_A,
+            (
+                (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
+                sd.TEST_GROUPS_DICT,
+                sd.TEST_TOKEN,
+                sd.RESOURCE_PROJECT_1_DATASET_A,
+            ),
+            0,  # Wrong project
+            frozenset(),
         ),
-        0,  # Expired
-        frozenset()
+        (
+            (
+                (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
+                sd.TEST_GROUPS_DICT,
+                sd.TEST_TOKEN,
+                sd.RESOURCE_PROJECT_1_DATASET_A,
+            ),
+            0,  # Expired
+            frozenset(),
+        ),
+        (
+            # Missing group - will throw SubjectError which will get caught and logged
+            ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), {}, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
+            0,
+            frozenset(),
+        ),
     ),
-    (
-        # Missing group - will throw SubjectError which will get caught and logged
-        ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), {}, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
-        0,
-        frozenset()
-    ),
-))
+)
 def test_grant_permissions_set(args, num_matching, true_permissions_set):
     matching_token = tuple(filter_matching_grants(*args))
     permissions_set = determine_permissions(*args)
@@ -227,18 +240,32 @@ def test_grant_permissions_set(args, num_matching, true_permissions_set):
 
 
 def test_grant_filtering_1():
-    matching_token = tuple(filter_matching_grants((
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
-        sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
-    ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
+    matching_token = tuple(
+        filter_matching_grants(
+            (
+                sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+                sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+            ),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN_FOREIGN_ISS,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
+        )
+    )
     assert len(matching_token) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
 
 
 def test_grant_filtering_2():
-    matching_token = tuple(filter_matching_grants((
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
-        sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
-    ), sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.RESOURCE_PROJECT_1_DATASET_A))
+    matching_token = tuple(
+        filter_matching_grants(
+            (
+                sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
+                sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
+            ),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN_FOREIGN_ISS,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
+        )
+    )
     assert len(matching_token) == 0  # Foreign issuer, not in group 0
 
 
@@ -261,9 +288,13 @@ async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_cli
 @pytest.mark.asyncio
 async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
-    res = test_client.post("/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
-    })
+    res = test_client.post(
+        "/policy/permissions",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
+        },
+    )
     assert res.status_code == status.HTTP_200_OK
     assert P_QUERY_DATA in res.json()["result"]
 
@@ -272,9 +303,13 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cl
 @pytest.mark.asyncio
 async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
-    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
-        "required_permissions": [P_QUERY_DATA],
-    })
+    res = test_client.post(
+        "/policy/evaluate",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
+            "required_permissions": [P_QUERY_DATA],
+        },
+    )
     assert res.status_code == status.HTTP_200_OK
     assert res.json()["result"]

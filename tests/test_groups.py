@@ -35,7 +35,8 @@ async def test_db_group(db: Database, db_cleanup):
     await db.set_group(g_id, GroupModel(**{**g.dict(), "membership": TEST_GROUPS[1][0].membership}))
     g_db = await db.get_group(g_id)
     assert json.dumps(g_db.membership.dict(), sort_keys=True) == json.dumps(
-        TEST_GROUPS[1][0].membership.dict(), sort_keys=True)
+        TEST_GROUPS[1][0].membership.dict(), sort_keys=True
+    )
 
     # Now check we can delete the group successfully
     await db.delete_group_and_dependent_grants(g_db.id)
@@ -56,8 +57,9 @@ def test_expired_group_creation_error(test_client: TestClient, db_cleanup):
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_creation(group: GroupModel, _is_member: bool, test_client: TestClient, db: Database,
-                                        db_cleanup):
+async def test_group_endpoints_creation(
+    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+):
     # Group can be created via endpoint
     g = json.loads(group.json())
     del g["id"]
@@ -82,8 +84,9 @@ def test_group_endpoints_fetch_404(test_client: TestClient, db_cleanup):
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_fetch(group: GroupModel, _is_member: bool, test_client: TestClient, db: Database,
-                                     db_cleanup):
+async def test_group_endpoints_fetch(
+    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+):
     # Create group in database directly
     g_db_id = await db.create_group(group)
 
@@ -101,8 +104,9 @@ async def test_group_endpoints_fetch(group: GroupModel, _is_member: bool, test_c
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_list(group: GroupModel, _is_member: bool, test_client: TestClient, db: Database,
-                                    db_cleanup):
+async def test_group_endpoints_list(
+    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+):
     # Create group in database directly
     g_db_id = await db.create_group(group)
 
@@ -124,8 +128,9 @@ async def test_group_endpoints_list(group: GroupModel, _is_member: bool, test_cl
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
-async def test_group_endpoints_delete(group: GroupModel, _is_member: bool, test_client: TestClient, db: Database,
-                                      db_cleanup):
+async def test_group_endpoints_delete(
+    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+):
     # Create group in database directly
     g_db_id = await db.create_group(group)
 
@@ -150,7 +155,8 @@ async def test_group_endpoints_update(test_client: TestClient, db: Database, db_
     # Check it matches the first one
     g_db = await db.get_group(g_db_id)
     assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_1.json(
-        exclude={"id", "created"}, sort_keys=True)
+        exclude={"id", "created"}, sort_keys=True
+    )
 
     res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()))
     assert res.status_code == status.HTTP_200_OK
@@ -158,14 +164,16 @@ async def test_group_endpoints_update(test_client: TestClient, db: Database, db_
     # Check it now matches the second one
     g_db = await db.get_group(g_db_id)
     assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_2.json(
-        exclude={"id", "created"}, sort_keys=True)
+        exclude={"id", "created"}, sort_keys=True
+    )
 
     # Check idempotency
     res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()))
     assert res.status_code == status.HTTP_200_OK
     g_db = await db.get_group(g_db_id)
     assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_2.json(
-        exclude={"id", "created"}, sort_keys=True)
+        exclude={"id", "created"}, sort_keys=True
+    )
 
     # Check it 404s for a not-found group
 

@@ -34,7 +34,6 @@ class IdPManagerBadAlgorithmError(IdPManagerError):
 
 
 class BaseIdPManager(ABC):
-
     def __init__(self, oidc_well_known_url: str):
         self._oidc_well_known_url: str = oidc_well_known_url
 
@@ -53,7 +52,6 @@ class BaseIdPManager(ABC):
 
 
 class IdPManager(BaseIdPManager):
-
     def __init__(self, oidc_well_known_url: str):
         super().__init__(oidc_well_known_url)
 
