@@ -24,7 +24,7 @@ class MockIdPManager(BaseIdPManager):
         return True
 
     async def decode(self, token: str) -> dict:
-        decoded_token =  jwt.decode(
+        decoded_token = jwt.decode(
             token,
             TEST_TOKEN_SECRET,
             audience=TEST_TOKEN_SECRET,
@@ -32,7 +32,7 @@ class MockIdPManager(BaseIdPManager):
         )  # hard-coded test secret
 
         # hard-coded permitted algos
-        check_token_signing_alg(decoded_token, frozenset([TEST_TOKEN_SIGNING_ALG])) 
+        check_token_signing_alg(decoded_token, frozenset([TEST_TOKEN_SIGNING_ALG]))
         return decoded_token
 
 

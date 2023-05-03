@@ -27,7 +27,9 @@ class Config(BaseSettings):
     #    the instance-local IdP is supported.
     openid_well_known_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
 
-    permitted_token_algorithms: frozenset = frozenset(["RS256", "RSA-OAEP", "AES"]) # strong keycloak defaults (purposefully exluding HS256)
+    permitted_token_algorithms: frozenset = frozenset(
+        ["RS256", "RSA-OAEP", "AES"]
+    )  # strong keycloak defaults (purposefully exluding HS256)
     # TODO?: ES256/ES384/ES512  ref: https://github.com/keycloak/keycloak/issues/11036
 
     log_level: Literal["debug", "info", "warning", "error"] = "debug"

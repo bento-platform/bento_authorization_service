@@ -50,6 +50,7 @@ def make_fresh_david_token():
     dt = int(datetime.now(timezone.utc).timestamp())
     return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
 
+
 def make_fresh_no_alg_token():
     dt = int(datetime.utcnow().timestamp())
     return {**TEST_TOKEN_NO_ALG, "iat": dt, "exp": dt + 900}
@@ -57,6 +58,7 @@ def make_fresh_no_alg_token():
 
 def make_fresh_david_token_encoded() -> str:
     return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+
 
 def make_fresh_david_no_alg_encoded() -> str:
     return jwt.encode(make_fresh_no_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)

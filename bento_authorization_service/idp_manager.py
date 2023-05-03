@@ -17,7 +17,7 @@ __all__ = [
     "IdPManager",
     "get_idp_manager",
     "IdPManagerDependency",
-    "check_token_signing_alg"
+    "check_token_signing_alg",
 ]
 
 
@@ -98,7 +98,9 @@ class IdPManager(BaseIdPManager):
         sk = self._jwks_client.get_signing_key_from_jwt(token)
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        decoded_token = jwt.decode(token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"])
+        decoded_token = jwt.decode(
+            token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"]
+        )
 
         # Check if the algorithm used to sign the token is acceptable
         check_token_signing_alg(decoded_token, config.permitted_token_algorithms)
@@ -107,8 +109,7 @@ class IdPManager(BaseIdPManager):
 
 
 def check_token_signing_alg(decoded_token: dict, permitted_token_algorithms: frozenset):
-    if (decoded_token.get("alg") is None or 
-        decoded_token.get("alg") not in permitted_token_algorithms) :
+    if decoded_token.get("alg") is None or decoded_token.get("alg") not in permitted_token_algorithms:
         raise IdPManagerBadAlgorithmError("ID token signing algorithm not permitted")
 
 

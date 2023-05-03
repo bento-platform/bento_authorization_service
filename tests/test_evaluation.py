@@ -68,10 +68,10 @@ def test_token_issuer_based_comparison():
 
 @pytest.mark.asyncio
 async def test_invalid_token_algo(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
-    with pytest.raises(IdPManagerBadAlgorithmError): # should throw exception
-        res = await evaluate(idp_manager, db, 
-            sd.make_fresh_david_no_alg_encoded(), 
-            sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
+    with pytest.raises(IdPManagerBadAlgorithmError):  # should throw exception
+        res = await evaluate(
+            idp_manager, db, sd.make_fresh_david_no_alg_encoded(), sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA})
+        )
 
 
 def test_invalid_group_membership():
