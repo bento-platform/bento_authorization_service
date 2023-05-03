@@ -82,31 +82,30 @@ RESOURCE_PROJECT_2_DATASET_C: ResourceModel = ResourceModel(__root__={"project":
 
 TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
     # Member lists
-
     # All users from a particular issuer+client
     (GroupMembershipMembers(members=[{"iss": ISS, "client": CLIENT}]), True),
-
     (GroupMembershipMembers(members=[SUBJECT_DAVID]), True),  # A specific user
-
     (GroupMembershipMembers(members=[SUBJECT_NOT_ME]), False),  # Not me!
-
     (GroupMembershipMembers(members=[SUBJECT_DAVID, SUBJECT_NOT_ME]), True),  # Me and not me!
     (GroupMembershipMembers(members=[SUBJECT_NOT_ME, SUBJECT_DAVID]), True),  # Me and not me!
-
     # Expressions
-
     # Expression for specific subject and issuer
     (GroupMembershipExpr(expr=["#and", ["#eq", ["#resolve", "sub"], SUB], ["#eq", ["#resolve", "iss"], ISS]]), True),
 ]
 TEST_GROUP_CREATED: datetime = datetime.fromisoformat("2023-05-01T17:20:40.000000")
 TEST_GROUPS: list[tuple[StoredGroupModel, bool]] = [
-    (StoredGroupModel(**{
-        "id": i,
-        "name": f"group{i}",
-        "membership": x,
-        "created": TEST_GROUP_CREATED,
-        "expiry": None,
-     }), r)
+    (
+        StoredGroupModel(
+            **{
+                "id": i,
+                "name": f"group{i}",
+                "membership": x,
+                "created": TEST_GROUP_CREATED,
+                "expiry": None,
+            }
+        ),
+        r,
+    )
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
 ]
 TEST_GROUPS_DICT: dict[int, StoredGroupModel] = {x.id: x for x, _ in TEST_GROUPS}
@@ -120,69 +119,89 @@ TEST_EXPIRED_GROUP = GroupModel(
 )
 
 
-TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": SUBJECT_EVERYONE,
-    "resource": RESOURCE_EVERYTHING,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
-TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED: GrantModel = GrantModel(**{
-    **TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.dict(),
-    "expiry": TEST_EXPIRED_TIME,
-})
+TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": SUBJECT_EVERYONE,
+        "resource": RESOURCE_EVERYTHING,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
+TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED: GrantModel = GrantModel(
+    **{
+        **TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.dict(),
+        "expiry": TEST_EXPIRED_TIME,
+    }
+)
 
-TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": SUBJECT_EVERYONE,
-    "resource": RESOURCE_PROJECT_1,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
-TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": {"group": 0},
-    "resource": RESOURCE_PROJECT_1,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
-TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED: GrantModel = GrantModel(**{
-    **TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(),
-    "expiry": TEST_EXPIRED_TIME,
-})
-TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": {"group": 0},
-    "resource": RESOURCE_PROJECT_2,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
-TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": {"group": 2},
-    "resource": RESOURCE_PROJECT_1,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
-TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": SUBJECT_CLIENT,
-    "resource": RESOURCE_PROJECT_1,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
-TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(**{
-    "subject": SUBJECT_DAVID,
-    "resource": RESOURCE_PROJECT_1,
-    "permissions": {P_QUERY_DATA},
-    "extra": {},
-    "expiry": None,
-})
+TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": SUBJECT_EVERYONE,
+        "resource": RESOURCE_PROJECT_1,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
+TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": {"group": 0},
+        "resource": RESOURCE_PROJECT_1,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
+TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED: GrantModel = GrantModel(
+    **{
+        **TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(),
+        "expiry": TEST_EXPIRED_TIME,
+    }
+)
+TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": {"group": 0},
+        "resource": RESOURCE_PROJECT_2,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
+TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": {"group": 2},
+        "resource": RESOURCE_PROJECT_1,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
+TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": SUBJECT_CLIENT,
+        "resource": RESOURCE_PROJECT_1,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
+TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(
+    **{
+        "subject": SUBJECT_DAVID,
+        "resource": RESOURCE_PROJECT_1,
+        "permissions": {P_QUERY_DATA},
+        "extra": {},
+        "expiry": None,
+    }
+)
 
-SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_EDIT_PERMISSIONS: GrantModel = GrantModel(**{
-    "subject": SUBJECT_DAVID,
-    "resource": RESOURCE_EVERYTHING,
-    "permissions": {P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS},
-    "extra": {},
-    "expiry": None,
-})
+SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_EDIT_PERMISSIONS: GrantModel = GrantModel(
+    **{
+        "subject": SUBJECT_DAVID,
+        "resource": RESOURCE_EVERYTHING,
+        "permissions": {P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS},
+        "extra": {},
+        "expiry": None,
+    }
+)

@@ -16,7 +16,6 @@ from .shared_data import TEST_TOKEN_SECRET, bootstrap_meta_permissions_for_david
 
 
 class MockIdPManager(BaseIdPManager):
-
     async def initialize(self):
         pass
 
