@@ -65,11 +65,13 @@ def test_token_issuer_based_comparison():
         check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
 
 
-
 @pytest.mark.asyncio
 async def test_invalid_token_algo(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
     with pytest.raises(IdPManagerBadAlgorithmError): # should throw exception
-        res = await evaluate(idp_manager, db, sd.make_fresh_david_no_alg_encoded(), sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
+        res = await evaluate(idp_manager, db, 
+            sd.make_fresh_david_no_alg_encoded(), 
+            sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
+
 
 def test_invalid_group_membership():
     with pytest.raises(NotImplementedError):
