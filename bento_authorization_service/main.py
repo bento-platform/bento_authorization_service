@@ -20,6 +20,7 @@ app.include_router(schema_router)
 
 @app.get("/service-info")
 async def service_info(config: ConfigDependency):
+    # Public endpoint, no permissions checks required
     return {
         "id": config.service_id,
         "name": config.service_name,  # TODO: Should be globally unique?

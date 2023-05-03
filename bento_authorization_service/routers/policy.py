@@ -24,6 +24,8 @@ async def req_list_permissions(
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
 ):
+    # Public endpoint, no permissions checks required:
+
     # Endpoint permissions: available to everyone, since this endpoint's contents are token-specific.
     # A rate limiter should be placed in front of this service, especially this endpoint, since it is public.
 
@@ -60,6 +62,8 @@ async def req_evaluate(
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
 ):
+    # Public endpoint, no permissions checks required:
+
     # Endpoint permissions: available to everyone, since this endpoint's contents are token-specific.
     # A rate limiter should be placed in front of this service, especially this endpoint, since it is public.
 

@@ -3,21 +3,27 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 __all__ = [
+    # Subject:
     "SubjectEveryoneModel",
     "SubjectGroupModel",
     "BaseIssuerModel",
     "IssuerAndClientModel",
     "IssuerAndSubjectModel",
     "SubjectModel",
+    "SUBJECT_EVERYONE",
+    # Resource:
     "ResourceEverythingModel",
     "ResourceSpecificModel",
     "ResourceModel",
+    "RESOURCE_EVERYTHING",
+    # Group:
     "GroupMembershipExpr",
     "GroupMembershipItemModel",
     "GroupMembershipMembers",
     "GroupMembership",
     "GroupModel",
     "StoredGroupModel",
+    # Grant:
     "GrantModel",
     "StoredGrantModel",
 ]
@@ -52,6 +58,9 @@ class SubjectGroupModel(BaseImmutableModel):
 
 class SubjectModel(BaseImmutableModel):
     __root__: SubjectEveryoneModel | SubjectGroupModel | IssuerAndClientModel | IssuerAndSubjectModel
+
+
+SUBJECT_EVERYONE = SubjectModel(__root__=SubjectEveryoneModel(everyone=True))
 
 
 class GroupMembershipExpr(BaseImmutableModel):
@@ -93,6 +102,9 @@ class ResourceSpecificModel(BaseImmutableModel):
 
 class ResourceModel(BaseImmutableModel):
     __root__: ResourceEverythingModel | ResourceSpecificModel
+
+
+RESOURCE_EVERYTHING = ResourceModel(__root__=ResourceEverythingModel(everything=True))
 
 
 class GrantModel(BaseImmutableModel):
