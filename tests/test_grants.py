@@ -7,11 +7,6 @@ from pydantic import ValidationError
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import GrantModel, StoredGrantModel
-# from bento_authorization_service.policy_engine.evaluation import (
-#     InvalidGrant,
-#     check_if_grant_subject_matches_token,
-#     check_if_grant_resource_matches_requested_resource,
-# )
 
 from . import shared_data as sd
 
@@ -50,16 +45,8 @@ def test_bad_grant_subject():
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {}})
 
-    # TODO: NotImplementedError tests
-    # with pytest.raises(InvalidGrant):
-    #     check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
-
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "subject": {"iss": sd.ISS}})
-
-    # TODO: NotImplementedError tests
-    # with pytest.raises(InvalidGrant):
-    #     check_if_grant_subject_matches_token(sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, bad_grant)
 
 
 def test_bad_grant_resource():
@@ -72,13 +59,6 @@ def test_bad_grant_resource():
 def test_bad_grant_permission_length():
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.dict(), "permissions": frozenset()})
-
-
-def test_not_implemented_grant_resource():
-    # TODO - check if we define a new resource type we get NotImplementedError
-    pass
-    # with pytest.raises(InvalidGrant):
-    #     check_if_grant_resource_matches_requested_resource(sd.RESOURCE_PROJECT_1, bad_grant)
 
 
 # noinspection PyUnusedLocal
