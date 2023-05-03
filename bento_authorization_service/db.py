@@ -45,7 +45,6 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
         notes=r["notes"],
         created=r["created"],
         expiry=r["expiry"],
-
         # Aggregated from grant_permissions
         permissions=set(r["permissions"]),  # TODO: what to do with permissions class vs. string?
     )
@@ -68,7 +67,6 @@ def group_db_deserialize(r: asyncpg.Record | None) -> StoredGroupModel | None:
         name=r["name"],
         membership=json.loads(r["membership"]),
         notes=r["notes"],
-
         created=r["created"],
         expiry=r["expiry"],
     )
@@ -174,7 +172,9 @@ class Database:
                 ) j 
                 JOIN subjects s ON j."subject" = s."id" 
                 JOIN resources r ON j."resource" = r."id"
-                """, id_)
+                """,
+                id_,
+            )
             return grant_db_deserialize(row)
 
     async def get_grants(self) -> tuple[StoredGrantModel, ...]:
@@ -216,13 +216,16 @@ class Database:
                         res: int | None = await conn.fetchval(
                             'INSERT INTO grants ("subject", "resource", "expiry", "notes") '
                             'VALUES ($1, $2, $3, $4) RETURNING "id"',
-                            *sub_res_perm, grant.notes)
+                            *sub_res_perm,
+                            grant.notes,
+                        )
 
                         assert res is not None  # Roll back transaction if insert didn't work somehow
 
                         await conn.executemany(
                             'INSERT INTO grant_permissions ("grant", "permission") VALUES ($1, $2)',
-                            [(res, p) for p in grant.permissions])
+                            [(res, p) for p in grant.permissions],
+                        )
 
                 except AssertionError:  # Failed for some reason
                     return None, False
@@ -238,7 +241,8 @@ class Database:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             res: asyncpg.Record | None = await conn.fetchrow(
-                "SELECT id, name, membership, notes, created, expiry FROM groups WHERE id = $1", id_)
+                "SELECT id, name, membership, notes, created, expiry FROM groups WHERE id = $1", id_
+            )
             return group_db_deserialize(res)
 
     async def get_groups(self) -> tuple[StoredGroupModel, ...]:
@@ -257,21 +261,24 @@ class Database:
             async with conn.transaction():
                 return await conn.fetchval(
                     "INSERT INTO groups (name, membership, notes, expiry) VALUES ($1, $2, $3, $4) RETURNING id",
-                    *group_db_serialize(group))
+                    *group_db_serialize(group),
+                )
 
     async def set_group(self, id_: int, group: GroupModel) -> None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             await conn.execute(
                 "UPDATE groups SET name = $2, membership = $3, notes = $4, expiry = $5 WHERE id = $1",
-                id_, *group_db_serialize(group))
+                id_,
+                *group_db_serialize(group),
+            )
 
     async def delete_group_and_dependent_grants(self, group_id: int) -> None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():  # Use a single transaction to make all deletes occur at the same time
                 # The Postgres JSON access returns NULL if the field doesn't exist, so the below works.
-                await conn.execute("DELETE FROM subjects WHERE (def->>'group')::int = $1",  group_id)
+                await conn.execute("DELETE FROM subjects WHERE (def->>'group')::int = $1", group_id)
                 await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
 
 

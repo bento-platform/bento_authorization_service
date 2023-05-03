@@ -9,11 +9,9 @@ __all__ = [
     "IssuerAndClientModel",
     "IssuerAndSubjectModel",
     "SubjectModel",
-
     "ResourceEverythingModel",
     "ResourceSpecificModel",
     "ResourceModel",
-
     "GroupMembershipExpr",
     "GroupMembershipItemModel",
     "GroupMembershipMembers",
@@ -98,7 +96,6 @@ class ResourceModel(BaseImmutableModel):
 
 
 class GrantModel(BaseImmutableModel):
-
     subject: SubjectModel
     resource: ResourceModel
     expiry: datetime | None

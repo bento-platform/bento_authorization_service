@@ -25,10 +25,7 @@ async def service_info(config: ConfigDependency):
         "name": config.service_name,  # TODO: Should be globally unique?
         "type": SERVICE_TYPE,
         "description": "Authorization & permissions service for the Bento platform.",
-        "organization": {
-            "name": "C3G",
-            "url": "https://www.computationalgenomics.ca"
-        },
+        "organization": {"name": "C3G", "url": "https://www.computationalgenomics.ca"},
         "contactUrl": config.service_contact_url,
         "version": __version__,
         "environment": "prod",

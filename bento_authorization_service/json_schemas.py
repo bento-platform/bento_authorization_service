@@ -72,7 +72,7 @@ TOKEN_DATA = {
             "search": {
                 "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
                 "queryable": "internal",
-            }
+            },
         },
     },
     "required": ["iss", "exp", "iat"],

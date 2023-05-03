@@ -82,7 +82,8 @@ async def create_grant(
             raise grant_could_not_be_created()  # Somehow immediately removed
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Grant with this subject + resource + permission already exists")
+            detail="Grant with this subject + resource + permission already exists",
+        )
 
     raise grant_could_not_be_created()
 
@@ -95,8 +96,7 @@ async def get_grant(
     authorization: OptionalBearerToken,
 ) -> StoredGrantModel:
     # Make sure the grant exists, and we have permissions-viewing capabilities, then return a serialized version.
-    return await get_grant_and_check_access(
-        extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager)
+    return await get_grant_and_check_access(extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager)
 
 
 @grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
