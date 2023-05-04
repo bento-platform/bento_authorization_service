@@ -3,11 +3,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import DatabaseDependency
-from ..dependencies import OptionalBearerToken
-from ..idp_manager import IdPManagerDependency
 from ..models import RESOURCE_EVERYTHING, GroupModel, StoredGroupModel
 from ..policy_engine.permissions import P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
-from .utils import raise_if_no_resource_access, extract_token
+from .utils import require_permission_dependency
 
 __all__ = [
     "groups_router",
@@ -24,29 +22,22 @@ def group_not_created() -> HTTPException:
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Group could not be created")
 
 
-@groups_router.get("/")
+@groups_router.get("/", dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)])
 async def list_groups(db: DatabaseDependency) -> list[StoredGroupModel]:
     return await db.get_groups()
 
 
-@groups_router.post("/", status_code=status.HTTP_201_CREATED)
+@groups_router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
+)
 async def create_group(
     group: GroupModel,
     db: DatabaseDependency,
-    idp_manager: IdPManagerDependency,
-    authorization: OptionalBearerToken,
 ) -> StoredGroupModel:
     # TODO: sub-groups owned by another group
     #  - how to do nested groups only for a subset of the data / groups owned/manageable by a group or individual?
-
-    await raise_if_no_resource_access(
-        extract_token(authorization),
-        RESOURCE_EVERYTHING,
-        P_EDIT_PERMISSIONS,
-        db,
-        idp_manager,
-    )
-
     if group.expiry is not None and group.expiry <= datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
 
@@ -56,69 +47,38 @@ async def create_group(
     raise group_not_created()
 
 
-@groups_router.get("/{group_id}")
-async def get_group(
-    group_id: int,
-    db: DatabaseDependency,
-    idp_manager: IdPManagerDependency,
-    authorization: OptionalBearerToken,
-) -> StoredGroupModel:
+@groups_router.get("/{group_id}", dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)])
+async def get_group(group_id: int, db: DatabaseDependency) -> StoredGroupModel:
     # TODO: sub-groups owned by another group
-
-    await raise_if_no_resource_access(
-        extract_token(authorization),
-        RESOURCE_EVERYTHING,
-        P_VIEW_PERMISSIONS,
-        db,
-        idp_manager,
-    )
+    # TODO: test permissions for this endpoint
 
     if group := await db.get_group(group_id):
         return group
     raise group_not_found(group_id)
 
 
-@groups_router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_group(
-    group_id: int,
-    db: DatabaseDependency,
-    idp_manager: IdPManagerDependency,
-    authorization: OptionalBearerToken,
-):
+@groups_router.delete(
+    "/{group_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
+)
+async def delete_group(group_id: int, db: DatabaseDependency) -> None:
     # TODO: sub-groups owned by another group
     # TODO: test permissions for this endpoint
-
-    await raise_if_no_resource_access(
-        extract_token(authorization),
-        RESOURCE_EVERYTHING,
-        P_EDIT_PERMISSIONS,
-        db,
-        idp_manager,
-    )
 
     if (await db.get_group(group_id)) is None:
         raise group_not_found(group_id)
     await db.delete_group_and_dependent_grants(group_id)
 
 
-@groups_router.put("/{group_id}")
-async def update_group(
-    group_id: int,
-    group: GroupModel,  # PUT body
-    db: DatabaseDependency,
-    idp_manager: IdPManagerDependency,
-    authorization: OptionalBearerToken,
-):
+@groups_router.put(
+    "/{group_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
+)
+async def update_group(group_id: int, group: GroupModel, db: DatabaseDependency) -> None:
     # TODO: sub-groups owned by another group
     # TODO: test permissions for this endpoint
-
-    await raise_if_no_resource_access(
-        extract_token(authorization),
-        RESOURCE_EVERYTHING,
-        P_EDIT_PERMISSIONS,
-        db,
-        idp_manager,
-    )
 
     if (await db.get_group(group_id)) is None:
         raise group_not_found(group_id)

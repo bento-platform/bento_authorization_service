@@ -49,8 +49,8 @@ async def test_db_group_non_existant(db: Database, db_cleanup):
 
 
 # noinspection PyUnusedLocal
-def test_expired_group_creation_error(test_client: TestClient, db_cleanup):
-    res = test_client.post("/groups/", json=json.loads(TEST_EXPIRED_GROUP.json()))
+def test_expired_group_creation_error(auth_headers: dict[str, str], test_client: TestClient, db_cleanup):
+    res = test_client.post("/groups/", json=json.loads(TEST_EXPIRED_GROUP.json()), headers=auth_headers)
     assert res.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -58,12 +58,17 @@ def test_expired_group_creation_error(test_client: TestClient, db_cleanup):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
 async def test_group_endpoints_creation(
-    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+    group: GroupModel, _is_member: bool, auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
 ):
-    # Group can be created via endpoint
     g = json.loads(group.json())
     del g["id"]
+
+    # Group cannot be created without token
     res = test_client.post("/groups/", json=g)
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # Group can be created via endpoint
+    res = test_client.post("/groups/", json=g, headers=auth_headers)
     assert res.status_code == status.HTTP_201_CREATED
 
     # Verify group exists in database
@@ -76,8 +81,13 @@ async def test_group_endpoints_creation(
 
 
 # noinspection PyUnusedLocal
-def test_group_endpoints_fetch_404(test_client: TestClient, db_cleanup):
+def test_group_endpoints_fetch_404(auth_headers: dict[str, str], test_client: TestClient, db_cleanup):
+    # No authz, can't tell if we have this group or not
     res = test_client.get("/groups/0")  # Below serial 1
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # Authz, confirm we don't have it
+    res = test_client.get("/groups/0", headers=auth_headers)  # Below serial 1
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -85,13 +95,17 @@ def test_group_endpoints_fetch_404(test_client: TestClient, db_cleanup):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
 async def test_group_endpoints_fetch(
-    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+    group: GroupModel, _is_member: bool, auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
 ):
     # Create group in database directly
     g_db_id = await db.create_group(group)
 
-    # Test that we can fetch the group via endpoint
+    # Test that we cannot get the group without auth headers
     res = test_client.get(f"/groups/{g_db_id}")
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # Test that we can fetch the group via endpoint
+    res = test_client.get(f"/groups/{g_db_id}", headers=auth_headers)
     assert res.status_code == status.HTTP_200_OK
     res_data = res.json()
 
@@ -105,13 +119,17 @@ async def test_group_endpoints_fetch(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
 async def test_group_endpoints_list(
-    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+    group: GroupModel, _is_member: bool, auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
 ):
     # Create group in database directly
     g_db_id = await db.create_group(group)
 
-    # Test that we can find the group via list endpoint
+    # Test that we cannot list groups without authorization
     res = test_client.get(f"/groups/")
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # Test that we can find the group via list endpoint
+    res = test_client.get(f"/groups/", headers=auth_headers)
     assert res.status_code == status.HTTP_200_OK
     res_data = res.json()
     group_in_list = next((g for g in res_data if g["id"] == g_db_id), None)
@@ -129,23 +147,27 @@ async def test_group_endpoints_list(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("group, _is_member", TEST_GROUPS)
 async def test_group_endpoints_delete(
-    group: GroupModel, _is_member: bool, test_client: TestClient, db: Database, db_cleanup
+    group: GroupModel, _is_member: bool, auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
 ):
     # Create group in database directly
     g_db_id = await db.create_group(group)
 
+    # Test that we cannot delete groups without authorization
+    res = test_client.get(f"/groups/{g_db_id}")
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
     # Test that we can delete the group
-    res = test_client.delete(f"/groups/{g_db_id}")
+    res = test_client.delete(f"/groups/{g_db_id}", headers=auth_headers)
     assert res.status_code == status.HTTP_204_NO_CONTENT
 
     # Test that we can delete again - it is a 404, but not an internal error
-    res = test_client.delete(f"/groups/{g_db_id}")
+    res = test_client.delete(f"/groups/{g_db_id}", headers=auth_headers)
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_group_endpoints_update(test_client: TestClient, db: Database, db_cleanup):
+async def test_group_endpoints_update(auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup):
     group_1 = TEST_GROUPS[0][0]
     group_2 = TEST_GROUPS[1][0]
 
@@ -158,8 +180,13 @@ async def test_group_endpoints_update(test_client: TestClient, db: Database, db_
         exclude={"id", "created"}, sort_keys=True
     )
 
+    # Test we cannot update with no authorization
     res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()))
-    assert res.status_code == status.HTTP_200_OK
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # Test we can make an update request
+    res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()), headers=auth_headers)
+    assert res.status_code == status.HTTP_204_NO_CONTENT
 
     # Check it now matches the second one
     g_db = await db.get_group(g_db_id)
@@ -168,14 +195,17 @@ async def test_group_endpoints_update(test_client: TestClient, db: Database, db_
     )
 
     # Check idempotency
-    res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()))
-    assert res.status_code == status.HTTP_200_OK
+    res = test_client.put(f"/groups/{g_db_id}", json=json.loads(group_2.json()), headers=auth_headers)
+    assert res.status_code == status.HTTP_204_NO_CONTENT
     g_db = await db.get_group(g_db_id)
     assert g_db is not None and g_db.json(exclude={"id", "created"}, sort_keys=True) == group_2.json(
         exclude={"id", "created"}, sort_keys=True
     )
 
-    # Check it 404s for a not-found group
+    # Check it 404s for a not-found group with auth
 
     res = test_client.put(f"/groups/0", json=json.loads(group_2.json()))
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    res = test_client.put(f"/groups/0", json=json.loads(group_2.json()), headers=auth_headers)
     assert res.status_code == status.HTTP_404_NOT_FOUND

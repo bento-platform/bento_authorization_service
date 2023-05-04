@@ -12,7 +12,7 @@ from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager
 
-from .shared_data import TEST_TOKEN_SECRET, bootstrap_meta_permissions_for_david
+from .shared_data import TEST_TOKEN_SECRET, bootstrap_meta_permissions_for_david, make_fresh_david_token_encoded
 
 
 class MockIdPManager(BaseIdPManager):
@@ -78,3 +78,13 @@ async def idp_manager():
     idp_manager_instance = MockIdPManager("")
     await idp_manager_instance.initialize()
     yield idp_manager_instance
+
+
+@pytest.fixture()
+def token_encoded() -> str:
+    yield make_fresh_david_token_encoded()
+
+
+@pytest.fixture()
+def auth_headers(token_encoded: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token_encoded}"}
