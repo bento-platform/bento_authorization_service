@@ -57,7 +57,8 @@ async def create_grant(
     authorization: OptionalBearerToken,
 ) -> StoredGrantModel:
     await raise_if_no_resource_access(
-        request, extract_token(authorization), grant.resource, P_EDIT_PERMISSIONS, db, idp_manager)
+        request, extract_token(authorization), grant.resource, P_EDIT_PERMISSIONS, db, idp_manager
+    )
 
     # Flag that we have thought about auth
     request.state.determined_authz = True
@@ -89,7 +90,8 @@ async def get_grant(
 ) -> StoredGrantModel:
     # Make sure the grant exists, and we have permissions-viewing capabilities.
     grant = await get_grant_and_check_access(
-        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager)
+        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager
+    )
 
     # Flag that we have thought about auth
     request.state.determined_authz = True
@@ -107,7 +109,8 @@ async def delete_grant(
 ):
     # Make sure the grant exists, and we have permissions-editing capabilities.
     await get_grant_and_check_access(
-        request, extract_token(authorization), grant_id, P_EDIT_PERMISSIONS, db, idp_manager)
+        request, extract_token(authorization), grant_id, P_EDIT_PERMISSIONS, db, idp_manager
+    )
 
     # Flag that we have thought about auth
     request.state.determined_authz = True

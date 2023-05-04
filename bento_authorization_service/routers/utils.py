@@ -39,7 +39,8 @@ async def raise_if_no_resource_access(
     except Exception as e:  # Could not properly run evaluate(); return forbidden!
         logger.error(
             f"Encountered error while checking permissions for request {request.method} {request.url.path}: "
-            f"{repr(e)}")
+            f"{repr(e)}"
+        )
         raise forbidden()
 
 
