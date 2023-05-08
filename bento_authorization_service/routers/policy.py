@@ -7,6 +7,7 @@ from ..idp_manager import IdPManagerDependency
 from ..models import ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate
 from ..policy_engine.permissions import PERMISSIONS_BY_STRING
+from .utils import public_endpoint_dependency
 
 __all__ = ["policy_router"]
 
@@ -17,13 +18,15 @@ class ListPermissionsRequest(BaseModel):
     requested_resource: ResourceModel
 
 
-@policy_router.post("/permissions")
+@policy_router.post("/permissions", dependencies=[public_endpoint_dependency])
 async def req_list_permissions(
     authorization: OptionalBearerToken,
     list_permissions_request: ListPermissionsRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
 ):
+    # Public endpoint, no permissions checks required:
+
     # Endpoint permissions: available to everyone, since this endpoint's contents are token-specific.
     # A rate limiter should be placed in front of this service, especially this endpoint, since it is public.
 
@@ -53,13 +56,15 @@ class EvaluationRequest(BaseModel):
     required_permissions: list[str]
 
 
-@policy_router.post("/evaluate")
+@policy_router.post("/evaluate", dependencies=[public_endpoint_dependency])
 async def req_evaluate(
     authorization: OptionalBearerToken,
     evaluation_request: EvaluationRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
 ):
+    # Public endpoint, no permissions checks required:
+
     # Endpoint permissions: available to everyone, since this endpoint's contents are token-specific.
     # A rate limiter should be placed in front of this service, especially this endpoint, since it is public.
 

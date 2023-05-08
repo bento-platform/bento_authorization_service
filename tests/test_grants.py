@@ -131,9 +131,8 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
     db_grant_json = db_grant.json(sort_keys=True)
 
     # test that without a token, we cannot see anything
-    #  TODO
-    # res = test_client.get("/grants/")
-    # assert res.status_code == status.HTTP_403_FORBIDDEN
+    res = test_client.get("/grants/")
+    assert res.status_code == status.HTTP_403_FORBIDDEN
 
     # test that we can find it in the list
     res = test_client.get("/grants/", headers=headers)
@@ -143,9 +142,7 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_grant_endpoints_delete(test_client: TestClient, db: Database, db_cleanup):
-    headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
-
+async def test_grant_endpoints_delete(auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup):
     # create grant in database
     g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
 
@@ -154,9 +151,9 @@ async def test_grant_endpoints_delete(test_client: TestClient, db: Database, db_
     assert res.status_code == status.HTTP_403_FORBIDDEN
 
     # test that we can delete it
-    res = test_client.delete(f"/grants/{g_id}", headers=headers)
+    res = test_client.delete(f"/grants/{g_id}", headers=auth_headers)
     assert res.status_code == status.HTTP_204_NO_CONTENT
 
     # test that we can delete it again (but get 404)
-    res = test_client.delete(f"/grants/{g_id}", headers=headers)
+    res = test_client.delete(f"/grants/{g_id}", headers=auth_headers)
     assert res.status_code == status.HTTP_404_NOT_FOUND
