@@ -12,7 +12,12 @@ from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager, check_token_signing_alg
 
-from .shared_data import TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG, bootstrap_meta_permissions_for_david, make_fresh_david_token_encoded
+from .shared_data import (
+    TEST_TOKEN_SECRET,
+    TEST_TOKEN_SIGNING_ALG,
+    bootstrap_meta_permissions_for_david,
+    make_fresh_david_token_encoded,
+)
 
 
 class MockIdPManager(BaseIdPManager):
