@@ -27,7 +27,7 @@ class Config(BaseSettings):
     #    the instance-local IdP is supported.
     openid_well_known_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
 
-    disallowed_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
+    disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
 
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 

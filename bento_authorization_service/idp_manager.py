@@ -109,7 +109,7 @@ class IdPManager(BaseIdPManager):
         check_token_signing_alg(
             decoded_token,
             get_permitted_id_token_signing_alg_values(
-                id_token_signing_alg_values_supported, get_config().disallowed_token_signing_algorithms
+                id_token_signing_alg_values_supported, get_config().disabled_token_signing_algorithms
             ),
         )
 
@@ -117,10 +117,10 @@ class IdPManager(BaseIdPManager):
 
 
 def get_permitted_id_token_signing_alg_values(
-    id_token_signing_alg_values_supported: list, disallowed_token_signing_algorithms: frozenset
+    id_token_signing_alg_values_supported: list, disabled_token_signing_algorithms: frozenset
 ) -> frozenset:
     return frozenset(
-        [alg for alg in id_token_signing_alg_values_supported if alg not in disallowed_token_signing_algorithms]
+        [alg for alg in id_token_signing_alg_values_supported if alg not in disabled_token_signing_algorithms]
     )
 
 
