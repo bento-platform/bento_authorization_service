@@ -99,13 +99,13 @@ class IdPManager(BaseIdPManager):
         sk = self._jwks_client.get_signing_key_from_jwt(token)
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        # First decode the token using the IdP's supported algorithms..
-        id_token_signing_alg_values_supported = self._oidc_well_known_data["id_token_signing_alg_values_supported"]
-        decoded_token = jwt.decode(token, sk, algorithms=id_token_signing_alg_values_supported)
 
-        # .. then check whether the algorithm used to sign the token is permitted or not
-        # obtain the IdP's supported token signing algorithms
-        # filtered through a set of preconfigured disabled ones
+        # Obtain the IdP's supported token signing algorithms
+        id_token_signing_alg_values_supported = self._oidc_well_known_data["id_token_signing_alg_values_supported"]
+        # Decode the token using the IdP's supported algorithms,
+        decoded_token = jwt.decode(token, sk, algorithms=id_token_signing_alg_values_supported)
+        # Check whether the algorithm used to sign the token is permitted or not by
+        # filtering what's supported by the IdP against our own policy
         check_token_signing_alg(
             decoded_token,
             get_permitted_id_token_signing_alg_values(
