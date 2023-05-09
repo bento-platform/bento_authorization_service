@@ -123,7 +123,7 @@ def verify_id_token_and_decode(
         secret,
         audience=secret,
         algorithms=permitted_id_token_signing_algos,
-    )  # hard-coded test secret
+    )
 
 
 def get_permitted_id_token_signing_alg_values(

@@ -16,7 +16,7 @@ from bento_authorization_service.models import (
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 
 
-TEST_TOKEN_SECRET = "secret"
+TEST_TOKEN_SECRET = "secret"  # hard-coded test secret
 TEST_TOKEN_AUD = "account"
 TEST_TOKEN_SIGNING_ALG = "HS512"
 
