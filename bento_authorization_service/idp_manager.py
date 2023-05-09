@@ -7,7 +7,7 @@ from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated, Optional
 
-from .config import ConfigDependency
+from .config import ConfigDependency, get_config
 from .logger import logger
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "get_idp_manager",
     "IdPManagerDependency",
     "check_token_signing_alg",
+    "get_permitted_id_token_signing_alg_values",
 ]
 
 
@@ -98,18 +99,33 @@ class IdPManager(BaseIdPManager):
         sk = self._jwks_client.get_signing_key_from_jwt(token)
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        decoded_token = jwt.decode(
-            token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"]
-        )
+        # First decode the token using the IdP's supported algorithms..
+        id_token_signing_alg_values_supported = self._oidc_well_known_data["id_token_signing_alg_values_supported"]
+        decoded_token = jwt.decode(token, sk, algorithms=id_token_signing_alg_values_supported)
 
-        # Check if the algorithm used to sign the token is acceptable
-        check_token_signing_alg(decoded_token, config.permitted_token_algorithms)
+        # .. then check whether the algorithm used to sign the token is permitted or not
+        # obtain the IdP's supported token signing algorithms
+        # filtered through a set of preconfigured disabled ones
+        check_token_signing_alg(
+            decoded_token,
+            get_permitted_id_token_signing_alg_values(
+                id_token_signing_alg_values_supported, get_config().disallowed_token_signing_algorithms
+            ),
+        )
 
         return decoded_token
 
 
-def check_token_signing_alg(decoded_token: dict, permitted_token_algorithms: frozenset):
-    if decoded_token.get("alg") is None or decoded_token.get("alg") not in permitted_token_algorithms:
+def get_permitted_id_token_signing_alg_values(
+    id_token_signing_alg_values_supported: list, disallowed_token_signing_algorithms: frozenset
+) -> frozenset:
+    return frozenset(
+        [alg for alg in id_token_signing_alg_values_supported if alg not in disallowed_token_signing_algorithms]
+    )
+
+
+def check_token_signing_alg(decoded_token: dict, permitted_token_signing_algorithms: frozenset):
+    if decoded_token.get("alg") is None or decoded_token.get("alg") not in permitted_token_signing_algorithms:
         raise IdPManagerBadAlgorithmError("ID token signing algorithm not permitted")
 
 

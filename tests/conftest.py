@@ -10,11 +10,17 @@ from typing import AsyncGenerator
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
-from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager, check_token_signing_alg
+from bento_authorization_service.idp_manager import (
+    BaseIdPManager,
+    get_idp_manager,
+    check_token_signing_alg,
+    get_permitted_id_token_signing_alg_values,
+)
 
 from .shared_data import (
     TEST_TOKEN_SECRET,
-    TEST_TOKEN_SIGNING_ALG,
+    TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
+    TEST_DISABLED_TOKEN_SIGNING_ALGOS,
     bootstrap_meta_permissions_for_david,
     make_fresh_david_token_encoded,
 )
@@ -33,11 +39,15 @@ class MockIdPManager(BaseIdPManager):
             token,
             TEST_TOKEN_SECRET,
             audience=TEST_TOKEN_SECRET,
-            algorithms=[TEST_TOKEN_SIGNING_ALG],
+            algorithms=TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
         )  # hard-coded test secret
 
-        # hard-coded permitted algos
-        check_token_signing_alg(decoded_token, frozenset([TEST_TOKEN_SIGNING_ALG]))
+        check_token_signing_alg(
+            decoded_token,
+            get_permitted_id_token_signing_alg_values(
+                TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS, TEST_DISABLED_TOKEN_SIGNING_ALGOS
+            ),
+        )
         return decoded_token
 
 

@@ -18,11 +18,21 @@ from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA, 
 
 TEST_TOKEN_SECRET = "secret"
 TEST_TOKEN_AUD = "account"
-TEST_TOKEN_SIGNING_ALG = "HS256"
+TEST_TOKEN_SIGNING_ALG = "HS512"
 
 ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
 SUB = "david"
+
+TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS = [  # only HS* for testing purposes
+    "HS256",
+    "HS384",
+    TEST_TOKEN_SIGNING_ALG,
+]
+
+TEST_DISABLED_TOKEN_SIGNING_ALGOS = [  # disable all supported algos except the strongest one
+    alg for alg in TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS if alg != TEST_TOKEN_SIGNING_ALG
+]
 
 TEST_TOKEN = {
     "iss": ISS,
@@ -45,15 +55,31 @@ TEST_TOKEN_NO_ALG = {
     "iat": 0,  # Not checked here
 }
 
+TEST_TOKEN_DISABLED_ALG = {
+    "iss": ISS,
+    "sub": SUB,
+    "aud": TEST_TOKEN_SECRET,
+    "alg": TEST_DISABLED_TOKEN_SIGNING_ALGOS[0],
+    "azp": CLIENT,
+    "typ": "Bearer",
+    "exp": 100,  # Not checked here
+    "iat": 0,  # Not checked here
+}
+
 
 def make_fresh_david_token():
     dt = int(datetime.now(timezone.utc).timestamp())
     return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
 
 
-def make_fresh_no_alg_token():
+def make_fresh_david_no_alg_token():
     dt = int(datetime.utcnow().timestamp())
     return {**TEST_TOKEN_NO_ALG, "iat": dt, "exp": dt + 900}
+
+
+def make_fresh_david_disabled_alg_token():
+    dt = int(datetime.utcnow().timestamp())
+    return {**TEST_TOKEN_DISABLED_ALG, "iat": dt, "exp": dt + 900}
 
 
 def make_fresh_david_token_encoded() -> str:
@@ -61,7 +87,11 @@ def make_fresh_david_token_encoded() -> str:
 
 
 def make_fresh_david_no_alg_encoded() -> str:
-    return jwt.encode(make_fresh_no_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+    return jwt.encode(make_fresh_david_no_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+
+
+def make_fresh_david_disabled_alg_encoded() -> str:
+    return jwt.encode(make_fresh_david_disabled_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
 async def bootstrap_meta_permissions_for_david(db: Database) -> None:
