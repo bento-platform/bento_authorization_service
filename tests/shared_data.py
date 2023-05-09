@@ -38,28 +38,6 @@ TEST_TOKEN = {
     "iss": ISS,
     "sub": SUB,
     "aud": TEST_TOKEN_SECRET,
-    "alg": TEST_TOKEN_SIGNING_ALG,
-    "azp": CLIENT,
-    "typ": "Bearer",
-    "exp": 100,  # Not checked here
-    "iat": 0,  # Not checked here
-}
-
-TEST_TOKEN_NO_ALG = {
-    "iss": ISS,
-    "sub": SUB,
-    "aud": TEST_TOKEN_SECRET,
-    "azp": CLIENT,
-    "typ": "Bearer",
-    "exp": 100,  # Not checked here
-    "iat": 0,  # Not checked here
-}
-
-TEST_TOKEN_DISABLED_ALG = {
-    "iss": ISS,
-    "sub": SUB,
-    "aud": TEST_TOKEN_SECRET,
-    "alg": TEST_DISABLED_TOKEN_SIGNING_ALGOS[0],
     "azp": CLIENT,
     "typ": "Bearer",
     "exp": 100,  # Not checked here
@@ -72,26 +50,12 @@ def make_fresh_david_token():
     return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
 
 
-def make_fresh_david_no_alg_token():
-    dt = int(datetime.utcnow().timestamp())
-    return {**TEST_TOKEN_NO_ALG, "iat": dt, "exp": dt + 900}
-
-
-def make_fresh_david_disabled_alg_token():
-    dt = int(datetime.utcnow().timestamp())
-    return {**TEST_TOKEN_DISABLED_ALG, "iat": dt, "exp": dt + 900}
-
-
 def make_fresh_david_token_encoded() -> str:
     return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
-def make_fresh_david_no_alg_encoded() -> str:
-    return jwt.encode(make_fresh_david_no_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
-
-
 def make_fresh_david_disabled_alg_encoded() -> str:
-    return jwt.encode(make_fresh_david_disabled_alg_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_DISABLED_TOKEN_SIGNING_ALGOS[0])
 
 
 async def bootstrap_meta_permissions_for_david(db: Database) -> None:

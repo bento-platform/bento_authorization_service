@@ -15,6 +15,7 @@ from bento_authorization_service.idp_manager import (
     get_idp_manager,
     check_token_signing_alg,
     get_permitted_id_token_signing_alg_values,
+    verify_id_token_and_decode,
 )
 
 from .shared_data import (
@@ -35,20 +36,9 @@ class MockIdPManager(BaseIdPManager):
         return True
 
     async def decode(self, token: str) -> dict:
-        decoded_token = jwt.decode(
-            token,
-            TEST_TOKEN_SECRET,
-            audience=TEST_TOKEN_SECRET,
-            algorithms=TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
-        )  # hard-coded test secret
-
-        check_token_signing_alg(
-            decoded_token,
-            get_permitted_id_token_signing_alg_values(
-                TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS, TEST_DISABLED_TOKEN_SIGNING_ALGOS
-            ),
+        return verify_id_token_and_decode(
+            token, TEST_TOKEN_SECRET, TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS, TEST_DISABLED_TOKEN_SIGNING_ALGOS
         )
-        return decoded_token
 
 
 async def get_test_db() -> AsyncGenerator[Database, None]:

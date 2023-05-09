@@ -19,6 +19,7 @@ __all__ = [
     "IdPManagerDependency",
     "check_token_signing_alg",
     "get_permitted_id_token_signing_alg_values",
+    "verify_id_token",
 ]
 
 
@@ -102,18 +103,27 @@ class IdPManager(BaseIdPManager):
 
         # Obtain the IdP's supported token signing algorithms
         id_token_signing_alg_values_supported = self._oidc_well_known_data["id_token_signing_alg_values_supported"]
-        # Decode the token using the IdP's supported algorithms,
-        decoded_token = jwt.decode(token, sk, algorithms=id_token_signing_alg_values_supported)
-        # Check whether the algorithm used to sign the token is permitted or not by
-        # filtering what's supported by the IdP against our own policy
-        check_token_signing_alg(
-            decoded_token,
-            get_permitted_id_token_signing_alg_values(
-                id_token_signing_alg_values_supported, get_config().disabled_token_signing_algorithms
-            ),
+        return verify_id_token_and_decode(
+            token, sk, id_token_signing_alg_values_supported, get_config().disabled_token_signing_algorithms
         )
 
-        return decoded_token
+
+def verify_id_token_and_decode(
+    token: str, secret: jwt.PyJWK, supported_token_signing_algos: list[str], disabled_token_signing_algos: frozenset
+) -> dict[str, object]:
+    token_header = jwt.get_unverified_header(token)
+    permitted_id_token_signing_algos = get_permitted_id_token_signing_alg_values(
+        supported_token_signing_algos, disabled_token_signing_algos
+    )
+
+    check_token_signing_alg(token_header, permitted_id_token_signing_algos)
+
+    return jwt.decode(
+        token,
+        secret,
+        audience=secret,
+        algorithms=permitted_id_token_signing_algos,
+    )  # hard-coded test secret
 
 
 def get_permitted_id_token_signing_alg_values(
