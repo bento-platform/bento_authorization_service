@@ -4,9 +4,11 @@ Permissions and authorization service for the Bento platform.
 
 
 
+
 ## Development
 
 TODO
+
 
 
 
@@ -23,13 +25,82 @@ It will also determine coverage and generate an HTML coverage report.
 
 
 
+
 ## Deployment
 
 TODO
 
 
 
-## Resource permissions cascade
+
+## Usage and API
+
+### Policy evaluation endpoints
+
+Bearer token `Authorization` headers should be forwarded alongside a request to the endpoints here.
+The service will then use the token as the subject for the particular request. If no token is included,
+the user will be treated as `{"anonymous": true}`.
+
+#### `POST /policy/evaluate`
+
+**The main evaluation endpoint.** Implementers MUST use this when making *binary* authorization decisions, 
+e.g., does User A have the `query:data` permission for Resource B.
+
+##### Request body example (JSON)
+
+```json
+{
+  "requested_resource": {"everything": true},
+  "required_permissions": ["query:data"]
+}
+```
+
+##### Response (JSON)
+
+```json
+{
+  "result": true
+}
+```
+
+#### `POST /policy/permissions`
+
+A secondary evaluation endpoint, which lists permissions that apply to a particular token/resource pair.
+
+Implementers MAY use this for graceful-fallback policy decisions (although a multiple-requests approach to the above
+`evaluate` endpoint is preferable, since it will log decisions made).
+
+Implementers SHOULD use this endpoint when rendering a user interface in order to selectively disable/hide components
+which the user does not have the permissions to use.
+
+##### Request body example (JSON)
+
+```json
+{
+  "requested_resource": {"everything": true}
+}
+```
+
+##### Response (JSON)
+
+```json
+{
+  "result": ["query:data"]
+}
+```
+
+
+### Group endpoints
+
+TODO
+
+
+### Grant endpoints
+
+TODO
+
+
+### Resource permissions cascade
 
 <img src="./docs/permissions_cascade.png" alt="Resource permissions cascade diagram" width="500" height="288" />
 
