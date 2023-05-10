@@ -41,10 +41,16 @@ Bearer token `Authorization` headers should be forwarded alongside a request to 
 The service will then use the token as the subject for the particular request. If no token is included,
 the user will be treated as `{"anonymous": true}`.
 
-#### `POST /policy/evaluate`
+#### `POST /policy/evaluate` - The main evaluation endpoint
 
-**The main evaluation endpoint.** Implementers MUST use this when making *binary* authorization decisions, 
-e.g., does User A have the `query:data` permission for Resource B.
+Implementers MUST use this when making *binary* authorization decisions, e.g., does User A have the 
+`query:data` permission for Resource B.
+
+Implementers SHOULD use this when making graceful-fallback policy decisions, via a multiple-requests approach, e.g.:
+
+* "does User A have the `query:data` permission for Resource B"? 
+* If not, "do they have the `dataset_level_counts` permission for Resource B?"
+* *et cetera.*
 
 ##### Request body example (JSON)
 
@@ -63,9 +69,9 @@ e.g., does User A have the `query:data` permission for Resource B.
 }
 ```
 
-#### `POST /policy/permissions`
+#### `POST /policy/permissions` - a secondary evaluation endpoint
 
-A secondary evaluation endpoint, which lists permissions that apply to a particular token/resource pair.
+This endpoint lists permissions that apply to a particular token/resource pair.
 
 Implementers MAY use this for graceful-fallback policy decisions (although a multiple-requests approach to the above
 `evaluate` endpoint is preferable, since it will log decisions made).
