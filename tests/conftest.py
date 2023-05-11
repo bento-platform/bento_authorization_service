@@ -39,7 +39,11 @@ class MockIdPManager(BaseIdPManager):
 
     async def decode(self, token: str) -> dict:
         return verify_id_token_and_decode(
-            token,TEST_TOKEN_AUD, TEST_TOKEN_SECRET, TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS, TEST_DISABLED_TOKEN_SIGNING_ALGOS
+            token,
+            TEST_TOKEN_AUD,
+            TEST_TOKEN_SECRET,
+            TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
+            TEST_DISABLED_TOKEN_SIGNING_ALGOS,
         )
 
 

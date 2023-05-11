@@ -149,7 +149,11 @@ class IdPManager(BaseIdPManager):
 
 
 def verify_id_token_and_decode(
-    token: str, audience: str, secret: jwt.PyJWK, supported_token_signing_algos: list[str], disabled_token_signing_algos: frozenset
+    token: str,
+    audience: str,
+    secret: jwt.PyJWK,
+    supported_token_signing_algos: list[str],
+    disabled_token_signing_algos: frozenset,
 ) -> dict[str, object]:
     token_header = jwt.get_unverified_header(token)
     permitted_id_token_signing_algos = get_permitted_id_token_signing_alg_values(
