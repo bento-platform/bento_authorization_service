@@ -61,6 +61,8 @@ Implementers SHOULD use this when making graceful-fallback policy decisions, via
 }
 ```
 
+The `requested_resource` field can also be an **array** of resources.
+
 ##### Response (JSON)
 
 ```json
@@ -68,6 +70,8 @@ Implementers SHOULD use this when making graceful-fallback policy decisions, via
   "result": true
 }
 ```
+
+If `requested_resource` is an array of resources, `result` would instead be returned as a **list of booleans**.
 
 #### `POST /policy/permissions` - a secondary evaluation endpoint
 
@@ -87,6 +91,8 @@ which the user does not have the permissions to use.
 }
 ```
 
+The `requested_resource` field can also be an **array** of resources.
+
 ##### Response (JSON)
 
 ```json
@@ -94,6 +100,8 @@ which the user does not have the permissions to use.
   "result": ["query:data"]
 }
 ```
+
+If `requested_resource` is an array of resources, `result` would instead be returned as a **list of booleans**.
 
 
 ### Group endpoints
