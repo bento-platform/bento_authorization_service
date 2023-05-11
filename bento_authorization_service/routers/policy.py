@@ -45,6 +45,7 @@ def list_permissions_curried(
                 requested_resource=r,
             )
         )
+
     return _inner
 
 
@@ -100,6 +101,7 @@ def evaluate_curried(
             r,
             required_permissions,
         )
+
     return _inner
 
 
