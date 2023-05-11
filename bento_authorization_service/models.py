@@ -115,6 +115,11 @@ class GrantModel(BaseImmutableModel):
 
     permissions: frozenset[str] = Field(..., min_items=1)
 
+    class Config(BaseImmutableModel.Config):
+        json_encoders = {
+            frozenset: lambda x: sorted(x),  # make set serialization have a consistent order
+        }
+
 
 class StoredGrantModel(GrantModel):
     id: int
