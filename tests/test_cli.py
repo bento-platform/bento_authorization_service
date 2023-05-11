@@ -43,4 +43,18 @@ async def test_cli_create_grant(capsys, db: Database, db_cleanup):
     assert len(await db.get_grants()) == 2
 
     # check we can get the grant
-    assert db.get_grant(new_id) is not None
+    assert await db.get_grant(new_id) is not None
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_get_grant(capsys, db: Database, db_cleanup):
+    existing_grant = (await db.get_grants())[0]
+
+    r = await main(["get-grant", str(existing_grant.id)])
+    assert r == 0
+    captured = capsys.readouterr()
+    assert captured.out == existing_grant.json(sort_keys=True, indent=2) + "\n"
+
+    r = await main(["get-grant", "-1"])  # DNE
+    assert r == 1
