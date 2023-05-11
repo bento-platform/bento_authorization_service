@@ -109,10 +109,21 @@ If `requested_resource` is an array of resources, `result` would instead be retu
 
 TODO
 
+* `GET /groups`
+* `POST /groups`
+* `GET /groups/<id>`
+* `PUT /groups/<id>`
+* `DELETE /groups/<id>`
+
 
 ### Grant endpoints
 
 TODO
+
+* `GET /grants`
+* `POST /grants`
+* `GET /grants/<id>`
+* `DELETE /grants/<id>`
 
 
 ### Resource permissions cascade
