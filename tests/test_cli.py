@@ -27,12 +27,15 @@ async def test_cli_list_grants(capsys, db: Database, db_cleanup):
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 async def test_cli_create_grant(capsys, db: Database, db_cleanup):
-    r = await main([
-        "create-grant",
-        TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.json(),
-        TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.json(),
-        *TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
-    ], db=db)
+    r = await main(
+        [
+            "create-grant",
+            TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.json(),
+            TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.json(),
+            *TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
+        ],
+        db=db,
+    )
 
     assert r == 0
 
