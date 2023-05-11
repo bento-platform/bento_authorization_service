@@ -4,9 +4,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Callable, TypeVar
 
-from ..db import Database, DatabaseDependency
+from ..db import DatabaseDependency
 from ..dependencies import OptionalBearerToken
-from ..idp_manager import BaseIdPManager, IdPManagerDependency
+from ..idp_manager import IdPManagerDependency
 from ..models import StoredGroupModel, StoredGrantModel, ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate_with_provided
 from ..policy_engine.permissions import Permission, PERMISSIONS_BY_STRING
@@ -82,7 +82,7 @@ async def req_list_permissions(
 
 
 class EvaluationRequest(BaseModel):
-    requested_resource: ResourceModel | list[ResourceModel]
+    requested_resource: ResourceModel | tuple[ResourceModel, ...]
     required_permissions: list[str]
 
 

@@ -305,3 +305,22 @@ async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_clean
     )
     assert res.status_code == status.HTTP_200_OK
     assert res.json()["result"]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_endpoint_list(db: Database, test_client: TestClient, db_cleanup):
+    tkn = await _eval_test_data(db)
+    res = test_client.post(
+        "/policy/evaluate",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "requested_resource": [
+                json.loads(sd.RESOURCE_PROJECT_1.json()),
+                json.loads(sd.RESOURCE_PROJECT_2.json()),
+            ],
+            "required_permissions": [P_QUERY_DATA],
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    assert json.dumps(res.json()["result"]) == json.dumps([True, False])
