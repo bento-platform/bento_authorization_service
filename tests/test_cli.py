@@ -51,7 +51,7 @@ async def test_cli_create_grant(capsys, db: Database, db_cleanup):
 async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     existing_grant = (await db.get_grants())[0]
 
-    r = await main(["get-grant", str(existing_grant.id)])
+    r = await main(["get-grant", str(existing_grant.id)], db=db)
     assert r == 0
     captured = capsys.readouterr()
     assert captured.out == existing_grant.json(sort_keys=True, indent=2) + "\n"
@@ -62,7 +62,27 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_cli_delete_grant(capsys, db: Database, db_cleanup):
+    assert len(await db.get_grants()) == 1
+
+    existing_grant = (await db.get_grants())[0]
+
+    r = await main(["delete-grant", str(existing_grant.id)], db=db)
+    assert r == 0
+
+    assert len(await db.get_grants()) == 0
+
+    r = await main(["delete-grant", str(existing_grant.id)], db=db)  # Not found
+    assert r == 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_cli_help_works(capsys, db: Database, db_cleanup):
     with pytest.raises(SystemExit) as e:
         await main(["--help"])
+        assert e.value == "0"
+
+    with pytest.raises(SystemExit) as e:
+        await main([])
         assert e.value == "0"
