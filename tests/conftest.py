@@ -10,11 +10,20 @@ from typing import AsyncGenerator
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
-from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager
+from bento_authorization_service.idp_manager import (
+    BaseIdPManager,
+    get_idp_manager,
+    check_token_signing_alg,
+    get_permitted_id_token_signing_alg_values,
+    verify_id_token_and_decode,
+)
 
 from .shared_data import (
-    TEST_TOKEN_AUD,
     TEST_TOKEN_SECRET,
+    TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
+    TEST_DISABLED_TOKEN_SIGNING_ALGOS,
+    bootstrap_meta_permissions_for_david,
+    TEST_TOKEN_AUD,
     bootstrap_meta_permissions_for_david,
     make_fresh_david_token_encoded,
 )
@@ -29,12 +38,13 @@ class MockIdPManager(BaseIdPManager):
         return True
 
     async def decode(self, token: str) -> dict:
-        return jwt.decode(
+        return verify_id_token_and_decode(
             token,
+            TEST_TOKEN_AUD,
             TEST_TOKEN_SECRET,
-            audience=TEST_TOKEN_AUD,
-            algorithms=["HS256"],
-        )  # hard-coded test secret
+            TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
+            TEST_DISABLED_TOKEN_SIGNING_ALGOS,
+        )
 
 
 async def get_test_db() -> AsyncGenerator[Database, None]:

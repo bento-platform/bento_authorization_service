@@ -32,6 +32,8 @@ class Config(BaseSettings):
     #  - Default access token audience from Keycloak
     token_audience: str = "account"
 
+    disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
+
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 
     class Config:

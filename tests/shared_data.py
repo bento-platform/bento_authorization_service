@@ -16,12 +16,23 @@ from bento_authorization_service.models import (
 from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 
 
-TEST_TOKEN_SECRET = "secret"
+TEST_TOKEN_SECRET = "secret"  # hard-coded test secret
 TEST_TOKEN_AUD = "account"
+TEST_TOKEN_SIGNING_ALG = "HS512"
 
 ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
 SUB = "david"
+
+TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS = [  # only HS* for testing purposes
+    "HS256",
+    "HS384",
+    TEST_TOKEN_SIGNING_ALG,
+]
+
+TEST_DISABLED_TOKEN_SIGNING_ALGOS = [  # disable all supported algos except the strongest one
+    alg for alg in TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS if alg != TEST_TOKEN_SIGNING_ALG
+]
 
 TEST_TOKEN = {
     "iss": ISS,
@@ -40,7 +51,11 @@ def make_fresh_david_token():
 
 
 def make_fresh_david_token_encoded() -> str:
-    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, "HS256")
+    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+
+
+def make_fresh_david_disabled_alg_encoded() -> str:
+    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_DISABLED_TOKEN_SIGNING_ALGOS[0])
 
 
 async def bootstrap_meta_permissions_for_david(db: Database) -> None:

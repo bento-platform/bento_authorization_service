@@ -4,7 +4,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from bento_authorization_service.db import Database
-from bento_authorization_service.idp_manager import IdPManager
+from bento_authorization_service.idp_manager import IdPManager, IdPManagerBadAlgorithmError
 from bento_authorization_service.policy_engine.evaluation import (
     InvalidSubject,
     check_token_against_issuer_based_model_obj,
@@ -64,6 +64,19 @@ def test_token_issuer_based_comparison():
 
     with pytest.raises(NotImplementedError):
         check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
+
+
+@pytest.mark.asyncio
+async def test_invalid_token_algo(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
+    # should throw exception (using HS256)
+    with pytest.raises(IdPManagerBadAlgorithmError):
+        res = await evaluate(
+            idp_manager,
+            db,
+            sd.make_fresh_david_disabled_alg_encoded(),
+            sd.RESOURCE_PROJECT_1,
+            frozenset({P_QUERY_DATA}),
+        )
 
 
 def test_invalid_group_membership():
