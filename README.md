@@ -28,7 +28,36 @@ It will also determine coverage and generate an HTML coverage report.
 
 ## Deployment
 
-TODO
+The service can be deployed as a container. See 
+[the container listing](https://github.com/bento-platform/bento_authorization_service/pkgs/container/bento_authorization_service)
+for how this container can be pulled.
+
+See the following example Docker Compose file:
+
+```yaml
+services:
+  authorization:
+    image: ghcr.io/bento-platform/bento_authorization_service:latest
+    depends_on:
+      - authorization-db
+    environment:
+      - DATABASE_URI=postgres://auth_user:auth_password@authorization-db:5432/auth_db
+    ports:
+      - "80:5000"
+  authorization-db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_password
+      - POSTGRES_DB=auth_db
+    expose:
+      - 5432
+    volumes:
+      - $PWD/data:/var/lib/postgresql
+```
+
+For more environment variable configuration options see the `Config` object in
+[config.py](./bento_authorization_service/config.py).
 
 
 
