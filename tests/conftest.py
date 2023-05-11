@@ -61,7 +61,7 @@ async def db_cleanup(db: Database):
 
 @lru_cache()
 def get_mock_idp_manager():
-    return MockIdPManager("")
+    return MockIdPManager("", True)
 
 
 # noinspection PyUnusedLocal

@@ -13,6 +13,8 @@ __all__ = [
 
 
 class Config(BaseSettings):
+    bento_debug: bool = False
+
     service_id: str = f"{SERVICE_GROUP}:{SERVICE_ARTIFACT}"
     service_name: str = "Bento Authorization Service"
     service_url_base_path: str = "http://127.0.0.1:5000"  # Base path to construct URIs from
