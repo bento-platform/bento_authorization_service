@@ -142,9 +142,10 @@ class IdPManager(BaseIdPManager):
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
 
         # Obtain the IdP's supported token signing algorithms
-        id_token_signing_alg_values_supported = self._oidc_well_known_data["id_token_signing_alg_values_supported"]
+        audience = get_config().token_audience
+        id_token_signing_alg_values_supported = self._openid_config_data["id_token_signing_alg_values_supported"]
         return verify_id_token_and_decode(
-            token, sk, id_token_signing_alg_values_supported, get_config().disabled_token_signing_algorithms
+            token, audience, sk, id_token_signing_alg_values_supported, get_config().disabled_token_signing_algorithms
         )
 
 
