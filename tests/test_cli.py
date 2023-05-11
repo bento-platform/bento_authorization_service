@@ -58,3 +58,11 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
 
     r = await main(["get-grant", "-1"])  # DNE
     assert r == 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_help_works(capsys, db: Database, db_cleanup):
+    with pytest.raises(SystemExit) as e:
+        await main(["--help"])
+        assert e.value == "0"
