@@ -77,7 +77,8 @@ class IdPManager(BaseIdPManager):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
                 async with session.get(self._openid_config_data["jwks_uri"]) as res:
                     self._jwks = tuple(
-                        k for k in jwt.PyJWKSet.from_dict(await res.json()).keys
+                        k
+                        for k in jwt.PyJWKSet.from_dict(await res.json()).keys
                         if k.public_key_use in ("sig", None) and k.key_id
                     )
                     self._jwks_last_fetched = now

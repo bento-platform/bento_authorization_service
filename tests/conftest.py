@@ -75,7 +75,7 @@ def test_client(db: Database):
 
 @pytest_asyncio.fixture
 async def idp_manager():
-    idp_manager_instance = MockIdPManager("")
+    idp_manager_instance = MockIdPManager("", True)
     await idp_manager_instance.initialize()
     yield idp_manager_instance
 
