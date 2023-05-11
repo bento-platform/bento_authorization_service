@@ -101,7 +101,8 @@ The `requested_resource` field can also be an **array** of resources.
 }
 ```
 
-If `requested_resource` is an array of resources, `result` would instead be returned as a **list of booleans**.
+If `requested_resource` is an array of resources, `result` would instead be returned as a 
+**list of lists of permissions**.
 
 
 ### Group endpoints
