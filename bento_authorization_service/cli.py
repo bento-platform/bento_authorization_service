@@ -63,7 +63,7 @@ async def delete_grant(_config: Config, db: Database, args) -> int:
     return 0
 
 
-def main(args: list[str] | None = None) -> int:
+async def main(args: list[str] | None) -> int:
     args = args or sys.argv[1:]
 
     parser = argparse.ArgumentParser(description="CLI for the Bento Authorization service.")
@@ -97,10 +97,14 @@ def main(args: list[str] | None = None) -> int:
     if not getattr(p_args, "func", None):
         p_args = parser.parse_args(("--help",))
 
-    loop = asyncio.get_event_loop()
     cfg = get_config()
-    return loop.run_until_complete(p_args.func(cfg, get_db(cfg), p_args))
+    return await p_args.func(cfg, get_db(cfg), p_args)
+
+
+def main_sync(args: list[str] | None = None):
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(main(args))
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main_sync(sys.argv[1:]))

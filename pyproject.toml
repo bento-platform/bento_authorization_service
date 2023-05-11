@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "bento_authorization_service"}]
 
 [tool.poetry.scripts]
-bento_authz = "bento_authorization_service.cli:main"
+bento_authz = "bento_authorization_service.cli:main_sync"
 
 [tool.poetry.dependencies]
 python = "^3.10"
