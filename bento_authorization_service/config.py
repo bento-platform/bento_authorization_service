@@ -25,7 +25,7 @@ class Config(BaseSettings):
     # OpenID well-known URL of the instance Identity Provider to extract endpoints from
     #  - Schemas in this service are written ready for multi-IdP/federation support; however, for now, only
     #    the instance-local IdP is supported.
-    openid_well_known_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
+    openid_config_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
 
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 

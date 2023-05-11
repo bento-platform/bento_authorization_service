@@ -42,6 +42,7 @@ services:
       - authorization-db
     environment:
       - DATABASE_URI=postgres://auth_user:auth_password@authorization-db:5432/auth_db
+      - OPENID_CONFIG_URL=https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration
     ports:
       - "80:5000"
   authorization-db:

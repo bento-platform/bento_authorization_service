@@ -24,8 +24,8 @@ class UninitializedIdPManagerError(Exception):
 
 
 class BaseIdPManager(ABC):
-    def __init__(self, oidc_well_known_url: str):
-        self._oidc_well_known_url: str = oidc_well_known_url
+    def __init__(self, openid_config_url: str):
+        self._openid_config_url: str = openid_config_url
 
     @abstractmethod
     async def initialize(self):  # pragma: no cover
@@ -42,11 +42,11 @@ class BaseIdPManager(ABC):
 
 
 class IdPManager(BaseIdPManager):
-    def __init__(self, oidc_well_known_url: str):
-        super().__init__(oidc_well_known_url)
+    def __init__(self, openid_config_url: str):
+        super().__init__(openid_config_url)
 
-        self._oidc_well_known_data: Optional[dict] = None
-        self._oidc_well_known_data_last_fetched: Optional[datetime.datetime] = None
+        self._openid_config_data: Optional[dict] = None
+        self._openid_config_data_last_fetched: Optional[datetime.datetime] = None
 
         self._jwks_client: Optional[jwt.PyJWKClient] = None
 
@@ -54,17 +54,17 @@ class IdPManager(BaseIdPManager):
 
     async def fetch_well_known_data(self):
         async with aiohttp.ClientSession() as session:
-            async with session.get(self._oidc_well_known_url) as res:
-                self._oidc_well_known_data = await res.json()
-                self._oidc_well_known_data_last_fetched = datetime.datetime.now()
+            async with session.get(self._openid_config_url) as res:
+                self._openid_config_data = await res.json()
+                self._openid_config_data_last_fetched = datetime.datetime.now()
 
     def set_up_jwks_client(self):
-        self._jwks_client = jwt.PyJWKClient(self._oidc_well_known_data["jwks_uri"])
+        self._jwks_client = jwt.PyJWKClient(self._openid_config_data["jwks_uri"])
 
     async def initialize(self):
         try:
             await self.fetch_well_known_data()
-            if self._oidc_well_known_data_last_fetched:
+            if self._openid_config_data_last_fetched:
                 self.set_up_jwks_client()
             self._initialized = True
         except Exception as e:
@@ -88,12 +88,12 @@ class IdPManager(BaseIdPManager):
         sk = self._jwks_client.get_signing_key_from_jwt(token)
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        return jwt.decode(token, sk, algorithms=self._oidc_well_known_data["id_token_signing_alg_values_supported"])
+        return jwt.decode(token, sk, algorithms=self._openid_config_data["id_token_signing_alg_values_supported"])
 
 
 @lru_cache()
 def get_idp_manager(config: ConfigDependency) -> BaseIdPManager:
-    return IdPManager(config.openid_well_known_url)
+    return IdPManager(config.openid_config_url)
 
 
 IdPManagerDependency = Annotated[BaseIdPManager, Depends(get_idp_manager)]
