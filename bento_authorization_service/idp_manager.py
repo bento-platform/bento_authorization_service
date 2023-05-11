@@ -1,5 +1,4 @@
 import aiohttp
-import datetime
 import jwt
 
 from abc import ABC, abstractmethod
@@ -48,6 +47,7 @@ class BaseIdPManager(ABC):
 
 
 JWKS_EXPIRY_TIME = 60  # seconds
+OPENID_CONFIGURATION_EXPIRY_TIME = 3600  # seconds
 
 
 class IdPManager(BaseIdPManager):
@@ -55,22 +55,27 @@ class IdPManager(BaseIdPManager):
         super().__init__(openid_config_url, debug)
 
         self._openid_config_data: Optional[dict] = None
-        self._openid_config_data_last_fetched: Optional[datetime.datetime] = None
+        self._openid_config_data_last_fetched: Optional[datetime] = None
 
         self._jwks: tuple[jwt.PyJWK, ...] = ()
         self._jwks_last_fetched = 0
 
         self._initialized: bool = False
 
-    async def fetch_well_known_data(self):
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
-            async with session.get(self._openid_config_url) as res:
-                self._openid_config_data = await res.json()
-                self._openid_config_data_last_fetched = datetime.datetime.now()
+    async def fetch_openid_config_if_needed(self):
+        lf = self._openid_config_data_last_fetched
+        if not lf or (datetime.now() - lf).seconds > OPENID_CONFIGURATION_EXPIRY_TIME:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
+                async with session.get(self._openid_config_url) as res:
+                    self._openid_config_data = await res.json()
+                    self._openid_config_data_last_fetched = datetime.now()
 
     async def fetch_jwks_if_needed(self):
+        await self.fetch_openid_config_if_needed()
+
         if not self._openid_config_data:
             logger.error("fetch_jwks: Missing OpenID configuration data")
+            return
 
         if ((now := datetime.now().timestamp()) - self._jwks_last_fetched) > JWKS_EXPIRY_TIME:
             # Manually do JWK signing key fetching. This way, we can turn off SSL verification in debug mode.
@@ -89,9 +94,8 @@ class IdPManager(BaseIdPManager):
 
     async def initialize(self):
         try:
-            await self.fetch_well_known_data()
-            if self._openid_config_data_last_fetched:
-                await self.fetch_jwks_if_needed()
+            await self.fetch_openid_config_if_needed()
+            await self.fetch_jwks_if_needed()
             self._initialized = True
         except Exception as e:
             logger.critical(f"Could not initialize IdPManager: encountered exception '{repr(e)}'")
