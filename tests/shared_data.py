@@ -37,7 +37,7 @@ TEST_DISABLED_TOKEN_SIGNING_ALGOS = [  # disable all supported algos except the 
 TEST_TOKEN = {
     "iss": ISS,
     "sub": SUB,
-    "aud": TEST_TOKEN_SECRET,
+    "aud": TEST_TOKEN_AUD,
     "azp": CLIENT,
     "typ": "Bearer",
     "exp": 100,  # Not checked here

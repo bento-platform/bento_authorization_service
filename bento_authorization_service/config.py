@@ -13,6 +13,8 @@ __all__ = [
 
 
 class Config(BaseSettings):
+    bento_debug: bool = False
+
     service_id: str = f"{SERVICE_GROUP}:{SERVICE_ARTIFACT}"
     service_name: str = "Bento Authorization Service"
     service_url_base_path: str = "http://127.0.0.1:5000"  # Base path to construct URIs from
@@ -25,7 +27,10 @@ class Config(BaseSettings):
     # OpenID well-known URL of the instance Identity Provider to extract endpoints from
     #  - Schemas in this service are written ready for multi-IdP/federation support; however, for now, only
     #    the instance-local IdP is supported.
-    openid_well_known_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
+    openid_config_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
+
+    #  - Default access token audience from Keycloak
+    token_audience: str = "account"
 
     disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
 

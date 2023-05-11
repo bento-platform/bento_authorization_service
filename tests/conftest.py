@@ -23,6 +23,8 @@ from .shared_data import (
     TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
     TEST_DISABLED_TOKEN_SIGNING_ALGOS,
     bootstrap_meta_permissions_for_david,
+    TEST_TOKEN_AUD,
+    bootstrap_meta_permissions_for_david,
     make_fresh_david_token_encoded,
 )
 
@@ -70,7 +72,7 @@ async def db_cleanup(db: Database):
 
 @lru_cache()
 def get_mock_idp_manager():
-    return MockIdPManager("")
+    return MockIdPManager("", TEST_TOKEN_AUD, True)
 
 
 # noinspection PyUnusedLocal
@@ -84,7 +86,7 @@ def test_client(db: Database):
 
 @pytest_asyncio.fixture
 async def idp_manager():
-    idp_manager_instance = MockIdPManager("")
+    idp_manager_instance = MockIdPManager("", TEST_TOKEN_AUD, True)
     await idp_manager_instance.initialize()
     yield idp_manager_instance
 

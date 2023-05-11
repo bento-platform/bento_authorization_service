@@ -55,6 +55,8 @@ class Permission(str):
         return f"Permission({str(self)})"
 
 
+# Verb/noun definitions ---------------------------------------------------------------------------
+
 QUERY_VERB = PermissionVerb("query")
 DOWNLOAD_VERB = PermissionVerb("download")
 VIEW_VERB = PermissionVerb("view")
@@ -64,6 +66,8 @@ DELETE_VERB = PermissionVerb("delete")
 INGEST_VERB = PermissionVerb("ingest")
 ANALYZE_VERB = PermissionVerb("analyze")
 EXPORT_VERB = PermissionVerb("export")
+
+PRIVATE_PORTAL = PermissionNoun("private_portal")
 
 PROJECT_LEVEL_BOOLEAN = PermissionNoun("project_level_boolean")
 DATASET_LEVEL_BOOLEAN = PermissionNoun("dataset_level_boolean")
@@ -81,6 +85,10 @@ DATASET = PermissionNoun("dataset")
 NOTIFICATIONS = PermissionNoun("notifications")
 
 PERMISSIONS_NOUN = PermissionNoun("permissions")
+
+# Permissions definitions -------------------------------------------------------------------------
+
+P_VIEW_PRIVATE_PORTAL = Permission(VIEW_VERB, PRIVATE_PORTAL, min_level_required=LEVEL_INSTANCE)
 
 P_QUERY_PROJECT_LEVEL_BOOLEAN = Permission(QUERY_VERB, PROJECT_LEVEL_BOOLEAN, min_level_required=LEVEL_PROJECT)
 P_QUERY_DATASET_LEVEL_BOOLEAN = Permission(QUERY_VERB, DATASET_LEVEL_BOOLEAN)

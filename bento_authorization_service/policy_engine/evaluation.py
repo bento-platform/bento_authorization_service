@@ -41,6 +41,7 @@ __all__ = [
     "resource_is_equivalent_or_contained",
     "filter_matching_grants",
     "determine_permissions",
+    "evaluate_with_provided",
     "evaluate",
 ]
 
@@ -309,6 +310,33 @@ def determine_permissions(
     )
 
 
+LOG_USER_STR_FIELDS: tuple[str, ...] = ("iss", "azp", "sub")
+
+
+def evaluate_with_provided(
+    grants: tuple[GrantModel, ...],
+    groups_dict: dict[int, StoredGroupModel],
+    token_data: TokenData | None,
+    requested_resource: ResourceModel,
+    required_permissions: frozenset[Permission],
+) -> bool:
+    # Determine the permissions
+    permissions = determine_permissions(grants, groups_dict, token_data, requested_resource)
+
+    # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
+    decision = required_permissions.issubset(permissions)
+
+    # Log the decision made, with some user data
+    user_str = {"anonymous": True}
+    if token_data is not None:
+        # noinspection PyTypedDict
+        user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
+    log_obj = {"user": user_str, "requested_resource": requested_resource.dict()["__root__"], "decision": decision}
+    logger.info(f"evaluate: {json.dumps(log_obj)})")
+
+    return decision
+
+
 async def evaluate(
     idp_manager: BaseIdPManager,
     db: Database,
@@ -323,19 +351,9 @@ async def evaluate(
     # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
     token_data = (await idp_manager.decode(token)) if token else None
 
-    # Determine the permissions
+    # Fetch grants + groups from the database
     grants = await db.get_grants()
     groups_dict = await db.get_groups_dict()
-    permissions = determine_permissions(grants, groups_dict, token_data, requested_resource)
 
-    # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
-    decision = required_permissions.issubset(permissions)
-
-    # Log the decision made, with some user data
-    user_str = {"anonymous": True}
-    if token_data is not None:
-        user_str = {k: token_data.get(k) for k in ("iss", "azp", "sub")}
-    log_obj = {"user": user_str, "requested_resource": requested_resource.dict()["__root__"], "decision": decision}
-    logger.info(f"evaluate: {json.dumps(log_obj)})")
-
-    return decision
+    # Determine the permissions
+    return evaluate_with_provided(grants, groups_dict, token_data, requested_resource, required_permissions)
