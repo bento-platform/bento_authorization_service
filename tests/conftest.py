@@ -12,7 +12,12 @@ from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager
 
-from .shared_data import TEST_TOKEN_SECRET, bootstrap_meta_permissions_for_david, make_fresh_david_token_encoded
+from .shared_data import (
+    TEST_TOKEN_AUD,
+    TEST_TOKEN_SECRET,
+    bootstrap_meta_permissions_for_david,
+    make_fresh_david_token_encoded,
+)
 
 
 class MockIdPManager(BaseIdPManager):
@@ -27,7 +32,7 @@ class MockIdPManager(BaseIdPManager):
         return jwt.decode(
             token,
             TEST_TOKEN_SECRET,
-            audience=TEST_TOKEN_SECRET,
+            audience=TEST_TOKEN_AUD,
             algorithms=["HS256"],
         )  # hard-coded test secret
 
@@ -61,7 +66,7 @@ async def db_cleanup(db: Database):
 
 @lru_cache()
 def get_mock_idp_manager():
-    return MockIdPManager("", True)
+    return MockIdPManager("", TEST_TOKEN_AUD, True)
 
 
 # noinspection PyUnusedLocal
@@ -75,7 +80,7 @@ def test_client(db: Database):
 
 @pytest_asyncio.fixture
 async def idp_manager():
-    idp_manager_instance = MockIdPManager("", True)
+    idp_manager_instance = MockIdPManager("", TEST_TOKEN_AUD, True)
     await idp_manager_instance.initialize()
     yield idp_manager_instance
 

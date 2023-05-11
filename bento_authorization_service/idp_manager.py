@@ -24,9 +24,14 @@ class UninitializedIdPManagerError(Exception):
 
 
 class BaseIdPManager(ABC):
-    def __init__(self, openid_config_url: str, debug: bool):
+    def __init__(self, openid_config_url: str, audience: str, debug: bool):
         self._openid_config_url: str = openid_config_url
+        self._audience = audience
         self._debug = debug
+
+    @property
+    def audience(self) -> str:
+        return self._audience
 
     @property
     def debug(self) -> bool:
@@ -51,8 +56,8 @@ OPENID_CONFIGURATION_EXPIRY_TIME = 3600  # seconds
 
 
 class IdPManager(BaseIdPManager):
-    def __init__(self, openid_config_url: str, debug: bool = False):
-        super().__init__(openid_config_url, debug)
+    def __init__(self, openid_config_url: str, audience: str, debug: bool = False):
+        super().__init__(openid_config_url, audience, debug)
 
         self._openid_config_data: Optional[dict] = None
         self._openid_config_data_last_fetched: Optional[datetime] = None
@@ -123,12 +128,17 @@ class IdPManager(BaseIdPManager):
             raise Exception("Could not get signing key for token")  # TODO: IdPManagerError
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        return jwt.decode(token, sk.key, algorithms=self._openid_config_data["id_token_signing_alg_values_supported"])
+        return jwt.decode(
+            token,
+            sk.key,
+            audience=self.audience,
+            algorithms=self._openid_config_data["id_token_signing_alg_values_supported"],
+        )
 
 
 @lru_cache()
 def get_idp_manager(config: ConfigDependency) -> BaseIdPManager:
-    return IdPManager(config.openid_config_url, config.bento_debug)
+    return IdPManager(config.openid_config_url, config.token_audience, config.bento_debug)
 
 
 IdPManagerDependency = Annotated[BaseIdPManager, Depends(get_idp_manager)]

@@ -1,4 +1,5 @@
 import asyncio
+import jwt
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -7,6 +8,7 @@ from typing import Callable, TypeVar
 from ..db import DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManagerDependency
+from ..logger import logger
 from ..models import StoredGroupModel, StoredGrantModel, ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate_with_provided
 from ..policy_engine.permissions import Permission, PERMISSIONS_BY_STRING
@@ -94,13 +96,17 @@ def evaluate_curried(
     required_permissions: frozenset[Permission],
 ):
     def _inner(r: ResourceModel) -> bool:
-        return evaluate_with_provided(
-            grants,
-            groups,
-            token_data,
-            r,
-            required_permissions,
-        )
+        try:
+            return evaluate_with_provided(
+                grants,
+                groups,
+                token_data,
+                r,
+                required_permissions,
+            )
+        except jwt.InvalidAudienceError as e:
+            logger.warning(f"Got token with bad audience: {(token_data or {}).get('aud')} (exception: {repr(e)})")
+            return False
 
     return _inner
 
@@ -140,3 +146,4 @@ async def req_evaluate(
             evaluation_request.requested_resource,
         ),
     }
+

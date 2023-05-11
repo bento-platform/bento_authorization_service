@@ -29,6 +29,9 @@ class Config(BaseSettings):
     #    the instance-local IdP is supported.
     openid_config_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
 
+    #  - Default access token audience from Keycloak
+    token_audience: str = "account"
+
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 
     class Config:
