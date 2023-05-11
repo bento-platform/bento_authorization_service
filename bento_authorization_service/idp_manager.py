@@ -88,7 +88,7 @@ class IdPManager(BaseIdPManager):
                     )
                     self._jwks_last_fetched = now
 
-    async def get_signing_key_from_jwt(self, token: str) -> jwt.PyJWK | None:
+    def get_signing_key_from_jwt(self, token: str) -> jwt.PyJWK | None:
         header = jwt.get_unverified_header(token)
         return next((k for k in self._jwks if k.key_id == header["kid"]), None)
 
@@ -123,7 +123,7 @@ class IdPManager(BaseIdPManager):
             raise Exception("Could not get signing key for token")  # TODO: IdPManagerError
 
         # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        return jwt.decode(token, sk, algorithms=self._openid_config_data["id_token_signing_alg_values_supported"])
+        return jwt.decode(token, sk.key, algorithms=self._openid_config_data["id_token_signing_alg_values_supported"])
 
 
 @lru_cache()
