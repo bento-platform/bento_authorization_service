@@ -7,7 +7,7 @@ from typing import Callable, TypeVar
 
 from ..db import DatabaseDependency
 from ..dependencies import OptionalBearerToken
-from ..idp_manager import IdPManagerDependency
+from ..idp_manager import IdPManager, IdPManagerDependency
 from ..logger import logger
 from ..models import StoredGroupModel, StoredGrantModel, ResourceModel
 from ..policy_engine.evaluation import determine_permissions, evaluate_with_provided
@@ -51,6 +51,24 @@ def list_permissions_curried(
     return _inner
 
 
+async def use_token_data_or_return_error_state(
+    authorization: OptionalBearerToken,
+    idp_manager: IdPManager,
+    err_state: dict,
+    create_response: Callable[[dict | None], dict],
+) -> dict:
+    try:
+        token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
+    except jwt.InvalidAudienceError as e:
+        logger.warning(f"Got token with bad audience (exception: {repr(e)})")
+        return err_state
+    except jwt.ExpiredSignatureError:
+        logger.warning(f"Got expired token")
+        return err_state
+
+    return create_response(token_data)
+
+
 @policy_router.post("/permissions", dependencies=[public_endpoint_dependency])
 async def req_list_permissions(
     authorization: OptionalBearerToken,
@@ -74,14 +92,18 @@ async def req_list_permissions(
     grants: tuple[StoredGrantModel]
     groups: dict[int, StoredGroupModel]
     grants, groups = await asyncio.gather(db.get_grants(), db.get_groups_dict())
-    token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
 
-    return {
-        "result": apply_scalar_or_vector(
-            list_permissions_curried(grants, groups, token_data),
-            list_permissions_request.requested_resource,
-        )
-    }
+    return await use_token_data_or_return_error_state(
+        authorization,
+        idp_manager,
+        err_state={"result": apply_scalar_or_vector(lambda _: [], list_permissions_request.requested_resource)},
+        create_response=lambda token_data: {
+            "result": apply_scalar_or_vector(
+                list_permissions_curried(grants, groups, token_data),
+                list_permissions_request.requested_resource,
+            )
+        },
+    )
 
 
 class EvaluationRequest(BaseModel):
@@ -94,19 +116,15 @@ def evaluate_curried(
     groups: dict[int, StoredGroupModel],
     token_data: dict | None,
     required_permissions: frozenset[Permission],
-):
+) -> Callable[[ResourceModel], bool]:
     def _inner(r: ResourceModel) -> bool:
-        try:
-            return evaluate_with_provided(
-                grants,
-                groups,
-                token_data,
-                r,
-                required_permissions,
-            )
-        except jwt.InvalidAudienceError as e:
-            logger.warning(f"Got token with bad audience: {(token_data or {}).get('aud')} (exception: {repr(e)})")
-            return False
+        return evaluate_with_provided(
+            grants,
+            groups,
+            token_data,
+            r,
+            required_permissions,
+        )
 
     return _inner
 
@@ -133,16 +151,20 @@ async def req_evaluate(
     grants: tuple[StoredGrantModel]
     groups: dict[int, StoredGroupModel]
     grants, groups = await asyncio.gather(db.get_grants(), db.get_groups_dict())
-    token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
 
-    return {
-        "result": apply_scalar_or_vector(
-            evaluate_curried(
-                grants,
-                groups,
-                token_data,
-                frozenset(PERMISSIONS_BY_STRING[p] for p in evaluation_request.required_permissions),
+    return await use_token_data_or_return_error_state(
+        authorization,
+        idp_manager,
+        err_state={"result": apply_scalar_or_vector(lambda _: False, evaluation_request.requested_resource)},
+        create_response=lambda token_data: {
+            "result": apply_scalar_or_vector(
+                evaluate_curried(
+                    grants,
+                    groups,
+                    token_data,
+                    frozenset(PERMISSIONS_BY_STRING[p] for p in evaluation_request.required_permissions),
+                ),
+                evaluation_request.requested_resource,
             ),
-            evaluation_request.requested_resource,
-        ),
-    }
+        },
+    )

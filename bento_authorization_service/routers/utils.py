@@ -1,3 +1,4 @@
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -36,6 +37,8 @@ async def raise_if_no_resource_access(
             raise forbidden()
     except HTTPException as e:
         raise e  # Pass it on
+    except jwt.ExpiredSignatureError:  # Straightforward, expired token - don't bother logging
+        raise forbidden()
     except Exception as e:  # Could not properly run evaluate(); return forbidden!
         logger.error(
             f"Encountered error while checking permissions for request {request.method} {request.url.path}: "
