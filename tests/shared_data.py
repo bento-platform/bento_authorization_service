@@ -24,11 +24,13 @@ ISS = "https://bentov2auth.local/realms/bentov2"
 CLIENT = "local_bentov2"
 SUB = "david"
 
-TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS = frozenset([  # only HS* for testing purposes
-    "HS256",
-    "HS384",
-    TEST_TOKEN_SIGNING_ALG,
-])
+TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS = frozenset(
+    [  # only HS* for testing purposes
+        "HS256",
+        "HS384",
+        TEST_TOKEN_SIGNING_ALG,
+    ]
+)
 
 TEST_DISABLED_TOKEN_SIGNING_ALGOS = [  # disable all supported algos except the strongest one
     alg for alg in TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS if alg != TEST_TOKEN_SIGNING_ALG
