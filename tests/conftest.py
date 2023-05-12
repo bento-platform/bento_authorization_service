@@ -32,12 +32,11 @@ class MockIdPManager(BaseIdPManager):
     def initialized(self) -> bool:
         return True
 
+    def get_supported_token_signing_algs(self) -> frozenset[str]:
+        return TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS
+
     async def decode(self, token: str) -> dict:
-        return self._verify_token_and_decode(
-            token,
-            TEST_TOKEN_SECRET,
-            frozenset(TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS) - frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS),
-        )
+        return self._verify_token_and_decode(token, TEST_TOKEN_SECRET)
 
 
 async def get_test_db() -> AsyncGenerator[Database, None]:
@@ -69,7 +68,7 @@ async def db_cleanup(db: Database):
 
 @lru_cache()
 def get_mock_idp_manager():
-    return MockIdPManager("", TEST_TOKEN_AUD, True)
+    return MockIdPManager("", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True)
 
 
 # noinspection PyUnusedLocal
@@ -83,7 +82,7 @@ def test_client(db: Database):
 
 @pytest_asyncio.fixture
 async def idp_manager():
-    idp_manager_instance = MockIdPManager("", TEST_TOKEN_AUD, True)
+    idp_manager_instance = MockIdPManager("", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True)
     await idp_manager_instance.initialize()
     yield idp_manager_instance
 

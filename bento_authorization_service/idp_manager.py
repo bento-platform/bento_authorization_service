@@ -33,9 +33,16 @@ class IdPManagerBadAlgorithmError(IdPManagerError):
 
 
 class BaseIdPManager(ABC):
-    def __init__(self, openid_config_url: str, audience: str, debug: bool):
+    def __init__(
+        self,
+        openid_config_url: str,
+        audience: str,
+        disabled_token_signing_algorithms: frozenset[str],
+        debug: bool,
+    ):
         self._openid_config_url: str = openid_config_url
         self._audience = audience
+        self._disabled_token_signing_algorithms = disabled_token_signing_algorithms
         self._debug = debug
 
     @property
@@ -46,12 +53,21 @@ class BaseIdPManager(ABC):
     def debug(self) -> bool:
         return self._debug
 
+    @abstractmethod
+    def get_supported_token_signing_algs(self) -> frozenset[str]:
+        pass
+
+    def get_permitted_token_signing_algs(self) -> frozenset[str]:
+        # Assume we have the same set of signing algorithms for access tokens as ID tokens
+        return self.get_supported_token_signing_algs() - self._disabled_token_signing_algorithms
+
     def _verify_token_and_decode(
         self,
         token: str,
         signing_key: jwt.PyJWK | str,
-        permitted_algs: frozenset[str],
     ) -> dict:
+        permitted_algs = self.get_permitted_token_signing_algs()
+
         # Check the token matches permitted algorithms
         self.check_token_signing_alg(jwt.get_unverified_header(token), permitted_algs)
 
@@ -94,7 +110,7 @@ class IdPManager(BaseIdPManager):
         disabled_token_signing_algorithms: frozenset[str],
         debug: bool = False,
     ):
-        super().__init__(openid_config_url, audience, debug)
+        super().__init__(openid_config_url, audience, disabled_token_signing_algorithms, debug)
 
         self._openid_config_data: Optional[dict] = None
         self._openid_config_data_last_fetched: Optional[datetime] = None
@@ -103,8 +119,6 @@ class IdPManager(BaseIdPManager):
         self._jwks_last_fetched = 0
 
         self._initialized: bool = False
-
-        self._disabled_token_signing_algorithms = disabled_token_signing_algorithms
 
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
@@ -149,12 +163,8 @@ class IdPManager(BaseIdPManager):
     def initialized(self) -> bool:
         return self._initialized
 
-    def get_permitted_token_signing_algs(self) -> frozenset[str]:
-        # Assume we have the same set of signing algorithms for access tokens as ID tokens
-        return (
-            frozenset(self._openid_config_data["id_token_signing_alg_values_supported"]) -
-            frozenset(self._disabled_token_signing_algorithms)
-        )
+    def get_supported_token_signing_algs(self):
+        frozenset(self._openid_config_data["id_token_signing_alg_values_supported"])
 
     async def decode(self, token: str) -> dict:
         await self.fetch_jwks_if_needed()  # Refresh well-known key set if it has expired or not yet been fetched
