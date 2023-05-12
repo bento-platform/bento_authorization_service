@@ -163,8 +163,8 @@ class IdPManager(BaseIdPManager):
     def initialized(self) -> bool:
         return self._initialized
 
-    def get_supported_token_signing_algs(self):
-        frozenset(self._openid_config_data["id_token_signing_alg_values_supported"])
+    def get_supported_token_signing_algs(self) -> frozenset[str]:
+        return frozenset(self._openid_config_data["id_token_signing_alg_values_supported"])
 
     async def decode(self, token: str) -> dict:
         await self.fetch_jwks_if_needed()  # Refresh well-known key set if it has expired or not yet been fetched
@@ -181,7 +181,7 @@ class IdPManager(BaseIdPManager):
 
         if (sk := self.get_signing_key_from_jwt(token)) is not None:
             # Obtain the IdP's supported token signing algorithms & pass them to the verify function
-            return self._verify_token_and_decode(token, sk, self.get_permitted_token_signing_algs())
+            return self._verify_token_and_decode(token, sk)
 
         raise IdPManagerError("Could not get signing key for token")
 
