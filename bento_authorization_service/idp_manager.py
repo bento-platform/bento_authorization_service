@@ -7,7 +7,7 @@ from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated, Optional
 
-from .config import ConfigDependency, get_config
+from .config import ConfigDependency
 from .logger import logger
 
 __all__ = [
@@ -17,9 +17,6 @@ __all__ = [
     "IdPManager",
     "get_idp_manager",
     "IdPManagerDependency",
-    "check_token_signing_alg",
-    "get_permitted_id_token_signing_alg_values",
-    "verify_id_token",
 ]
 
 
@@ -49,6 +46,28 @@ class BaseIdPManager(ABC):
     def debug(self) -> bool:
         return self._debug
 
+    def _verify_token_and_decode(
+        self,
+        token: str,
+        signing_key: jwt.PyJWK | str,
+        permitted_algs: frozenset[str],
+    ) -> dict:
+        # Check the token matches permitted algorithms
+        self.check_token_signing_alg(jwt.get_unverified_header(token), permitted_algs)
+
+        # Return the decoded & verified JWT
+        return jwt.decode(
+            token,
+            signing_key if isinstance(signing_key, str) else signing_key.key,
+            audience=self.audience,
+            algorithms=permitted_algs,
+        )
+
+    @staticmethod
+    def check_token_signing_alg(token_header: dict, permitted_algs: frozenset[str]):
+        if (alg := token_header.get("alg")) is None or alg not in permitted_algs:
+            raise IdPManagerBadAlgorithmError("Token signing algorithm not permitted")
+
     @abstractmethod
     async def initialize(self):  # pragma: no cover
         pass
@@ -68,7 +87,13 @@ OPENID_CONFIGURATION_EXPIRY_TIME = 3600  # seconds
 
 
 class IdPManager(BaseIdPManager):
-    def __init__(self, openid_config_url: str, audience: str, debug: bool = False):
+    def __init__(
+        self,
+        openid_config_url: str,
+        audience: str,
+        disabled_token_signing_algorithms: frozenset[str],
+        debug: bool = False,
+    ):
         super().__init__(openid_config_url, audience, debug)
 
         self._openid_config_data: Optional[dict] = None
@@ -78,6 +103,8 @@ class IdPManager(BaseIdPManager):
         self._jwks_last_fetched = 0
 
         self._initialized: bool = False
+
+        self._disabled_token_signing_algorithms = disabled_token_signing_algorithms
 
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
@@ -122,6 +149,13 @@ class IdPManager(BaseIdPManager):
     def initialized(self) -> bool:
         return self._initialized
 
+    def get_permitted_token_signing_algs(self) -> frozenset[str]:
+        # Assume we have the same set of signing algorithms for access tokens as ID tokens
+        return (
+            frozenset(self._openid_config_data["id_token_signing_alg_values_supported"]) -
+            frozenset(self._disabled_token_signing_algorithms)
+        )
+
     async def decode(self, token: str) -> dict:
         await self.fetch_jwks_if_needed()  # Refresh well-known key set if it has expired or not yet been fetched
 
@@ -131,62 +165,25 @@ class IdPManager(BaseIdPManager):
             await self.initialize()
             if not self._initialized:  # Initialization failed
                 raise UninitializedIdPManagerError("IdpManager initialization failed")
+
         if not self._jwks_last_fetched:
-            raise UninitializedIdPManagerError("JWKS not fetched yet")
+            raise UninitializedIdPManagerError("JWKS not fetched")
 
-        sk = self.get_signing_key_from_jwt(token)
+        if (sk := self.get_signing_key_from_jwt(token)) is not None:
+            # Obtain the IdP's supported token signing algorithms & pass them to the verify function
+            return self._verify_token_and_decode(token, sk, self.get_permitted_token_signing_algs())
 
-        if sk is None:
-            raise Exception("Could not get signing key for token")  # TODO: IdPManagerError
-
-        # Assume we have the same set of signing algorithms for access tokens as ID tokens
-
-        # Obtain the IdP's supported token signing algorithms
-        audience = get_config().token_audience
-        id_token_signing_alg_values_supported = self._openid_config_data["id_token_signing_alg_values_supported"]
-        return verify_id_token_and_decode(
-            token, audience, sk, id_token_signing_alg_values_supported, get_config().disabled_token_signing_algorithms
-        )
-
-
-def verify_id_token_and_decode(
-    token: str,
-    audience: str,
-    secret: jwt.PyJWK,
-    supported_token_signing_algos: list[str],
-    disabled_token_signing_algos: frozenset,
-) -> dict[str, object]:
-    token_header = jwt.get_unverified_header(token)
-    permitted_id_token_signing_algos = get_permitted_id_token_signing_alg_values(
-        supported_token_signing_algos, disabled_token_signing_algos
-    )
-
-    check_token_signing_alg(token_header, permitted_id_token_signing_algos)
-
-    return jwt.decode(
-        token,
-        secret,
-        audience=audience,
-        algorithms=permitted_id_token_signing_algos,
-    )
-
-
-def get_permitted_id_token_signing_alg_values(
-    id_token_signing_alg_values_supported: list, disabled_token_signing_algorithms: frozenset
-) -> frozenset:
-    return frozenset(
-        [alg for alg in id_token_signing_alg_values_supported if alg not in disabled_token_signing_algorithms]
-    )
-
-
-def check_token_signing_alg(decoded_token: dict, permitted_token_signing_algorithms: frozenset):
-    if decoded_token.get("alg") is None or decoded_token.get("alg") not in permitted_token_signing_algorithms:
-        raise IdPManagerBadAlgorithmError("ID token signing algorithm not permitted")
+        raise IdPManagerError("Could not get signing key for token")
 
 
 @lru_cache()
 def get_idp_manager(config: ConfigDependency) -> BaseIdPManager:
-    return IdPManager(config.openid_config_url, config.token_audience, config.bento_debug)
+    return IdPManager(
+        config.openid_config_url,
+        config.token_audience,
+        config.disabled_token_signing_algorithms,
+        config.bento_debug,
+    )
 
 
 IdPManagerDependency = Annotated[BaseIdPManager, Depends(get_idp_manager)]

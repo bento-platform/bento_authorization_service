@@ -1,5 +1,4 @@
 import asyncpg
-import jwt
 import pytest
 import pytest_asyncio
 
@@ -13,16 +12,12 @@ from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import (
     BaseIdPManager,
     get_idp_manager,
-    check_token_signing_alg,
-    get_permitted_id_token_signing_alg_values,
-    verify_id_token_and_decode,
 )
 
 from .shared_data import (
     TEST_TOKEN_SECRET,
     TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
     TEST_DISABLED_TOKEN_SIGNING_ALGOS,
-    bootstrap_meta_permissions_for_david,
     TEST_TOKEN_AUD,
     bootstrap_meta_permissions_for_david,
     make_fresh_david_token_encoded,
@@ -38,12 +33,10 @@ class MockIdPManager(BaseIdPManager):
         return True
 
     async def decode(self, token: str) -> dict:
-        return verify_id_token_and_decode(
+        return self._verify_token_and_decode(
             token,
-            TEST_TOKEN_AUD,
             TEST_TOKEN_SECRET,
-            TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
-            TEST_DISABLED_TOKEN_SIGNING_ALGOS,
+            frozenset(TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS) - frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS),
         )
 
 

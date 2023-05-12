@@ -66,11 +66,12 @@ def test_token_issuer_based_comparison():
         check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 async def test_invalid_token_algo(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
     # should throw exception (using HS256)
     with pytest.raises(IdPManagerBadAlgorithmError):
-        res = await evaluate(
+        await evaluate(
             idp_manager,
             db,
             sd.make_fresh_david_disabled_alg_encoded(),
@@ -106,7 +107,7 @@ def test_group_membership(group: GroupModel, is_member: bool):
 @pytest.mark.parametrize(
     "groups_dict, token, subject, res",
     (
-        # Everyone:
+        # Evervyone:
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
         # Everyone (even foreign issuer):
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
