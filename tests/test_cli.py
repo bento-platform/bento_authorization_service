@@ -186,6 +186,21 @@ async def test_cli_delete_grant(capsys, db: Database, db_cleanup):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_cli_delete_group(capsys, db: Database, db_cleanup):
+    grp = sd.TEST_GROUPS[0][0]
+
+    # Create a group
+    g_id = await db.create_group(grp)
+
+    # Delete the group
+    assert (await cli.main(["delete", "group", str(g_id)], db=db)) == 0
+    captured = capsys.readouterr()
+
+    assert "Done" in captured.out
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_cli_help_works(capsys, db: Database, db_cleanup):
     with pytest.raises(SystemExit) as e:
         await cli.main(["--help"])
