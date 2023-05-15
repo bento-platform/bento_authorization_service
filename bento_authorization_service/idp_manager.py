@@ -41,9 +41,11 @@ class BaseIdPManager(ABC):
         debug: bool,
     ):
         self._openid_config_url: str = openid_config_url
-        self._audience = audience
-        self._disabled_token_signing_algorithms = disabled_token_signing_algorithms
-        self._debug = debug
+        self._audience: str = audience
+        self._disabled_token_signing_algorithms: frozenset[str] = disabled_token_signing_algorithms
+        self._debug: bool = debug
+
+        self._initialized: bool = False
 
     @property
     def audience(self) -> str:
@@ -54,7 +56,7 @@ class BaseIdPManager(ABC):
         return self._debug
 
     @abstractmethod
-    def get_supported_token_signing_algs(self) -> frozenset[str]:
+    def get_supported_token_signing_algs(self) -> frozenset[str]:  # pragma: no cover
         pass
 
     def get_permitted_token_signing_algs(self) -> frozenset[str]:
@@ -89,9 +91,8 @@ class BaseIdPManager(ABC):
         pass
 
     @property
-    @abstractmethod
-    def initialized(self) -> bool:  # pragma: no cover
-        pass
+    def initialized(self) -> bool:
+        return self._initialized
 
     @abstractmethod
     async def decode(self, token: str) -> dict:  # pragma: no cover
@@ -117,8 +118,6 @@ class IdPManager(BaseIdPManager):
 
         self._jwks: tuple[jwt.PyJWK, ...] = ()
         self._jwks_last_fetched = 0
-
-        self._initialized: bool = False
 
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
@@ -158,10 +157,6 @@ class IdPManager(BaseIdPManager):
         except Exception as e:
             logger.critical(f"Could not initialize IdPManager: encountered exception '{repr(e)}'")
             self._initialized = False
-
-    @property
-    def initialized(self) -> bool:
-        return self._initialized
 
     def get_supported_token_signing_algs(self) -> frozenset[str]:
         return frozenset(self._openid_config_data["id_token_signing_alg_values_supported"])

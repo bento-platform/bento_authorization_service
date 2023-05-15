@@ -26,11 +26,7 @@ from .shared_data import (
 
 class MockIdPManager(BaseIdPManager):
     async def initialize(self):
-        pass
-
-    @property
-    def initialized(self) -> bool:
-        return True
+        self._initialized = True
 
     def get_supported_token_signing_algs(self) -> frozenset[str]:
         return TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS
