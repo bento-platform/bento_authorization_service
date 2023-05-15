@@ -7,6 +7,9 @@ from fastapi.testclient import TestClient
 from functools import lru_cache
 from typing import AsyncGenerator
 
+import os
+os.environ["BENTO_DEBUG"] = "true"
+
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.main import app
