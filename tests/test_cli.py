@@ -103,7 +103,8 @@ async def test_cli_get_group_dne(capsys, db: Database, db_cleanup):
 async def test_cli_create_grant(capsys, db: Database, db_cleanup):
     r = await cli.main(
         [
-            "create", "grant",
+            "create",
+            "grant",
             sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.json(),
             sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.json(),
             *sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
