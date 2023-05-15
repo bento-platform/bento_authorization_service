@@ -154,7 +154,7 @@ async def delete_cmd(_config: Config, db: Database, args) -> int:
 
 async def main(args: list[str] | None, db: Database | None = None) -> int:
     cfg = get_config()
-    args = args or sys.argv[1:]
+    args = args if args is not None else sys.argv[1:]
     db = db or get_db(cfg)
 
     parser = argparse.ArgumentParser(description="CLI for the Bento Authorization service.")

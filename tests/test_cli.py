@@ -191,6 +191,10 @@ async def test_cli_help_works(capsys, db: Database, db_cleanup):
         await cli.main(["--help"])
         assert e.value == "0"
 
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_help_works_2(capsys, db: Database, db_cleanup):
     with pytest.raises(SystemExit) as e:
         await cli.main([])
         assert e.value == "0"
