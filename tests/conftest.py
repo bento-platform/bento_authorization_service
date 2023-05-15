@@ -1,3 +1,4 @@
+import asyncio
 import asyncpg
 import pytest
 import pytest_asyncio
@@ -91,3 +92,13 @@ def token_encoded() -> str:
 @pytest.fixture()
 def auth_headers(token_encoded: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token_encoded}"}
+
+
+# noinspection PyUnusedLocal
+@pytest.fixture(scope="session")
+def event_loop(request):
+    # Create an instance of the default event loop for each test case.
+    # See https://github.com/pytest-dev/pytest-asyncio/issues/38#issuecomment-264418154
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()

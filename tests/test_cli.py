@@ -75,6 +75,25 @@ async def test_cli_get_bad_entity(db: Database, db_cleanup):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_cli_create_group(capsys, db: Database, db_cleanup):
+    grp = sd.TEST_GROUPS[0][0]
+
+    # Try creating the group via CLI
+    r = await cli.main(["create", "group", grp.name, grp.membership.json(), "--note", "note"])
+    assert r == 0
+
+    # Make sure the group exists in the database
+    captured = capsys.readouterr()
+    new_id = int(captured.out.strip().split(" ")[-1])
+
+    assert len(await db.get_groups()) == 1  # 1 group, the one we just created
+
+    # check we can get the group
+    assert await db.get_group(new_id) is not None
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_cli_get_group(capsys, db: Database, db_cleanup):
     grp = sd.TEST_GROUPS[0][0]
 
@@ -134,7 +153,7 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
     assert captured.out == existing_grant.json(sort_keys=True, indent=2) + "\n"
 
-    r = await cli.main(["get", "grant", "-1"])  # DNE
+    r = await cli.main(["get", "grant", "0"])  # DNE
     assert r == 1
 
 
