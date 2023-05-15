@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import sys
 import types
 
@@ -71,7 +72,7 @@ async def create_group(_config: Config, db: Database, args) -> int:
         GroupModel.parse_obj(
             {
                 "name": getattr(args, "name", "null"),
-                "membership": getattr(args, "membership", ""),
+                "membership": json.loads(getattr(args, "membership", "")),
                 "expiry": None,  # TODO: support via flag
                 "notes": getattr(args, "notes", ""),
             }
