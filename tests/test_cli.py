@@ -1,15 +1,27 @@
 import pytest
-from bento_authorization_service.cli import main
+from bento_authorization_service import cli
+from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database
 from bento_authorization_service.policy_engine.permissions import PERMISSIONS
 
-from .shared_data import TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA
+from . import shared_data as sd
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_list_bad_entity(db: Database, db_cleanup):
+    class Args:
+        def __init__(self):
+            self.entity = "abc"
+
+    assert (await cli.list_cmd(get_config(), db, object())) == 1
+    assert (await cli.list_cmd(get_config(), db, Args())) == 1
 
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 async def test_cli_list_permissions(capsys, db: Database, db_cleanup):
-    await main(["list-permissions"], db=db)
+    await cli.main(["list", "permissions"], db=db)
     captured = capsys.readouterr()
     assert captured.out == "\n".join(PERMISSIONS) + "\n"
 
@@ -17,7 +29,7 @@ async def test_cli_list_permissions(capsys, db: Database, db_cleanup):
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 async def test_cli_list_grants(capsys, db: Database, db_cleanup):
-    await main(["list-grants"], db=db)
+    await cli.main(["list", "grants"], db=db)
     captured = capsys.readouterr()
 
     # Default grant set for testing purposes:
@@ -26,13 +38,75 @@ async def test_cli_list_grants(capsys, db: Database, db_cleanup):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_cli_list_groups_none(capsys, db: Database, db_cleanup):
+    await cli.main(["list", "groups"], db=db)
+    captured = capsys.readouterr()
+
+    # No groups by default:
+    assert captured.out == ""
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_list_groups_one(capsys, db: Database, db_cleanup):
+    grp = sd.TEST_GROUPS[0][0]
+
+    # Create a group
+    g_id = await db.create_group(grp)
+
+    # List all groups
+    await cli.main(["list", "groups"], db=db)
+    captured = capsys.readouterr()
+
+    # One group by default:
+    assert captured.out == (await db.get_group(g_id)).json(sort_keys=True) + "\n"
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_get_bad_entity(db: Database, db_cleanup):
+    class Args:
+        def __init__(self):
+            self.entity = "abc"
+
+    assert (await cli.get_cmd(get_config(), db, object())) == 1
+    assert (await cli.get_cmd(get_config(), db, Args())) == 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_get_group(capsys, db: Database, db_cleanup):
+    grp = sd.TEST_GROUPS[0][0]
+
+    # Create a group
+    g_id = await db.create_group(grp)
+
+    # Get the group
+    assert (await cli.main(["get", "group", str(g_id)], db=db)) == 0
+    captured = capsys.readouterr()
+
+    # One group by default:
+    assert captured.out == (await db.get_group(g_id)).json(sort_keys=True, indent=2) + "\n"
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_get_group_dne(capsys, db: Database, db_cleanup):
+    # Get a group which DNE
+    assert (await cli.main(["get", "group", "0"], db=db)) == 1
+    captured = capsys.readouterr()
+    assert "No group" in captured.err
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_cli_create_grant(capsys, db: Database, db_cleanup):
-    r = await main(
+    r = await cli.main(
         [
-            "create-grant",
-            TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.json(),
-            TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.json(),
-            *TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
+            "create", "grant",
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.json(),
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.json(),
+            *sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
         ],
         db=db,
     )
@@ -54,13 +128,24 @@ async def test_cli_create_grant(capsys, db: Database, db_cleanup):
 async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     existing_grant = (await db.get_grants())[0]
 
-    r = await main(["get-grant", str(existing_grant.id)], db=db)
+    r = await cli.main(["get", "grant", str(existing_grant.id)], db=db)
     assert r == 0
     captured = capsys.readouterr()
     assert captured.out == existing_grant.json(sort_keys=True, indent=2) + "\n"
 
-    r = await main(["get-grant", "-1"])  # DNE
+    r = await cli.main(["get", "grant", "-1"])  # DNE
     assert r == 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_delete_bad_entity(db: Database, db_cleanup):
+    class Args:
+        def __init__(self):
+            self.entity = "abc"
+
+    assert (await cli.delete_cmd(get_config(), db, object())) == 1
+    assert (await cli.delete_cmd(get_config(), db, Args())) == 1
 
 
 # noinspection PyUnusedLocal
@@ -70,12 +155,12 @@ async def test_cli_delete_grant(capsys, db: Database, db_cleanup):
 
     existing_grant = (await db.get_grants())[0]
 
-    r = await main(["delete-grant", str(existing_grant.id)], db=db)
+    r = await cli.main(["delete", "grant", str(existing_grant.id)], db=db)
     assert r == 0
 
     assert len(await db.get_grants()) == 0
 
-    r = await main(["delete-grant", str(existing_grant.id)], db=db)  # Not found
+    r = await cli.main(["delete", "grant", str(existing_grant.id)], db=db)  # Not found
     assert r == 1
 
 
@@ -83,9 +168,9 @@ async def test_cli_delete_grant(capsys, db: Database, db_cleanup):
 @pytest.mark.asyncio
 async def test_cli_help_works(capsys, db: Database, db_cleanup):
     with pytest.raises(SystemExit) as e:
-        await main(["--help"])
+        await cli.main(["--help"])
         assert e.value == "0"
 
     with pytest.raises(SystemExit) as e:
-        await main([])
+        await cli.main([])
         assert e.value == "0"

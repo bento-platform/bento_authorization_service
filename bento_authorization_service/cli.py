@@ -3,6 +3,8 @@ import asyncio
 import sys
 import types
 
+from typing import Any, Callable, Coroutine
+
 from . import __version__
 from .config import Config, get_config
 from .db import Database, get_db
@@ -32,7 +34,7 @@ async def list_groups(db: Database):
 
 
 async def list_cmd(_config: Config, db: Database, args):
-    match (entity := args.entity):
+    match (entity := getattr(args, "entity", None)):
         case "permissions":
             list_permissions()
         case "grants":
@@ -48,10 +50,10 @@ async def list_cmd(_config: Config, db: Database, args):
 async def create_grant(_config: Config, db: Database, args) -> int:
     g, created = await db.create_grant(
         GrantModel(
-            subject=SubjectModel.parse_raw(args.subject),
-            resource=ResourceModel.parse_raw(args.resource),
+            subject=SubjectModel.parse_raw(getattr(args, "subject", "null")),
+            resource=ResourceModel.parse_raw(getattr(args, "resource", "null")),
             expiry=None,  # TODO: support via flag
-            notes=args.notes,
+            notes=getattr(args, "notes", ""),
             permissions=frozenset(PERMISSIONS_BY_STRING[p] for p in args.permissions),
         )
     )
@@ -68,10 +70,10 @@ async def create_group(_config: Config, db: Database, args) -> int:
     g = await db.create_group(
         GroupModel.parse_obj(
             {
-                "name": args.name,
-                "membership": args.membership,
+                "name": getattr(args, "name", "null"),
+                "membership": getattr(args, "membership", ""),
                 "expiry": None,  # TODO: support via flag
-                "notes": args.notes,
+                "notes": getattr(args, "notes", ""),
             }
         )
     )
@@ -103,39 +105,43 @@ async def get_group(db: Database, id_: int) -> int:
 
 
 async def get_cmd(_config: Config, db: Database, args):
-    match (entity := args.entity):
+    id_ = getattr(args, "id", -1)
+    match (entity := getattr(args, "entity", None)):
         case ENTITIES.GRANT:
-            return await get_grant(db, args.id)
+            return await get_grant(db, id_)
         case ENTITIES.GROUP:
-            return await get_group(db, args.id)
+            return await get_group(db, id_)
         case _:
             print(f"Cannot get entity type: {entity}", file=sys.stderr)
             return 1
 
 
-async def delete_grant(db: Database, id_: int) -> int:
-    if (await db.get_grant(id_)) is None:
-        print(f"No grant found with ID: {id_}")
+async def _delete_by_id(
+    entity: str,
+    id_: int,
+    get_fn: Callable[[int], Coroutine[Any, Any, object | None]],
+    delete_fn: Callable[[int], Coroutine[Any, Any, None]],
+) -> int:
+    if (await get_fn(id_)) is None:
+        print(f"No {entity} found with ID: {id_}")
         return 1
 
-    await db.delete_grant(id_)
+    await delete_fn(id_)
     print("Done.")
     return 0
+
+
+async def delete_grant(db: Database, id_: int) -> int:
+    return await _delete_by_id(ENTITIES.GRANT, id_, db.get_grant, db.delete_grant)
 
 
 async def delete_group(db: Database, id_: int) -> int:
-    if (await db.get_group(id_)) is None:
-        print(f"No group found with ID: {id_}")
-        return 1
-
-    await db.delete_group_and_dependent_grants(id_)
-    print("Done.")
-    return 0
+    return await _delete_by_id(ENTITIES.GROUP, id_, db.get_group, db.delete_group_and_dependent_grants)
 
 
 async def delete_cmd(_config: Config, db: Database, args) -> int:
-    id_ = args.id
-    match (entity := args.entity):
+    id_ = getattr(args, "id", -1)
+    match (entity := getattr(args, "entity", None)):
         case ENTITIES.GRANT:
             return await delete_grant(db, id_)
         case ENTITIES.GROUP:
@@ -183,7 +189,7 @@ async def main(args: list[str] | None, db: Database | None = None) -> int:
     cr.add_argument("membership", type=str, help="JSON representation of the group membership.")
     cr.add_argument("--notes", type=str, default="", help="Optional human-readable notes to add to the group.")
 
-    d_sub = subparsers.add_parser("delete-grant")
+    d_sub = subparsers.add_parser("delete")
     d_sub.set_defaults(func=delete_cmd)
     d_sub.add_argument("entity", choices=GET_DELETE_ENTITIES, **entity_kwargs)
     d_sub.add_argument("id", type=int, help="Entity ID")
