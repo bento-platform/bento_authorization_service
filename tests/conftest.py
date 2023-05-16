@@ -8,6 +8,7 @@ from functools import lru_cache
 from typing import AsyncGenerator
 
 import os
+
 os.environ["BENTO_DEBUG"] = "true"
 
 from bento_authorization_service.config import get_config
