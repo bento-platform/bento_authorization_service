@@ -47,7 +47,8 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
 
 async def _git_stdout(*args) -> str:
     git_proc = await asyncio.create_subprocess_exec(
-        "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
     res, _ = await git_proc.communicate()
     return res.decode().rstrip()
 

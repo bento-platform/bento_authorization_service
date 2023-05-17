@@ -201,6 +201,19 @@ async def test_cli_delete_group(capsys, db: Database, db_cleanup):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_cli_assign_all(capsys, db: Database, db_cleanup):
+    # Assign all permissions to David
+    assert (await cli.main(["assign-all-to-user", sd.SUBJECT_DAVID.__root__.iss, sd.SUBJECT_DAVID.__root__.sub])) == 0
+
+    # There now should be two grants
+    assert len(await db.get_grants()) == 2
+
+    # The final set of permissions should have all of them
+    assert frozenset.union(*(g.permissions for g in await db.get_grants())) == frozenset(PERMISSIONS)
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_cli_help_works(capsys, db: Database, db_cleanup):
     with pytest.raises(SystemExit) as e:
         await cli.main(["--help"])
