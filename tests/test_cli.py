@@ -1,5 +1,3 @@
-import itertools
-
 import pytest
 from bento_authorization_service import cli
 from bento_authorization_service.config import get_config
