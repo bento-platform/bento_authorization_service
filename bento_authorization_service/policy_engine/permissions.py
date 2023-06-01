@@ -83,6 +83,7 @@ PROJECT = PermissionNoun("project")
 DATASET = PermissionNoun("dataset")
 
 NOTIFICATIONS = PermissionNoun("notifications")
+GOHAN = PermissionNoun("gohan")
 
 PERMISSIONS_NOUN = PermissionNoun("permissions")
 
@@ -124,6 +125,13 @@ P_CREATE_NOTIFICATIONS = Permission(CREATE_VERB, NOTIFICATIONS)
 P_VIEW_DROP_BOX = Permission(VIEW_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
 P_INGEST_DROP_BOX = Permission(INGEST_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
 P_DELETE_DROP_BOX = Permission(DELETE_VERB, DROP_BOX, min_level_required=LEVEL_INSTANCE)
+
+#   - gohan (TEMP)
+P_VIEW_GOHAN = Permission(VIEW_VERB, GOHAN, min_level_required=LEVEL_INSTANCE)
+P_QUERY_GOHAN = Permission(QUERY_VERB, GOHAN, min_level_required=LEVEL_INSTANCE)
+P_CREATE_GOHAN = Permission(CREATE_VERB, GOHAN, min_level_required=LEVEL_INSTANCE)
+P_DELETE_GOHAN = Permission(DELETE_VERB, GOHAN, min_level_required=LEVEL_INSTANCE)
+
 
 #   - project management
 
