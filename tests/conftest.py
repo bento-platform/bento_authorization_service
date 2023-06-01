@@ -10,6 +10,7 @@ from typing import AsyncGenerator
 import os
 
 os.environ["BENTO_DEBUG"] = "true"
+os.environ["CORS_ORIGINS"] = "*"
 
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database, get_db
