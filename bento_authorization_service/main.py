@@ -1,12 +1,13 @@
 import asyncio
 
 from fastapi import FastAPI, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from bento_authorization_service import __version__
 from bento_lib.types import BentoExtraServiceInfo
 
-from .config import ConfigDependency
+from .config import ConfigDependency, get_config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .logger import logger
 from .routers.grants import grants_router
@@ -17,6 +18,12 @@ from .routers.utils import public_endpoint_dependency
 
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_config().cors_origins,
+    allow_headers=["Authorization"],
+    allow_credentials=True,
+)
 
 app.include_router(grants_router)
 app.include_router(groups_router)
@@ -30,6 +37,9 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
     Permissions enforcement middleware. We require all endpoints to explicitly set a flag to say they have 'thought'
     about permissions and decided the request should go through (or be rejected).
     """
+
+    if request.method == "OPTIONS":  # Allow pre-flight responses through
+        return await call_next(request)
 
     # Set flag saying the request hasn't had its permissions determined yet.
     request.state.determined_authz = False
