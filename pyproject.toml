@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bento-authorization-service"
-version = "0.2.0"
+version = "0.2.1"
 description = "Permissions and authorization service for the Bento platform."
 authors = ["David Lougheed <david.lougheed@mail.mcgill.ca>"]
 license = "LGPL-3.0-only"
