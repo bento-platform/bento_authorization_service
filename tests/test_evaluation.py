@@ -324,20 +324,45 @@ async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_clean
     assert res.json()["result"]
 
 
+TWO_PROJECT_DATA_QUERY = {
+    "requested_resource": [
+        json.loads(sd.RESOURCE_PROJECT_1.json()),
+        json.loads(sd.RESOURCE_PROJECT_2.json()),
+    ],
+    "required_permissions": [P_QUERY_DATA],
+}
+
+
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_evaluate_endpoint_list(db: Database, test_client: TestClient, db_cleanup):
+async def test_evaluate_endpoint_list(db: Database, test_client: TestClient, auth_headers, db_cleanup):
     tkn = await _eval_test_data(db)
-    res = test_client.post(
-        "/policy/evaluate",
-        headers={"Authorization": f"Bearer {tkn}"},
-        json={
-            "requested_resource": [
-                json.loads(sd.RESOURCE_PROJECT_1.json()),
-                json.loads(sd.RESOURCE_PROJECT_2.json()),
-            ],
-            "required_permissions": [P_QUERY_DATA],
-        },
-    )
+    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK
     assert json.dumps(res.json()["result"]) == json.dumps([True, False])
+
+
+# noinspection PyUnusedLocal
+def test_evaluate_non_jwt_token(test_client: TestClient, db_cleanup):
+    res = test_client.post("/policy/evaluate", headers={"Authorization": "Bearer eee"}, json=TWO_PROJECT_DATA_QUERY)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_bad_audience_token(db: Database, test_client: TestClient, db_cleanup):
+    await _eval_test_data(db)
+    tkn = sd.make_fresh_david_token_encoded(audience="invalid")
+    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
+    assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - bad audience
+    assert json.dumps(res.json()["result"]) == json.dumps([False, False])
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_expired_token(db: Database, test_client: TestClient, db_cleanup):
+    await _eval_test_data(db)
+    tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
+    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
+    assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
+    assert json.dumps(res.json()["result"]) == json.dumps([False, False])
