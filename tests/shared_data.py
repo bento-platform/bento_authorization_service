@@ -47,13 +47,13 @@ TEST_TOKEN = {
 }
 
 
-def make_fresh_david_token():
+def make_fresh_david_token(audience: str = TEST_TOKEN_AUD, exp_offset: int = 900):
     dt = int(datetime.now(timezone.utc).timestamp())
-    return {**TEST_TOKEN, "iat": dt, "exp": dt + 900}
+    return {**TEST_TOKEN, "aud": audience, "iat": dt, "exp": dt + exp_offset}
 
 
-def make_fresh_david_token_encoded() -> str:
-    return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+def make_fresh_david_token_encoded(**kwargs) -> str:
+    return jwt.encode(make_fresh_david_token(**kwargs), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
 def make_fresh_david_disabled_alg_encoded() -> str:
