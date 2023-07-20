@@ -1,7 +1,7 @@
 import asyncio
 import jwt
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from typing import Callable, TypeVar
 
@@ -65,6 +65,9 @@ async def use_token_data_or_return_error_state(
     except jwt.ExpiredSignatureError:
         logger.warning(f"Got expired token")
         return err_state
+    except jwt.DecodeError:
+        # Actually throw an HTTP error for this one
+        raise HTTPException(detail="Bearer token must be a valid JWT", status_code=status.HTTP_400_BAD_REQUEST)
 
     return create_response(token_data)
 
