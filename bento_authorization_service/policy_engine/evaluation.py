@@ -331,7 +331,12 @@ def evaluate_with_provided(
     if token_data is not None:
         # noinspection PyTypedDict
         user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
-    log_obj = {"user": user_str, "requested_resource": requested_resource.dict()["__root__"], "decision": decision}
+    log_obj = {
+        "user": user_str,
+        "requested_resource": requested_resource.dict()["__root__"],
+        "required_permissions": list(required_permissions),
+        "decision": decision,
+    }
     logger.info(f"evaluate: {json.dumps(log_obj)})")
 
     return decision
