@@ -3,22 +3,13 @@ import pytest
 
 from fastapi import status
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import GrantModel, StoredGrantModel
 
 from . import shared_data as sd
-
-
-def compare_model_json(x: BaseModel, y: BaseModel) -> bool:
-    return json.dumps(
-        x.model_dump(mode="json"),
-        sort_keys=True,
-    ) == json.dumps(
-        y.model_dump(mode="json"),
-        sort_keys=True,
-    )
+from .utils import compare_via_json, compare_model_json
 
 
 # noinspection PyUnusedLocal
@@ -92,7 +83,7 @@ async def test_grant_endpoints_create(test_client: TestClient, db: Database, db_
     res_data = res.json()
 
     db_grant: StoredGrantModel = await db.get_grant(res_data["id"])
-    assert json.dumps(res_data, sort_keys=True) == json.dumps(db_grant.model_dump(mode="json"), sort_keys=True)
+    assert compare_via_json(res_data, db_grant.model_dump(mode="json"))
 
 
 # noinspection PyUnusedLocal
@@ -118,7 +109,6 @@ async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cle
     # create grant in database
     g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
     db_grant: StoredGrantModel = await db.get_grant(g_id)
-    db_grant_json = json.dumps(db_grant.model_dump(mode="json"), sort_keys=True)
 
     # test that without a token, we cannot see anything
     res = test_client.get(f"/grants/{g_id}")
@@ -127,7 +117,7 @@ async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cle
     # test that we can fetch it
     res = test_client.get(f"/grants/{g_id}", headers=headers)
     assert res.status_code == status.HTTP_200_OK
-    assert json.dumps(res.json(), sort_keys=True) == db_grant_json
+    assert compare_via_json(db_grant.model_dump(mode="json"), res.json())
 
 
 # noinspection PyUnusedLocal

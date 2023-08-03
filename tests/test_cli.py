@@ -1,9 +1,9 @@
-import json
 import pytest
 from bento_authorization_service import cli
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database
 from bento_authorization_service.policy_engine.permissions import PERMISSIONS
+from bento_authorization_service.utils import json_model_dump_kwargs
 
 from . import shared_data as sd
 
@@ -36,7 +36,7 @@ async def test_cli_list_grants(capsys, db: Database, db_cleanup):
     # Default grant set for testing purposes:
     assert (
         captured.out
-        == "\n".join(map(lambda x: json.dumps(x.model_dump(mode="json"), sort_keys=True), await db.get_grants())) + "\n"
+        == "\n".join(map(lambda x: json_model_dump_kwargs(x, sort_keys=True), await db.get_grants())) + "\n"
     )
 
 
@@ -63,7 +63,7 @@ async def test_cli_list_groups_one(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # One group by default:
-    assert captured.out == json.dumps((await db.get_group(g_id)).model_dump(mode="json"), sort_keys=True) + "\n"
+    assert captured.out == json_model_dump_kwargs((await db.get_group(g_id)), sort_keys=True) + "\n"
 
 
 # noinspection PyUnusedLocal
@@ -109,9 +109,7 @@ async def test_cli_get_group(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # One group by default:
-    assert (
-        captured.out == json.dumps((await db.get_group(g_id)).model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
-    )
+    assert captured.out == json_model_dump_kwargs((await db.get_group(g_id)), sort_keys=True, indent=2) + "\n"
 
 
 # noinspection PyUnusedLocal
@@ -157,7 +155,7 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     r = await cli.main(["get", "grant", str(existing_grant.id)], db=db)
     assert r == 0
     captured = capsys.readouterr()
-    assert captured.out == json.dumps(existing_grant.model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
+    assert captured.out == json_model_dump_kwargs(existing_grant, sort_keys=True, indent=2) + "\n"
 
     r = await cli.main(["get", "grant", "0"])  # DNE
     assert r == 1

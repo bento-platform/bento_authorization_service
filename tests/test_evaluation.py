@@ -1,4 +1,3 @@
-import json
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
@@ -25,6 +24,7 @@ from bento_authorization_service.models import (
 )
 
 from . import shared_data as sd
+from .utils import compare_via_json
 
 
 class FakeIssBased(BaseIssuerModel):
@@ -343,7 +343,7 @@ async def test_evaluate_endpoint_list(db: Database, test_client: TestClient, aut
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK
-    assert json.dumps(res.json()["result"]) == json.dumps([True, False])
+    assert compare_via_json(res.json()["result"], [True, False])
 
 
 # noinspection PyUnusedLocal
@@ -359,7 +359,7 @@ async def test_evaluate_bad_audience_token(db: Database, test_client: TestClient
     tkn = sd.make_fresh_david_token_encoded(audience="invalid")
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - bad audience
-    assert json.dumps(res.json()["result"]) == json.dumps([False, False])
+    assert compare_via_json(res.json()["result"], [False, False])
 
 
 # noinspection PyUnusedLocal
@@ -369,4 +369,4 @@ async def test_evaluate_expired_token(db: Database, test_client: TestClient, db_
     tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
-    assert json.dumps(res.json()["result"]) == json.dumps([False, False])
+    assert compare_via_json(res.json()["result"], [False, False])

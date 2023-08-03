@@ -6,6 +6,7 @@ from bento_authorization_service.db import Database
 from bento_authorization_service.models import GroupModel, StoredGroupModel
 
 from .shared_data import TEST_GROUPS, TEST_EXPIRED_GROUP
+from .utils import compare_via_json, compare_model_json
 
 
 # noinspection PyUnusedLocal
@@ -37,9 +38,7 @@ async def test_db_group(db: Database, db_cleanup):
     # noinspection PyTypeChecker
     await db.set_group(g_id, GroupModel(**{**g.model_dump(), "membership": TEST_GROUPS[1][0].membership}))
     g_db = await db.get_group(g_id)
-    assert json.dumps(g_db.membership.model_dump(mode="json"), sort_keys=True) == json.dumps(
-        TEST_GROUPS[1][0].membership.model_dump(mode="json"), sort_keys=True
-    )
+    assert compare_model_json(g_db.membership, TEST_GROUPS[1][0].membership)
 
     # Now check we can delete the group successfully
     await db.delete_group_and_dependent_grants(g_db.id)
@@ -78,9 +77,7 @@ async def test_group_endpoints_creation(
     g_rest = res.json()
     group_from_db = await db.get_group(g_rest["id"])
     assert group_from_db is not None
-    group_from_db_dict = group_from_db.model_dump(mode="json")
-
-    assert json.dumps(group_from_db_dict, sort_keys=True) == json.dumps(g_rest, sort_keys=True)
+    assert compare_via_json(group_from_db.model_dump(mode="json"), g_rest)
 
 
 # noinspection PyUnusedLocal
@@ -114,8 +111,7 @@ async def test_group_endpoints_fetch(
 
     assert "created" in res_data
     group_dict = {**group.model_dump(mode="json"), "created": res_data["created"], "id": g_db_id}
-
-    assert json.dumps(group_dict, sort_keys=True) == json.dumps(res_data, sort_keys=True)
+    assert compare_via_json(group_dict, res_data)
 
 
 # noinspection PyUnusedLocal
@@ -141,9 +137,7 @@ async def test_group_endpoints_list(
 
     # Steal create date from created group for equality check
     group_dict = {**group.model_dump(mode="json"), "created": group_in_list["created"], "id": g_db_id}
-
-    # TODO: pydantic 2: group.model_dump(mode='json')
-    assert json.dumps(group_dict, sort_keys=True) == json.dumps(group_in_list, sort_keys=True)
+    assert compare_via_json(group_dict, group_in_list)
 
 
 # noinspection PyUnusedLocal
@@ -179,13 +173,7 @@ async def test_group_endpoints_update(auth_headers: dict[str, str], test_client:
 
     # Check it matches the first one
     g_db = await db.get_group(g_db_id)
-    assert g_db is not None and json.dumps(
-        g_db.model_dump(mode="json", exclude={"id", "created"}),
-        sort_keys=True,
-    ) == json.dumps(
-        group_1.model_dump(exclude={"id", "created"}),
-        sort_keys=True,
-    )
+    assert g_db is not None and compare_model_json(g_db, group_1, exclude={"id", "created"})
 
     # Test we cannot update with no authorization
     res = test_client.put(f"/groups/{g_db_id}", json=group_2.model_dump(mode="json"))
@@ -197,25 +185,13 @@ async def test_group_endpoints_update(auth_headers: dict[str, str], test_client:
 
     # Check it now matches the second one
     g_db = await db.get_group(g_db_id)
-    assert g_db is not None and json.dumps(
-        g_db.model_dump(mode="json", exclude={"id", "created"}),
-        sort_keys=True,
-    ) == json.dumps(
-        group_2.model_dump(mode="json", exclude={"id", "created"}),
-        sort_keys=True,
-    )
+    assert g_db is not None and compare_model_json(g_db, group_2, exclude={"id", "created"})
 
     # Check idempotency
     res = test_client.put(f"/groups/{g_db_id}", json=group_2.model_dump(mode="json"), headers=auth_headers)
     assert res.status_code == status.HTTP_204_NO_CONTENT
     g_db = await db.get_group(g_db_id)
-    assert g_db is not None and json.dumps(
-        g_db.model_dump(mode="json", exclude={"id", "created"}),
-        sort_keys=True,
-    ) == json.dumps(
-        group_2.model_dump(mode="json", exclude={"id", "created"}),
-        sort_keys=True,
-    )
+    assert g_db is not None and compare_model_json(g_db, group_2, exclude={"id", "created"})
 
     # Check it 404s for a not-found group with auth
 
