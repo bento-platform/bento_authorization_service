@@ -11,6 +11,7 @@ from typing import Annotated, AsyncGenerator
 
 from .config import ConfigDependency
 from .models import SubjectModel, ResourceModel, GrantModel, StoredGrantModel, GroupModel, StoredGroupModel
+from .utils import json_model_dump_kwargs
 
 __all__ = [
     "DatabaseError",
@@ -28,11 +29,11 @@ class DatabaseError(Exception):
 
 
 def subject_db_deserialize(r: asyncpg.Record | None) -> SubjectModel | None:
-    return None if r is None else SubjectModel(__root__=json.loads(r["def"]))
+    return None if r is None else SubjectModel(json.loads(r["def"]))
 
 
 def resource_db_deserialize(r: asyncpg.Record | None) -> ResourceModel | None:
-    return None if r is None else ResourceModel(__root__=json.loads(r["def"]))
+    return None if r is None else ResourceModel(json.loads(r["def"]))
 
 
 def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
@@ -40,8 +41,8 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
         return None
     return StoredGrantModel(
         id=r["id"],
-        subject=SubjectModel(__root__=json.loads(r["subject"])),
-        resource=ResourceModel(__root__=json.loads(r["resource"])),
+        subject=SubjectModel(json.loads(r["subject"])),
+        resource=ResourceModel(json.loads(r["resource"])),
         notes=r["notes"],
         created=r["created"],
         expiry=r["expiry"],
@@ -53,7 +54,7 @@ def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
 def group_db_serialize(g: GroupModel) -> tuple[str, str, str, datetime]:
     return (
         g.name,
-        g.membership.json(sort_keys=True),
+        json_model_dump_kwargs(g.membership, sort_keys=True),
         g.notes,
         g.expiry,
     )
@@ -124,7 +125,7 @@ class Database:
         s: SubjectModel,
         existing_conn: asyncpg.Connection | None = None,
     ) -> int | None:
-        s_ser: str = s.json(sort_keys=True)
+        s_ser: str = json_model_dump_kwargs(s, sort_keys=True)
         conn: asyncpg.Connection
         async with self.connect(existing_conn) as conn:
             if (id_ := await conn.fetchval("SELECT id FROM subjects WHERE def = $1::jsonb", s_ser)) is not None:
@@ -143,7 +144,7 @@ class Database:
         r: ResourceModel,
         existing_conn: asyncpg.Connection | None = None,
     ) -> int | None:
-        r_ser: str = r.json(sort_keys=True)
+        r_ser: str = json_model_dump_kwargs(r, sort_keys=True)
         conn: asyncpg.Connection
         async with self.connect(existing_conn) as conn:
             if (id_ := await conn.fetchval("SELECT id FROM resources WHERE def = $1::jsonb", r_ser)) is not None:

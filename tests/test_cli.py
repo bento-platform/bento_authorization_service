@@ -3,6 +3,7 @@ from bento_authorization_service import cli
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database
 from bento_authorization_service.policy_engine.permissions import PERMISSIONS
+from bento_authorization_service.utils import json_model_dump_kwargs
 
 from . import shared_data as sd
 
@@ -33,7 +34,10 @@ async def test_cli_list_grants(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # Default grant set for testing purposes:
-    assert captured.out == "\n".join(map(lambda x: x.json(sort_keys=True), await db.get_grants())) + "\n"
+    assert (
+        captured.out
+        == "\n".join(map(lambda x: json_model_dump_kwargs(x, sort_keys=True), await db.get_grants())) + "\n"
+    )
 
 
 # noinspection PyUnusedLocal
@@ -59,7 +63,7 @@ async def test_cli_list_groups_one(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # One group by default:
-    assert captured.out == (await db.get_group(g_id)).json(sort_keys=True) + "\n"
+    assert captured.out == json_model_dump_kwargs((await db.get_group(g_id)), sort_keys=True) + "\n"
 
 
 # noinspection PyUnusedLocal
@@ -79,7 +83,7 @@ async def test_cli_create_group(capsys, db: Database, db_cleanup):
     grp = sd.TEST_GROUPS[0][0]
 
     # Try creating the group via CLI
-    r = await cli.main(["create", "group", grp.name, grp.membership.json(), "--note", "note"])
+    r = await cli.main(["create", "group", grp.name, grp.membership.model_dump_json(), "--note", "note"])
     assert r == 0
 
     # Make sure the group exists in the database
@@ -105,7 +109,7 @@ async def test_cli_get_group(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # One group by default:
-    assert captured.out == (await db.get_group(g_id)).json(sort_keys=True, indent=2) + "\n"
+    assert captured.out == json_model_dump_kwargs((await db.get_group(g_id)), sort_keys=True, indent=2) + "\n"
 
 
 # noinspection PyUnusedLocal
@@ -124,8 +128,8 @@ async def test_cli_create_grant(capsys, db: Database, db_cleanup):
         [
             "create",
             "grant",
-            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.json(),
-            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.json(),
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.model_dump_json(),
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.model_dump_json(),
             *sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
         ],
         db=db,
@@ -151,7 +155,7 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     r = await cli.main(["get", "grant", str(existing_grant.id)], db=db)
     assert r == 0
     captured = capsys.readouterr()
-    assert captured.out == existing_grant.json(sort_keys=True, indent=2) + "\n"
+    assert captured.out == json_model_dump_kwargs(existing_grant, sort_keys=True, indent=2) + "\n"
 
     r = await cli.main(["get", "grant", "0"])  # DNE
     assert r == 1
@@ -203,7 +207,7 @@ async def test_cli_delete_group(capsys, db: Database, db_cleanup):
 @pytest.mark.asyncio
 async def test_cli_assign_all(capsys, db: Database, db_cleanup):
     # Assign all permissions to David
-    assert (await cli.main(["assign-all-to-user", sd.SUBJECT_DAVID.__root__.iss, sd.SUBJECT_DAVID.__root__.sub])) == 0
+    assert (await cli.main(["assign-all-to-user", sd.SUBJECT_DAVID.root.iss, sd.SUBJECT_DAVID.root.sub])) == 0
 
     # There now should be two grants
     assert len(await db.get_grants()) == 2
