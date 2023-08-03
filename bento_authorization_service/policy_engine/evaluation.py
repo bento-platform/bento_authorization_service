@@ -139,9 +139,7 @@ def check_if_token_is_in_group(
 
     if isinstance(membership, GroupMembershipMembers):
         # Check if any issuer and (client ID | subject ID) match --> token bearer is a member of this group
-        return any(
-            check_token_against_issuer_based_model_obj(token_data, member.root) for member in membership.members
-        )
+        return any(check_token_against_issuer_based_model_obj(token_data, member.root) for member in membership.members)
 
     elif isinstance(membership, GroupMembershipExpr):
         return check_ast_against_data_structure(
