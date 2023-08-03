@@ -126,8 +126,7 @@ def test_invalid_subject():
     # New subject type (not handled):
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
-        check_if_token_matches_subject(
-            {}, sd.TEST_TOKEN, FakeSubjectType1.model_validate(FakeSubjectType1Inner()))
+        check_if_token_matches_subject({}, sd.TEST_TOKEN, FakeSubjectType1.model_validate(FakeSubjectType1Inner()))
 
 
 def test_resource_match():

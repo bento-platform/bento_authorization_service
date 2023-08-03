@@ -34,8 +34,10 @@ async def test_cli_list_grants(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # Default grant set for testing purposes:
-    assert captured.out == "\n".join(
-        map(lambda x: json.dumps(x.model_dump(mode="json"), sort_keys=True), await db.get_grants())) + "\n"
+    assert (
+        captured.out
+        == "\n".join(map(lambda x: json.dumps(x.model_dump(mode="json"), sort_keys=True), await db.get_grants())) + "\n"
+    )
 
 
 # noinspection PyUnusedLocal
@@ -107,8 +109,9 @@ async def test_cli_get_group(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # One group by default:
-    assert captured.out == json.dumps(
-        (await db.get_group(g_id)).model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
+    assert (
+        captured.out == json.dumps((await db.get_group(g_id)).model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
+    )
 
 
 # noinspection PyUnusedLocal

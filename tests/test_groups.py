@@ -179,15 +179,12 @@ async def test_group_endpoints_update(auth_headers: dict[str, str], test_client:
 
     # Check it matches the first one
     g_db = await db.get_group(g_db_id)
-    assert (
-        g_db is not None and
-        json.dumps(
-            g_db.model_dump(mode="json", exclude={"id", "created"}),
-            sort_keys=True,
-        ) == json.dumps(
-            group_1.model_dump(exclude={"id", "created"}),
-            sort_keys=True,
-        )
+    assert g_db is not None and json.dumps(
+        g_db.model_dump(mode="json", exclude={"id", "created"}),
+        sort_keys=True,
+    ) == json.dumps(
+        group_1.model_dump(exclude={"id", "created"}),
+        sort_keys=True,
     )
 
     # Test we cannot update with no authorization
