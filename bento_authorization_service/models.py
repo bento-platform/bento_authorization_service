@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, RootModel
 from typing import Literal
 
 __all__ = [
@@ -30,10 +30,8 @@ __all__ = [
 
 
 class BaseImmutableModel(BaseModel):
-    class Config:
-        # Immutable hashable record
-        allow_mutation = False
-        frozen = True
+    # Immutable hashable record
+    model_config = ConfigDict(frozen=True)
 
 
 class BaseIssuerModel(BaseImmutableModel):
@@ -56,19 +54,21 @@ class SubjectGroupModel(BaseImmutableModel):
     group: int
 
 
-class SubjectModel(BaseImmutableModel):
-    __root__: SubjectEveryoneModel | SubjectGroupModel | IssuerAndClientModel | IssuerAndSubjectModel
+class SubjectModel(RootModel):
+    root: SubjectEveryoneModel | SubjectGroupModel | IssuerAndClientModel | IssuerAndSubjectModel
+    model_config = ConfigDict(frozen=True)
 
 
-SUBJECT_EVERYONE = SubjectModel(__root__=SubjectEveryoneModel(everyone=True))
+SUBJECT_EVERYONE = SubjectModel.model_validate(SubjectEveryoneModel(everyone=True))
 
 
 class GroupMembershipExpr(BaseImmutableModel):
     expr: list  # JSON representation of query format
 
 
-class GroupMembershipItemModel(BaseImmutableModel):
-    __root__: IssuerAndClientModel | IssuerAndSubjectModel
+class GroupMembershipItemModel(RootModel):
+    root: IssuerAndClientModel | IssuerAndSubjectModel
+    model_config = ConfigDict(frozen=True)
 
 
 class GroupMembershipMembers(BaseImmutableModel):
@@ -100,11 +100,12 @@ class ResourceSpecificModel(BaseImmutableModel):
     data_type: str | None = None
 
 
-class ResourceModel(BaseImmutableModel):
-    __root__: ResourceEverythingModel | ResourceSpecificModel
+class ResourceModel(RootModel):
+    root: ResourceEverythingModel | ResourceSpecificModel
+    model_config = ConfigDict(frozen=True)
 
 
-RESOURCE_EVERYTHING = ResourceModel(__root__=ResourceEverythingModel(everything=True))
+RESOURCE_EVERYTHING = ResourceModel.model_validate(ResourceEverythingModel(everything=True))
 
 
 class GrantModel(BaseImmutableModel):
@@ -113,12 +114,14 @@ class GrantModel(BaseImmutableModel):
     expiry: datetime | None
     notes: str = ""
 
-    permissions: frozenset[str] = Field(..., min_items=1)
+    permissions: frozenset[str] = Field(..., min_length=1)
 
-    class Config(BaseImmutableModel.Config):
-        json_encoders = {
+    model_config = ConfigDict(
+        **BaseImmutableModel.model_config,
+        json_encoders={
             frozenset: lambda x: sorted(x),  # make set serialization have a consistent order
-        }
+        },
+    )
 
 
 class StoredGrantModel(GrantModel):

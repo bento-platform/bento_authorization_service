@@ -11,6 +11,7 @@ from .config import Config, get_config
 from .db import Database, get_db
 from .models import GrantModel, GroupModel, SubjectModel, ResourceModel, RESOURCE_EVERYTHING
 from .policy_engine.permissions import PERMISSIONS, PERMISSIONS_BY_STRING
+from .utils import json_model_dump_kwargs
 
 
 ENTITIES = types.SimpleNamespace()
@@ -26,12 +27,12 @@ def list_permissions():
 
 async def list_grants(db: Database):
     for g in await db.get_grants():
-        print(g.json(sort_keys=True))
+        print(json_model_dump_kwargs(g, sort_keys=True))
 
 
 async def list_groups(db: Database):
     for g in await db.get_groups():
-        print(g.json(sort_keys=True))
+        print(json_model_dump_kwargs(g, sort_keys=True))
 
 
 async def list_cmd(_config: Config, db: Database, args):
@@ -51,8 +52,8 @@ async def list_cmd(_config: Config, db: Database, args):
 async def create_grant(_config: Config, db: Database, args) -> int:
     g, created = await db.create_grant(
         GrantModel(
-            subject=SubjectModel.parse_raw(getattr(args, "subject", "null")),
-            resource=ResourceModel.parse_raw(getattr(args, "resource", "null")),
+            subject=SubjectModel.model_validate_json(getattr(args, "subject", "null")),
+            resource=ResourceModel.model_validate_json(getattr(args, "resource", "null")),
             expiry=None,  # TODO: support via flag
             notes=getattr(args, "notes", ""),
             permissions=frozenset(PERMISSIONS_BY_STRING[p] for p in args.permissions),
@@ -69,7 +70,7 @@ async def create_grant(_config: Config, db: Database, args) -> int:
 
 async def create_group(_config: Config, db: Database, args) -> int:
     g = await db.create_group(
-        GroupModel.parse_obj(
+        GroupModel.model_validate(
             {
                 "name": getattr(args, "name", "null"),
                 "membership": json.loads(getattr(args, "membership", "")),
@@ -89,7 +90,7 @@ async def create_group(_config: Config, db: Database, args) -> int:
 
 async def get_grant(db: Database, id_: int) -> int:
     if (g := await db.get_grant(id_)) is not None:
-        print(g.json(sort_keys=True, indent=2))
+        print(json_model_dump_kwargs(g, sort_keys=True, indent=2))
         return 0
 
     print("No grant found with that ID.", file=sys.stderr)
@@ -98,7 +99,7 @@ async def get_grant(db: Database, id_: int) -> int:
 
 async def get_group(db: Database, id_: int) -> int:
     if (g := await db.get_group(id_)) is not None:
-        print(g.json(sort_keys=True, indent=2))
+        print(json_model_dump_kwargs(g, sort_keys=True, indent=2))
         return 0
 
     print("No group found with that ID.", file=sys.stderr)
@@ -155,7 +156,7 @@ async def delete_cmd(_config: Config, db: Database, args) -> int:
 async def assign_all_cmd(_config: Config, db: Database, args) -> int:
     g, created = await db.create_grant(
         GrantModel(
-            subject=SubjectModel.parse_obj({"iss": args.iss, "sub": args.sub}),
+            subject=SubjectModel.model_validate({"iss": args.iss, "sub": args.sub}),
             resource=RESOURCE_EVERYTHING,
             permissions=PERMISSIONS,
             expiry=None,

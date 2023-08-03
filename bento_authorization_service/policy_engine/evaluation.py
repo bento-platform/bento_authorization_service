@@ -140,7 +140,7 @@ def check_if_token_is_in_group(
     if isinstance(membership, GroupMembershipMembers):
         # Check if any issuer and (client ID | subject ID) match --> token bearer is a member of this group
         return any(
-            check_token_against_issuer_based_model_obj(token_data, member.__root__) for member in membership.members
+            check_token_against_issuer_based_model_obj(token_data, member.root) for member in membership.members
         )
 
     elif isinstance(membership, GroupMembershipExpr):
@@ -170,7 +170,7 @@ def check_if_token_matches_subject(
     #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
     #  - Otherwise, check the specifics of the grant to see if there is an issuer/client or issuer/subject match.
 
-    s = subject.__root__
+    s = subject.root
     if isinstance(s, SubjectEveryoneModel) and s.everyone:
         return True
     elif isinstance(s, SubjectGroupModel):
@@ -198,9 +198,9 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
 
     # Check if a grant resource matches the requested resource.
 
-    rr = requested_resource.__root__
+    rr = requested_resource.root
     rr_is_everything = isinstance(rr, ResourceEverythingModel)
-    gr = grant_resource.__root__
+    gr = grant_resource.root
 
     def _not_implemented(unimpl_for: str) -> NotImplementedError:
         err_ = f"Unimplemented handling for {unimpl_for} (missing everything|project)"
@@ -333,7 +333,7 @@ def evaluate_with_provided(
         user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
     log_obj = {
         "user": user_str,
-        "requested_resource": requested_resource.dict()["__root__"],
+        "requested_resource": requested_resource.model_dump(mode="json"),
         "required_permissions": list(required_permissions),
         "decision": decision,
     }

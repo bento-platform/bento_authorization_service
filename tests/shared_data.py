@@ -85,30 +85,30 @@ TEST_TOKEN_FOREIGN_ISS = {
     "iat": 0,  # Not checked here
 }
 
-SUBJECT_EVERYONE: SubjectModel = SubjectModel(__root__={"everyone": True})
-SUBJECT_CLIENT: SubjectModel = SubjectModel(__root__={"iss": ISS, "client": CLIENT})
-SUBJECT_DAVID: SubjectModel = SubjectModel(__root__={"iss": ISS, "sub": SUB})
-SUBJECT_NOT_ME: SubjectModel = SubjectModel(__root__={"iss": ISS, "sub": "not_me"})
+SUBJECT_EVERYONE: SubjectModel = SubjectModel({"everyone": True})
+SUBJECT_CLIENT: SubjectModel = SubjectModel({"iss": ISS, "client": CLIENT})
+SUBJECT_DAVID: SubjectModel = SubjectModel({"iss": ISS, "sub": SUB})
+SUBJECT_NOT_ME: SubjectModel = SubjectModel({"iss": ISS, "sub": "not_me"})
 
-RESOURCE_EVERYTHING: ResourceModel = ResourceModel(__root__={"everything": True})
-RESOURCE_PROJECT_1: ResourceModel = ResourceModel(__root__={"project": "1"})
-RESOURCE_PROJECT_1_DATASET_A: ResourceModel = ResourceModel(__root__={"project": "1", "dataset": "A"})
-RESOURCE_PROJECT_1_DATASET_B: ResourceModel = ResourceModel(__root__={"project": "1", "dataset": "B"})
-RESOURCE_PROJECT_2: ResourceModel = ResourceModel(__root__={"project": "2"})
-RESOURCE_PROJECT_2_DATASET_C: ResourceModel = ResourceModel(__root__={"project": "1", "dataset": "B"})
+RESOURCE_EVERYTHING: ResourceModel = ResourceModel({"everything": True})
+RESOURCE_PROJECT_1: ResourceModel = ResourceModel({"project": "1"})
+RESOURCE_PROJECT_1_DATASET_A: ResourceModel = ResourceModel({"project": "1", "dataset": "A"})
+RESOURCE_PROJECT_1_DATASET_B: ResourceModel = ResourceModel({"project": "1", "dataset": "B"})
+RESOURCE_PROJECT_2: ResourceModel = ResourceModel({"project": "2"})
+RESOURCE_PROJECT_2_DATASET_C: ResourceModel = ResourceModel({"project": "1", "dataset": "B"})
 
-TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership | None, bool]] = [
+TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership, bool]] = [
     # Member lists
     # - All users from a particular issuer+client
     (GroupMembershipMembers(members=[{"iss": ISS, "client": CLIENT}]), True),
     # - A specific user
-    (GroupMembershipMembers(members=[SUBJECT_DAVID]), True),
+    (GroupMembershipMembers(members=[SUBJECT_DAVID.root]), True),
     # - Not me!
-    (GroupMembershipMembers(members=[SUBJECT_NOT_ME]), False),
+    (GroupMembershipMembers(members=[SUBJECT_NOT_ME.root]), False),
     # - Me and not me!
-    (GroupMembershipMembers(members=[SUBJECT_DAVID, SUBJECT_NOT_ME]), True),
+    (GroupMembershipMembers(members=[SUBJECT_DAVID.root, SUBJECT_NOT_ME.root]), True),
     # - Me and not me!
-    (GroupMembershipMembers(members=[SUBJECT_NOT_ME, SUBJECT_DAVID]), True),
+    (GroupMembershipMembers(members=[SUBJECT_NOT_ME.root, SUBJECT_DAVID.root]), True),
     # Expressions
     # - Expression for specific subject and issuer
     (GroupMembershipExpr(expr=["#and", ["#eq", ["#resolve", "sub"], SUB], ["#eq", ["#resolve", "iss"], ISS]]), True),
@@ -149,7 +149,7 @@ TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA: GrantModel = GrantModel(
 )
 TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED: GrantModel = GrantModel(
     **{
-        **TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.dict(),
+        **TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.model_dump(mode="json"),
         "expiry": TEST_EXPIRED_TIME,
     }
 )
@@ -170,7 +170,7 @@ TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA: GrantModel = GrantModel(
 )
 TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED: GrantModel = GrantModel(
     **{
-        **TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(),
+        **TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
         "expiry": TEST_EXPIRED_TIME,
     }
 )

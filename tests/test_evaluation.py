@@ -2,7 +2,7 @@ import json
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
@@ -40,15 +40,13 @@ class FakeSubjectType1Inner(BaseModel):
     evil: str = "eeeevil"
 
 
-class FakeSubjectType1(BaseModel):
-    __root__: FakeSubjectType1Inner
+FakeSubjectType1 = RootModel(FakeSubjectType1Inner)
 
 
-class FakeResource(BaseModel):
-    __root__: int | str
+FakeResource = RootModel(int | str)
 
 
-fake_resource = FakeResource(__root__=4)
+fake_resource = FakeResource.model_validate(4)
 
 
 def test_token_issuer_based_comparison():
@@ -128,7 +126,8 @@ def test_invalid_subject():
     # New subject type (not handled):
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
-        check_if_token_matches_subject({}, sd.TEST_TOKEN, FakeSubjectType1(__root__=FakeSubjectType1Inner()))
+        check_if_token_matches_subject(
+            {}, sd.TEST_TOKEN, FakeSubjectType1.model_validate(FakeSubjectType1Inner()))
 
 
 def test_resource_match():
@@ -263,7 +262,10 @@ def test_grant_filtering_2():
 
 async def _eval_test_data(db: Database):
     group_id = await db.create_group(sd.TEST_GROUPS[0][0])
-    grant_with_group = {**sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.dict(), "subject": {"group": group_id}}
+    grant_with_group = {
+        **sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
+        "subject": {"group": group_id},
+    }
     await db.create_grant(GrantModel(**grant_with_group))
     return sd.make_fresh_david_token_encoded()
 
@@ -284,7 +286,7 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cl
         "/policy/permissions",
         headers={"Authorization": f"Bearer {tkn}"},
         json={
-            "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
+            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
         },
     )
     assert res.status_code == status.HTTP_200_OK
@@ -299,7 +301,10 @@ async def test_permissions_endpoint_list(db: Database, test_client: TestClient, 
         "/policy/permissions",
         headers={"Authorization": f"Bearer {tkn}"},
         json={
-            "requested_resource": [json.loads(sd.RESOURCE_PROJECT_1.json()), json.loads(sd.RESOURCE_PROJECT_2.json())],
+            "requested_resource": [
+                sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+                sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
+            ],
         },
     )
     assert res.status_code == status.HTTP_200_OK
@@ -316,7 +321,7 @@ async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_clean
         "/policy/evaluate",
         headers={"Authorization": f"Bearer {tkn}"},
         json={
-            "requested_resource": json.loads(sd.RESOURCE_PROJECT_1.json()),
+            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
             "required_permissions": [P_QUERY_DATA],
         },
     )
@@ -326,8 +331,8 @@ async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_clean
 
 TWO_PROJECT_DATA_QUERY = {
     "requested_resource": [
-        json.loads(sd.RESOURCE_PROJECT_1.json()),
-        json.loads(sd.RESOURCE_PROJECT_2.json()),
+        sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+        sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
     ],
     "required_permissions": [P_QUERY_DATA],
 }
