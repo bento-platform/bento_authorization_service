@@ -1,6 +1,7 @@
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
+from functools import partial
 
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
@@ -14,6 +15,8 @@ __all__ = [
     "forbidden",
     "raise_if_no_resource_access",
     "extract_token",
+    "set_authz_flag",
+    "require_permission_and_flag",
     "require_permission_dependency",
     "public_endpoint_dependency",
 ]
@@ -51,6 +54,31 @@ def extract_token(authorization: HTTPAuthorizationCredentials | None) -> str | N
     return authorization.credentials if authorization is not None else None
 
 
+def set_authz_flag(request: Request):
+    # Flag that we have thought about auth
+    request.state.determined_authz = True
+
+
+async def require_permission_and_flag(
+    resource: ResourceModel,
+    permission: Permission,
+    request: Request,
+    authorization: OptionalBearerToken,
+    db: DatabaseDependency,
+    idp_manager: IdPManagerDependency,
+):
+    await raise_if_no_resource_access(
+        request,
+        extract_token(authorization),
+        resource,
+        permission,
+        db,
+        idp_manager,
+    )
+    # Flag that we have thought about auth
+    set_authz_flag(request)
+
+
 def require_permission_dependency(resource: ResourceModel, permission: Permission):
     async def _inner(
         request: Request,
@@ -58,23 +86,16 @@ def require_permission_dependency(resource: ResourceModel, permission: Permissio
         db: DatabaseDependency,
         idp_manager: IdPManagerDependency,
     ):
-        await raise_if_no_resource_access(
-            request,
-            extract_token(authorization),
+        return await require_permission_and_flag(
             resource,
             permission,
+            request,
+            authorization,
             db,
             idp_manager,
         )
-        # Flag that we have thought about auth
-        request.state.determined_authz = True
 
     return Depends(_inner)
 
 
-def public_endpoint(request: Request):
-    # Flag that we have thought about auth
-    request.state.determined_authz = True
-
-
-public_endpoint_dependency = Depends(public_endpoint)
+public_endpoint_dependency = Depends(set_authz_flag)
