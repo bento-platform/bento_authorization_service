@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, RootModel
+from pydantic import BaseModel, Field, ConfigDict, RootModel, field_serializer
 from typing import Literal
 
 __all__ = [
@@ -34,6 +34,11 @@ class BaseImmutableModel(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class BaseImmutableRootModel(RootModel):
+    # Immutable hashable record
+    model_config = ConfigDict(frozen=True)
+
+
 class BaseIssuerModel(BaseImmutableModel):
     iss: str
 
@@ -54,9 +59,8 @@ class SubjectGroupModel(BaseImmutableModel):
     group: int
 
 
-class SubjectModel(RootModel):
+class SubjectModel(BaseImmutableRootModel):
     root: SubjectEveryoneModel | SubjectGroupModel | IssuerAndClientModel | IssuerAndSubjectModel
-    model_config = ConfigDict(frozen=True)
 
 
 SUBJECT_EVERYONE = SubjectModel.model_validate(SubjectEveryoneModel(everyone=True))
@@ -66,9 +70,8 @@ class GroupMembershipExpr(BaseImmutableModel):
     expr: list  # JSON representation of query format
 
 
-class GroupMembershipItemModel(RootModel):
+class GroupMembershipItemModel(BaseImmutableRootModel):
     root: IssuerAndClientModel | IssuerAndSubjectModel
-    model_config = ConfigDict(frozen=True)
 
 
 class GroupMembershipMembers(BaseImmutableModel):
@@ -100,9 +103,8 @@ class ResourceSpecificModel(BaseImmutableModel):
     data_type: str | None = None
 
 
-class ResourceModel(RootModel):
+class ResourceModel(BaseImmutableRootModel):
     root: ResourceEverythingModel | ResourceSpecificModel
-    model_config = ConfigDict(frozen=True)
 
 
 RESOURCE_EVERYTHING = ResourceModel.model_validate(ResourceEverythingModel(everything=True))
@@ -116,12 +118,10 @@ class GrantModel(BaseImmutableModel):
 
     permissions: frozenset[str] = Field(..., min_length=1)
 
-    model_config = ConfigDict(
-        **BaseImmutableModel.model_config,
-        json_encoders={
-            frozenset: lambda x: sorted(x),  # make set serialization have a consistent order
-        },
-    )
+    @field_serializer("permissions")
+    def serialize_permissions(self, permissions: frozenset[str], _info):
+        # make set serialization have a consistent order
+        return sorted(permissions)
 
 
 class StoredGrantModel(GrantModel):
