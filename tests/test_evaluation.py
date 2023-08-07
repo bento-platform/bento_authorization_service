@@ -360,11 +360,15 @@ async def test_evaluate_seperate_subject(db: Database, test_client: TestClient, 
     tkn = sd.make_fresh_david_token_encoded()
     await db.create_grant(GrantModel.model_validate(VIEW_PERMS_GRANT))
 
-    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "token_data": {},  # Empty token data <-> 'no token'
-        "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-        "required_permissions": [P_QUERY_DATA],
-    })
+    res = test_client.post(
+        "/policy/evaluate",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "token_data": {},  # Empty token data <-> 'no token'
+            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+            "required_permissions": [P_QUERY_DATA],
+        },
+    )
     assert res.status_code == status.HTTP_200_OK
     assert res.json()["result"] == False
 
@@ -375,14 +379,18 @@ async def test_evaluate_seperate_subject_multiple(db: Database, test_client: Tes
     tkn = sd.make_fresh_david_token_encoded()
     await db.create_grant(GrantModel.model_validate(VIEW_PERMS_GRANT))
 
-    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
-        "token_data": {},  # Empty token data <-> 'no token'
-        "requested_resource": [
-            sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-            sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
-        ],
-        "required_permissions": [P_QUERY_DATA],
-    })
+    res = test_client.post(
+        "/policy/evaluate",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "token_data": {},  # Empty token data <-> 'no token'
+            "requested_resource": [
+                sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+                sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
+            ],
+            "required_permissions": [P_QUERY_DATA],
+        },
+    )
     assert res.status_code == status.HTTP_200_OK
     assert compare_via_json(res.json()["result"], [False, False])
 
