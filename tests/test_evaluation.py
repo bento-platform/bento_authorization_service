@@ -113,7 +113,6 @@ def test_group_membership(group: GroupModel, is_member: bool):
     ),
 )
 def test_subject_match(groups_dict, token, subject, res):
-    print(groups_dict, token, subject, res, flush=True)
     assert check_if_token_matches_subject(groups_dict, token, subject) == res
 
 
@@ -344,6 +343,48 @@ async def test_evaluate_endpoint_list(db: Database, test_client: TestClient, aut
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK
     assert compare_via_json(res.json()["result"], [True, False])
+
+
+VIEW_PERMS_GRANT = grant = {
+    "resource": sd.RESOURCE_PROJECT_1,
+    "permissions": {sd.P_VIEW_PERMISSIONS},
+    "notes": "",
+    "expiry": None,
+    "subject": {"iss": sd.ISS, "sub": sd.SUB},
+}
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_seperate_subject(db: Database, test_client: TestClient, auth_headers, db_cleanup):
+    tkn = sd.make_fresh_david_token_encoded()
+    await db.create_grant(GrantModel.model_validate(VIEW_PERMS_GRANT))
+
+    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
+        "token_data": {},  # Empty token data <-> 'no token'
+        "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+        "required_permissions": [P_QUERY_DATA],
+    })
+    assert res.status_code == status.HTTP_200_OK
+    assert res.json()["result"] == False
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_seperate_subject_multiple(db: Database, test_client: TestClient, auth_headers, db_cleanup):
+    tkn = sd.make_fresh_david_token_encoded()
+    await db.create_grant(GrantModel.model_validate(VIEW_PERMS_GRANT))
+
+    res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json={
+        "token_data": {},  # Empty token data <-> 'no token'
+        "requested_resource": [
+            sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+            sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
+        ],
+        "required_permissions": [P_QUERY_DATA],
+    })
+    assert res.status_code == status.HTTP_200_OK
+    assert compare_via_json(res.json()["result"], [False, False])
 
 
 # noinspection PyUnusedLocal
