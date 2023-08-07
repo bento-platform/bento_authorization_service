@@ -370,7 +370,7 @@ async def test_evaluate_seperate_subject(db: Database, test_client: TestClient, 
         },
     )
     assert res.status_code == status.HTTP_200_OK
-    assert res.json()["result"] == False
+    assert not res.json()["result"]
 
 
 # noinspection PyUnusedLocal
@@ -393,6 +393,22 @@ async def test_evaluate_seperate_subject_multiple(db: Database, test_client: Tes
     )
     assert res.status_code == status.HTTP_200_OK
     assert compare_via_json(res.json()["result"], [False, False])
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_seperate_subject_denied(db: Database, test_client: TestClient, auth_headers, db_cleanup):
+    tkn = sd.make_fresh_non_david_token_encoded()
+    res = test_client.post(
+        "/policy/evaluate",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "token_data": {},  # Empty token data <-> 'no token'
+            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+            "required_permissions": [P_QUERY_DATA],
+        },
+    )
+    assert res.status_code == status.HTTP_403_FORBIDDEN
 
 
 # noinspection PyUnusedLocal

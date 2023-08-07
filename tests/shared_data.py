@@ -56,6 +56,10 @@ def make_fresh_david_token_encoded(**kwargs) -> str:
     return jwt.encode(make_fresh_david_token(**kwargs), TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
+def make_fresh_non_david_token_encoded(**kwargs) -> str:
+    return jwt.encode({**make_fresh_david_token(**kwargs), "sub": "other"}, TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
+
+
 def make_fresh_david_disabled_alg_encoded() -> str:
     return jwt.encode(make_fresh_david_token(), TEST_TOKEN_SECRET, TEST_DISABLED_TOKEN_SIGNING_ALGOS[0])
 
