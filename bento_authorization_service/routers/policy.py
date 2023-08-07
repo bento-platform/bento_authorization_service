@@ -12,7 +12,7 @@ from ..logger import logger
 from ..models import StoredGroupModel, StoredGrantModel, ResourceModel
 from ..policy_engine.evaluation import TokenData, determine_permissions, evaluate_with_provided
 from ..policy_engine.permissions import Permission, PERMISSIONS_BY_STRING, P_VIEW_PERMISSIONS
-from .utils import set_authz_flag, require_permission_and_flag, public_endpoint_dependency
+from .utils import set_authz_flag, require_permission_and_flag
 
 __all__ = ["policy_router"]
 
@@ -80,24 +80,24 @@ async def use_token_data_or_return_error_state(
 
 async def check_non_bearer_token_data_use(
     token_data: TokenData | None,
-    resource: ResourceModel,
+    resource: ResourceModel | tuple[ResourceModel, ...],
     request: Request,
     authorization: OptionalBearerToken,
     db: Database,
     idp_manager: IdPManager,
-):
+) -> None:
     if token_data is None:
         # Using our own token, so this becomes a public endpoint.
         set_authz_flag(request)
+        return
+
+    async def req_inner(r: ResourceModel):
+        await require_permission_and_flag(r, P_VIEW_PERMISSIONS, request, authorization, db, idp_manager)
+
+    if isinstance(resource, tuple):
+        await asyncio.gather(*(req_inner(r) for r in resource))
     else:
-        await require_permission_and_flag(
-            resource,
-            P_VIEW_PERMISSIONS,
-            request,
-            authorization,
-            db,
-            idp_manager,
-        )
+        await req_inner(resource)
 
 
 @policy_router.post("/permissions")
