@@ -4,7 +4,8 @@ from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime, timezone
 
-from typing import Callable, Generator, TypedDict
+from typing import Callable, Generator
+from typing_extensions import TypedDict  # TODO: py3.12: remove and uninstall library
 
 from ..db import Database
 from ..idp_manager import BaseIdPManager
