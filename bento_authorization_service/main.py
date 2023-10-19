@@ -50,6 +50,9 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
 
     if not request.state.determined_authz:
         # Next in response chain didn't properly think about auth; return 403
+        logger.warning(
+            f"Masking true response with 403 since determined_authz was not set: {request.url} {response.status_code}"
+        )
         return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Forbidden"})
 
     # Otherwise, return the response as normal
