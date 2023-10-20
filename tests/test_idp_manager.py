@@ -33,6 +33,6 @@ async def test_invalid_token_algo(db: Database, idp_manager: BaseIdPManager, tes
             idp_manager,
             db,
             sd.make_fresh_david_disabled_alg_encoded(),
-            sd.RESOURCE_PROJECT_1,
-            frozenset({P_QUERY_DATA}),
+            (sd.RESOURCE_PROJECT_1,),
+            (P_QUERY_DATA,),
         )

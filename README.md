@@ -73,36 +73,83 @@ the user will be treated as `{"anonymous": true}`.
 
 #### `POST /policy/evaluate` - The main evaluation endpoint
 
-Implementers MUST use this when making *binary* authorization decisions, e.g., does User A have the 
-`query:data` permission for Resource B.
+Implementers MUST use either this or the scalar version of this endpoint when making *binary* authorization decisions, 
+e.g., does User A have the `query:data` permission for Resource B.
 
-Implementers SHOULD use this when making graceful-fallback policy decisions, via a multiple-requests approach, e.g.:
+Implementers SHOULD use this when making graceful-fallback policy decisions, via the matrix-based approach and 
+additional logic in the implementers' own code, e.g.:
 
 * "does User A have the `query:data` permission for Resource B"? 
-* If not, "do they have the `dataset_level_counts` permission for Resource B?"
+* If not, "do they have the `query:dataset_level_counts` permission for Resource B?"
 * *et cetera.*
 
-##### Request body example (JSON)
+##### Request example
+
+###### Headers
+
+```
+Authorization: Bearer ...
+```
+
+###### Body (JSON)
 
 ```json
 {
-  "requested_resource": {"everything": true},
-  "required_permissions": ["query:data"]
+  "resources": [{"project": "project-1"}, {"project": "project-2"}, {"project": "project-3"}],
+  "permissions": ["query:data", "query:dataset_level_counts"]
 }
 ```
-
-The `requested_resource` field can also be an **array** of resources.
 
 ##### Response (JSON)
 
 ```json
 {
-  "result": true
+  "result": [
+    [false, true],
+    [false, false],
+    [true, true]
+  ]
 }
 ```
 
-If `requested_resource` is an array of resources, `result` would instead be returned as a **list of booleans**.
+Here, `result` is a matrix of evaluation results, with rows being resources and columns being permissions.
 
+In this case, the response can be interpreted as:
+
+* For the provided bearer token:
+  * They have the `query:dataset_level_counts` permission for `project-1`, but NOT `query:data`
+  * They have none of the queried permissions for `project-2`
+  * They have both of the queried permissions for `project-3`
+
+
+#### `POST /policy/evaluate_one` - The evaluation endpoint for one resource and one 
+
+Equivalent to the above endpoint, but with a request body that looks like:
+
+```json
+{
+  "resource": {"project": "project-1"},
+  "permission": "query:data"
+}
+```
+
+... and a response that looks like:
+
+```json
+{
+  "result": false
+}
+```
+
+We added this endpoint to prevent slip-ups when checking just one permission, since if the implementer accidentally
+checks the falsiness of a list, they'll accidentally grant access incorrectly, since the following holds:
+
+```python
+if [[False]]:
+    print("this will print")
+```
+
+    
 #### `POST /policy/permissions` - a secondary evaluation endpoint
 
 This endpoint lists permissions that apply to a particular token/resource pair.
@@ -117,22 +164,19 @@ which the user does not have the permissions to use.
 
 ```json
 {
-  "requested_resource": {"everything": true}
+  "resources": [{"everything": true}]
 }
 ```
-
-The `requested_resource` field can also be an **array** of resources.
 
 ##### Response (JSON)
 
 ```json
 {
-  "result": ["query:data"]
+  "result": [["query:data"]]
 }
 ```
 
-If `requested_resource` is an array of resources, `result` would instead be returned as a 
-**list of lists of permissions**.
+The `result` value is returned as a **list of lists of permissions**; one list of permissions for each resource queried.
 
 
 ### Group endpoints

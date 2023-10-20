@@ -1,12 +1,14 @@
 import asyncio
 
+from bento_lib.responses.fastapi_errors import http_exception_handler_factory, validation_exception_handler_factory
+from bento_lib.types import BentoExtraServiceInfo
 from fastapi import FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from bento_authorization_service import __version__
-from bento_lib.types import BentoExtraServiceInfo
-
+from . import __version__
 from .config import ConfigDependency, get_config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .logger import logger
@@ -14,17 +16,23 @@ from .routers.grants import grants_router
 from .routers.groups import groups_router
 from .routers.policy import policy_router
 from .routers.schemas import schema_router
-from .routers.utils import public_endpoint_dependency
+from .routers.utils import MarkAuthzDone, public_endpoint_dependency
 
+
+# TODO: Find a way to DI this
+config_for_setup = get_config()
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_config().cors_origins,
+    allow_origins=config_for_setup.cors_origins,
     allow_headers=["Authorization"],
     allow_credentials=True,
     allow_methods=["*"],
 )
+
+app.exception_handler(StarletteHTTPException)(http_exception_handler_factory(logger, MarkAuthzDone))
+app.exception_handler(RequestValidationError)(validation_exception_handler_factory(MarkAuthzDone))
 
 app.include_router(grants_router)
 app.include_router(groups_router)

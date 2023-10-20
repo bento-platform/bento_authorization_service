@@ -6,7 +6,7 @@ from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import RESOURCE_EVERYTHING, GrantModel, StoredGrantModel
-from .utils import raise_if_no_resource_access, extract_token, require_permission_dependency, set_authz_flag
+from .utils import raise_if_no_resource_access, extract_token, require_permission_dependency, MarkAuthzDone
 
 __all__ = [
     "grants_router",
@@ -37,7 +37,7 @@ async def get_grant_and_check_access(
 
     # Flag that we have thought about auth - since we are about to raise a NotFound error; consider this OK since
     # any user could theoretically see some grants.
-    set_authz_flag(request)
+    MarkAuthzDone.mark_authz_done(request)
     raise grant_not_found(grant_id)
 
 
@@ -61,7 +61,7 @@ async def create_grant(
     )
 
     # Flag that we have thought about auth
-    set_authz_flag(request)
+    MarkAuthzDone.mark_authz_done(request)
 
     if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
@@ -94,7 +94,7 @@ async def get_grant(
     )
 
     # Flag that we have thought about auth
-    set_authz_flag(request)
+    MarkAuthzDone.mark_authz_done(request)
 
     return grant
 
@@ -113,7 +113,7 @@ async def delete_grant(
     )
 
     # Flag that we have thought about auth
-    set_authz_flag(request)
+    MarkAuthzDone.mark_authz_done(request)
 
     # If the above didn't raise anything, delete the grant.
     await db.delete_grant(grant_id)
