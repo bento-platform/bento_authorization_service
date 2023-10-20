@@ -1,8 +1,10 @@
 import pytest
+
+from bento_lib.auth.permissions import PERMISSIONS
+
 from bento_authorization_service import cli
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database
-from bento_authorization_service.policy_engine.permissions import PERMISSIONS
 from bento_authorization_service.utils import json_model_dump_kwargs
 
 from . import shared_data as sd

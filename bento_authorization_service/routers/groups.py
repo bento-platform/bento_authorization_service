@@ -1,10 +1,10 @@
+from bento_lib.auth.permissions import P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import DatabaseDependency
 from ..models import RESOURCE_EVERYTHING, GroupModel, StoredGroupModel
-from ..policy_engine.permissions import P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from .utils import require_permission_dependency
 
 __all__ = [

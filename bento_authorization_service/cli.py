@@ -4,13 +4,13 @@ import json
 import sys
 import types
 
+from bento_lib.auth.permissions import PERMISSIONS, PERMISSIONS_BY_STRING
 from typing import Any, Callable, Coroutine
 
 from . import __version__
 from .config import Config, get_config
 from .db import Database, get_db
 from .models import GrantModel, GroupModel, SubjectModel, ResourceModel, RESOURCE_EVERYTHING
-from .policy_engine.permissions import PERMISSIONS, PERMISSIONS_BY_STRING
 from .utils import json_model_dump_kwargs
 
 

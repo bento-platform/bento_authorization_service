@@ -1,3 +1,4 @@
+from bento_lib.auth.permissions import Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -5,7 +6,6 @@ from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import RESOURCE_EVERYTHING, GrantModel, StoredGrantModel
-from ..policy_engine.permissions import Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from .utils import raise_if_no_resource_access, extract_token, require_permission_dependency, set_authz_flag
 
 __all__ = [

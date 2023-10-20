@@ -1,4 +1,5 @@
 import jwt
+from bento_lib.auth.permissions import Permission
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 from functools import partial
@@ -9,7 +10,6 @@ from ..idp_manager import IdPManager, IdPManagerDependency
 from ..logger import logger
 from ..models import ResourceModel
 from ..policy_engine.evaluation import evaluate
-from ..policy_engine.permissions import Permission
 
 __all__ = [
     "forbidden",

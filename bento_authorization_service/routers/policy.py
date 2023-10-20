@@ -1,6 +1,7 @@
 import asyncio
 import jwt
 
+from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, P_VIEW_PERMISSIONS, Permission
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from typing import Callable, TypeVar
@@ -11,7 +12,6 @@ from ..idp_manager import IdPManager, IdPManagerDependency
 from ..logger import logger
 from ..models import StoredGroupModel, StoredGrantModel, ResourceModel
 from ..policy_engine.evaluation import TokenData, determine_permissions, evaluate_with_provided
-from ..policy_engine.permissions import Permission, PERMISSIONS_BY_STRING, P_VIEW_PERMISSIONS
 from .utils import set_authz_flag, require_permission_and_flag
 
 __all__ = ["policy_router"]

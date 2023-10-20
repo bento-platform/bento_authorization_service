@@ -1,5 +1,6 @@
 import json
 
+from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime, timezone
@@ -28,7 +29,6 @@ from ..models import (
     GrantModel,
 )
 from ..logger import logger
-from .permissions import PERMISSIONS_BY_STRING, Permission
 
 
 __all__ = [

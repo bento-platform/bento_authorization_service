@@ -1,7 +1,10 @@
 import pytest
+
+from bento_lib.auth.permissions import P_QUERY_DATA
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, RootModel
+
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
@@ -14,7 +17,6 @@ from bento_authorization_service.policy_engine.evaluation import (
     determine_permissions,
     evaluate,
 )
-from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
 from bento_authorization_service.models import (
     BaseIssuerModel,
     IssuerAndClientModel,
