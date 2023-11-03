@@ -32,12 +32,6 @@ class ListPermissionsResponse(BaseModel):
     result: list[list[str]]
 
 
-def apply_scalar_or_vector(func: Callable[[T], U], v: T | tuple[T, ...]) -> U | tuple[U, ...]:
-    if isinstance(v, tuple):
-        return tuple(func(x) for x in v)
-    return func(v)
-
-
 def list_permissions_for_resource(
     grants: tuple[StoredGrantModel],
     groups: dict[int, StoredGroupModel],

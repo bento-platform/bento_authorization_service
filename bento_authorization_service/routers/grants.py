@@ -56,6 +56,8 @@ async def create_grant(
     idp_manager: IdPManagerDependency,
     authorization: OptionalBearerToken,
 ) -> StoredGrantModel:
+    # Make sure the token is allowed to edit permissions (in this case, 'editing permissions'
+    # extends to creating grants) on the resource in question.
     await raise_if_no_resource_access(
         request, extract_token(authorization), grant.resource, P_EDIT_PERMISSIONS, db, idp_manager
     )
@@ -63,19 +65,15 @@ async def create_grant(
     # Flag that we have thought about auth
     MarkAuthzDone.mark_authz_done(request)
 
+    # Forbid creating a grant which is expired from the get-go.
     if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
 
-    g_id, g_created = await db.create_grant(grant)
-    if g_id is not None:
-        if g_created:
-            if (g := await db.get_grant(g_id)) is not None:
-                return g  # Successfully created, return
-            raise grant_could_not_be_created()  # Somehow immediately removed
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Grant with this subject + resource + permission already exists",
-        )
+    # Create the grant
+    if (g_id := await db.create_grant(grant)) is not None:
+        if (g := await db.get_grant(g_id)) is not None:
+            return g  # Successfully created, return
+        raise grant_could_not_be_created()  # Somehow immediately removed
 
     raise grant_could_not_be_created()
 

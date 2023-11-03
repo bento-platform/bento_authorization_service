@@ -327,10 +327,6 @@ def evaluate_on_resource_and_permission(
     return permission in permissions
 
 
-async def _get_token_data(idp_manager: BaseIdPManager, token: TokenData | str | None) -> TokenData | None:
-    return (await idp_manager.decode(token)) if isinstance(token, str) else token
-
-
 async def evaluate(
     idp_manager: BaseIdPManager,
     db: Database,
