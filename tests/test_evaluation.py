@@ -1,6 +1,6 @@
 import pytest
 
-from bento_lib.auth.permissions import P_QUERY_DATA
+from bento_lib.auth.permissions import P_QUERY_DATA, P_QUERY_PROJECT_LEVEL_BOOLEAN
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, RootModel
@@ -281,7 +281,13 @@ async def _eval_test_data(db: Database):
 @pytest.mark.asyncio
 async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
+
+    # directly given query:data
     res = await evaluate(idp_manager, db, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,))
+    assert res
+
+    # indirectly (via gives=) given project-level boolean
+    res = await evaluate(idp_manager, db, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,))
     assert res
 
 
