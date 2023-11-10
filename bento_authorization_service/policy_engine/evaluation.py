@@ -288,6 +288,12 @@ def filter_matching_grants(
             pass
 
 
+def _permission_and_gives_from_string(p: str) -> Iterable[Permission]:
+    perm = PERMISSIONS_BY_STRING[p]
+    yield perm
+    yield from perm.gives
+
+
 def determine_permissions(
     grants: tuple[GrantModel, ...],
     groups_dict: dict[int, StoredGroupModel],
@@ -302,11 +308,6 @@ def determine_permissions(
     :param requested_resource: The resource the token wishes to operate on.
     :return: The permissions frozen set
     """
-
-    def _permission_and_gives_from_string(p: str) -> Iterable[Permission]:
-        perm = PERMISSIONS_BY_STRING[p]
-        yield perm
-        yield from perm.gives
 
     return frozenset(
         itertools.chain.from_iterable(
