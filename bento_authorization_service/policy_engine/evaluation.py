@@ -1,5 +1,7 @@
+import asyncio
 import json
 
+from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime, timezone
@@ -28,7 +30,6 @@ from ..models import (
     GrantModel,
 )
 from ..logger import logger
-from .permissions import PERMISSIONS_BY_STRING, Permission
 
 
 __all__ = [
@@ -42,7 +43,7 @@ __all__ = [
     "resource_is_equivalent_or_contained",
     "filter_matching_grants",
     "determine_permissions",
-    "evaluate_with_provided",
+    "evaluate_on_resource_and_permission",
     "evaluate",
 ]
 
@@ -312,18 +313,44 @@ def determine_permissions(
 LOG_USER_STR_FIELDS: tuple[str, ...] = ("iss", "azp", "sub")
 
 
-def evaluate_with_provided(
+def evaluate_on_resource_and_permission(
     grants: tuple[GrantModel, ...],
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
-    requested_resource: ResourceModel,
-    required_permissions: frozenset[Permission],
+    resource: ResourceModel,
+    permission: Permission,
 ) -> bool:
-    # Determine the permissions
-    permissions = determine_permissions(grants, groups_dict, token_data, requested_resource)
+    # Determine the permissions the token has on the resource
+    permissions = determine_permissions(grants, groups_dict, token_data, resource)
 
-    # Permitted if all our required permissions are a subset of the permissions this token has on this resource.
-    decision = required_permissions.issubset(permissions)
+    # Permitted if our required permission is contained in the permissions this token has on this resource.
+    return permission in permissions
+
+
+async def evaluate(
+    idp_manager: BaseIdPManager,
+    db: Database,
+    token: str | TokenData | None,
+    resources: list[ResourceModel] | tuple[ResourceModel, ...],
+    permissions: list[Permission] | tuple[Permission, ...],
+) -> tuple[tuple[bool, ...], ...]:
+    # If an access token is specified, validate it and extract its data.
+    # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
+    # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
+    # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
+    # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
+
+    # If we instead receive already parsed token data, we just use that instead:
+    token_data: TokenData | None = (await idp_manager.decode(token)) if isinstance(token, str) else token
+
+    # Fetch grants + groups from the database in parallel
+    grants, groups_dict = await asyncio.gather(db.get_grants(), db.get_groups_dict())
+
+    # Determine the permissions evaluation matrix
+    evaluation_matrix = tuple(
+        tuple(evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p) for p in permissions)
+        for r in resources
+    )
 
     # Log the decision made, with some user data
     user_str = {"anonymous": True}
@@ -332,32 +359,10 @@ def evaluate_with_provided(
         user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
     log_obj = {
         "user": user_str,
-        "requested_resource": requested_resource.model_dump(mode="json"),
-        "required_permissions": list(required_permissions),
-        "decision": decision,
+        "resources": [r.model_dump(mode="json") for r in resources],
+        "permissions": permissions,
+        "decisions": evaluation_matrix,
     }
     logger.info(f"evaluate: {json.dumps(log_obj)})")
 
-    return decision
-
-
-async def evaluate(
-    idp_manager: BaseIdPManager,
-    db: Database,
-    token: str | None,
-    requested_resource: ResourceModel,
-    required_permissions: frozenset[Permission],
-) -> bool:
-    # If an access token is specified, validate it and extract its data.
-    # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
-    # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
-    # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
-    # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
-    token_data = (await idp_manager.decode(token)) if token else None
-
-    # Fetch grants + groups from the database
-    grants = await db.get_grants()
-    groups_dict = await db.get_groups_dict()
-
-    # Determine the permissions
-    return evaluate_with_provided(grants, groups_dict, token_data, requested_resource, required_permissions)
+    return evaluation_matrix

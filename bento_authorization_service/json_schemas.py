@@ -1,4 +1,3 @@
-import jsonschema
 from bento_lib.search import queries as q
 
 from .config import get_config

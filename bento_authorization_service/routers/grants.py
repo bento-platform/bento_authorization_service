@@ -1,3 +1,4 @@
+from bento_lib.auth.permissions import Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -5,8 +6,7 @@ from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import RESOURCE_EVERYTHING, GrantModel, StoredGrantModel
-from ..policy_engine.permissions import Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
-from .utils import raise_if_no_resource_access, extract_token, require_permission_dependency
+from .utils import raise_if_no_resource_access, extract_token, require_permission_dependency, MarkAuthzDone
 
 __all__ = [
     "grants_router",
@@ -37,7 +37,7 @@ async def get_grant_and_check_access(
 
     # Flag that we have thought about auth - since we are about to raise a NotFound error; consider this OK since
     # any user could theoretically see some grants.
-    request.state.determined_authz = True
+    MarkAuthzDone.mark_authz_done(request)
     raise grant_not_found(grant_id)
 
 
@@ -56,26 +56,24 @@ async def create_grant(
     idp_manager: IdPManagerDependency,
     authorization: OptionalBearerToken,
 ) -> StoredGrantModel:
+    # Make sure the token is allowed to edit permissions (in this case, 'editing permissions'
+    # extends to creating grants) on the resource in question.
     await raise_if_no_resource_access(
         request, extract_token(authorization), grant.resource, P_EDIT_PERMISSIONS, db, idp_manager
     )
 
     # Flag that we have thought about auth
-    request.state.determined_authz = True
+    MarkAuthzDone.mark_authz_done(request)
 
+    # Forbid creating a grant which is expired from the get-go.
     if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
 
-    g_id, g_created = await db.create_grant(grant)
-    if g_id is not None:
-        if g_created:
-            if (g := await db.get_grant(g_id)) is not None:
-                return g  # Successfully created, return
-            raise grant_could_not_be_created()  # Somehow immediately removed
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Grant with this subject + resource + permission already exists",
-        )
+    # Create the grant
+    if (g_id := await db.create_grant(grant)) is not None:
+        if (g := await db.get_grant(g_id)) is not None:
+            return g  # Successfully created, return
+        raise grant_could_not_be_created()  # Somehow immediately removed
 
     raise grant_could_not_be_created()
 
@@ -94,7 +92,7 @@ async def get_grant(
     )
 
     # Flag that we have thought about auth
-    request.state.determined_authz = True
+    MarkAuthzDone.mark_authz_done(request)
 
     return grant
 
@@ -113,7 +111,7 @@ async def delete_grant(
     )
 
     # Flag that we have thought about auth
-    request.state.determined_authz = True
+    MarkAuthzDone.mark_authz_done(request)
 
     # If the above didn't raise anything, delete the grant.
     await db.delete_grant(grant_id)

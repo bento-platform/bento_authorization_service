@@ -4,13 +4,13 @@ import json
 import sys
 import types
 
+from bento_lib.auth.permissions import PERMISSIONS, PERMISSIONS_BY_STRING
 from typing import Any, Callable, Coroutine
 
 from . import __version__
 from .config import Config, get_config
 from .db import Database, get_db
 from .models import GrantModel, GroupModel, SubjectModel, ResourceModel, RESOURCE_EVERYTHING
-from .policy_engine.permissions import PERMISSIONS, PERMISSIONS_BY_STRING
 from .utils import json_model_dump_kwargs
 
 
@@ -50,7 +50,7 @@ async def list_cmd(_config: Config, db: Database, args):
 
 
 async def create_grant(_config: Config, db: Database, args) -> int:
-    g, created = await db.create_grant(
+    g = await db.create_grant(
         GrantModel(
             subject=SubjectModel.model_validate_json(getattr(args, "subject", "null")),
             resource=ResourceModel.model_validate_json(getattr(args, "resource", "null")),
@@ -60,7 +60,7 @@ async def create_grant(_config: Config, db: Database, args) -> int:
         )
     )
 
-    if created:
+    if g:
         print(f"Grant successfully created: {g}")
         return 0
 
@@ -154,7 +154,7 @@ async def delete_cmd(_config: Config, db: Database, args) -> int:
 
 
 async def assign_all_cmd(_config: Config, db: Database, args) -> int:
-    g, created = await db.create_grant(
+    g = await db.create_grant(
         GrantModel(
             subject=SubjectModel.model_validate({"iss": args.iss, "sub": args.sub}),
             resource=RESOURCE_EVERYTHING,
@@ -164,7 +164,7 @@ async def assign_all_cmd(_config: Config, db: Database, args) -> int:
         )
     )
 
-    if created:
+    if g:
         print(f"Grant successfully created: {g}")
         return 0
 

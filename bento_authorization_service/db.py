@@ -202,7 +202,7 @@ class Database:
             )
             return tuple(grant_db_deserialize(r) for r in res)
 
-    async def create_grant(self, grant: GrantModel) -> tuple[int | None, bool]:  # id, created
+    async def create_grant(self, grant: GrantModel) -> int | None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
             async with conn.transaction():
@@ -229,9 +229,9 @@ class Database:
                         )
 
                 except AssertionError:  # Failed for some reason
-                    return None, False
+                    return None
 
-                return res, res is not None
+                return res
 
     async def delete_grant(self, grant_id: int) -> None:
         conn: asyncpg.Connection

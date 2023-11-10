@@ -1,7 +1,8 @@
 import jwt
+from bento_lib.auth.middleware.mark_authz_done_mixin import MarkAuthzDoneMixin
+from bento_lib.auth.permissions import Permission
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
-from functools import partial
 
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
@@ -9,13 +10,12 @@ from ..idp_manager import IdPManager, IdPManagerDependency
 from ..logger import logger
 from ..models import ResourceModel
 from ..policy_engine.evaluation import evaluate
-from ..policy_engine.permissions import Permission
 
 __all__ = [
     "forbidden",
     "raise_if_no_resource_access",
     "extract_token",
-    "set_authz_flag",
+    "MarkAuthzDone",
     "require_permission_and_flag",
     "require_permission_dependency",
     "public_endpoint_dependency",
@@ -35,7 +35,8 @@ async def raise_if_no_resource_access(
     idp_manager: IdPManager,
 ) -> None:
     try:
-        if not (await evaluate(idp_manager, db, token, resource, frozenset({required_permission}))):
+        eval_res = (await evaluate(idp_manager, db, token, (resource,), (required_permission,)))[0][0]
+        if not eval_res:
             # Forbidden from accessing or deleting this grant
             raise forbidden()
     except HTTPException as e:
@@ -54,9 +55,11 @@ def extract_token(authorization: HTTPAuthorizationCredentials | None) -> str | N
     return authorization.credentials if authorization is not None else None
 
 
-def set_authz_flag(request: Request):
-    # Flag that we have thought about auth
-    request.state.determined_authz = True
+class MarkAuthzDone(MarkAuthzDoneMixin):
+    @staticmethod
+    def mark_authz_done(request: Request):
+        # Flag that we have thought about auth
+        request.state.determined_authz = True
 
 
 async def require_permission_and_flag(
@@ -76,7 +79,7 @@ async def require_permission_and_flag(
         idp_manager,
     )
     # Flag that we have thought about auth
-    set_authz_flag(request)
+    MarkAuthzDone.mark_authz_done(request)
 
 
 def require_permission_dependency(resource: ResourceModel, permission: Permission):
@@ -98,4 +101,4 @@ def require_permission_dependency(resource: ResourceModel, permission: Permissio
     return Depends(_inner)
 
 
-public_endpoint_dependency = Depends(set_authz_flag)
+public_endpoint_dependency = Depends(MarkAuthzDone.mark_authz_done)

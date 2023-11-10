@@ -1,7 +1,10 @@
 import pytest
+
+from bento_lib.auth.permissions import P_QUERY_DATA
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, RootModel
+
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
 from bento_authorization_service.policy_engine.evaluation import (
@@ -14,7 +17,6 @@ from bento_authorization_service.policy_engine.evaluation import (
     determine_permissions,
     evaluate,
 )
-from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA
 from bento_authorization_service.models import (
     BaseIssuerModel,
     IssuerAndClientModel,
@@ -91,7 +93,7 @@ def test_group_membership(group: GroupModel, is_member: bool):
 @pytest.mark.parametrize(
     "groups_dict, token, subject, res",
     (
-        # Evervyone:
+        # Everyone:
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
         # Everyone (even foreign issuer):
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
@@ -272,7 +274,7 @@ async def _eval_test_data(db: Database):
 @pytest.mark.asyncio
 async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
-    res = await evaluate(idp_manager, db, tkn, sd.RESOURCE_PROJECT_1, frozenset({P_QUERY_DATA}))
+    res = await evaluate(idp_manager, db, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,))
     assert res
 
 
@@ -284,11 +286,11 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cl
         "/policy/permissions",
         headers={"Authorization": f"Bearer {tkn}"},
         json={
-            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+            "resources": [sd.RESOURCE_PROJECT_1.model_dump(mode="json")],
         },
     )
     assert res.status_code == status.HTTP_200_OK
-    assert P_QUERY_DATA in res.json()["result"]
+    assert P_QUERY_DATA in res.json()["result"][0]
 
 
 # noinspection PyUnusedLocal
@@ -299,7 +301,7 @@ async def test_permissions_endpoint_list(db: Database, test_client: TestClient, 
         "/policy/permissions",
         headers={"Authorization": f"Bearer {tkn}"},
         json={
-            "requested_resource": [
+            "resources": [
                 sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
                 sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
             ],
@@ -319,20 +321,38 @@ async def test_evaluate_endpoint(db: Database, test_client: TestClient, db_clean
         "/policy/evaluate",
         headers={"Authorization": f"Bearer {tkn}"},
         json={
-            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-            "required_permissions": [P_QUERY_DATA],
+            "resources": [sd.RESOURCE_PROJECT_1.model_dump(mode="json")],
+            "permissions": [P_QUERY_DATA],
         },
     )
     assert res.status_code == status.HTTP_200_OK
-    assert res.json()["result"]
+    assert res.json()["result"][0][0]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_one_endpoint(db: Database, test_client: TestClient, db_cleanup):
+    tkn = await _eval_test_data(db)
+    res = test_client.post(
+        "/policy/evaluate_one",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+            "permission": P_QUERY_DATA,
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    r = res.json()["result"]
+    assert isinstance(r, bool)
+    assert r
 
 
 TWO_PROJECT_DATA_QUERY = {
-    "requested_resource": [
+    "resources": [
         sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
         sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
     ],
-    "required_permissions": [P_QUERY_DATA],
+    "permissions": [P_QUERY_DATA],
 }
 
 
@@ -342,7 +362,7 @@ async def test_evaluate_endpoint_list(db: Database, test_client: TestClient, aut
     tkn = await _eval_test_data(db)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK
-    assert compare_via_json(res.json()["result"], [True, False])
+    assert compare_via_json(res.json()["result"], [[True], [False]])
 
 
 VIEW_PERMS_GRANT = grant = {
@@ -365,12 +385,33 @@ async def test_evaluate_seperate_subject(db: Database, test_client: TestClient, 
         headers={"Authorization": f"Bearer {tkn}"},
         json={
             "token_data": {},  # Empty token data <-> 'no token'
-            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-            "required_permissions": [P_QUERY_DATA],
+            "resources": [sd.RESOURCE_PROJECT_1.model_dump(mode="json")],
+            "permissions": [P_QUERY_DATA],
         },
     )
     assert res.status_code == status.HTTP_200_OK
-    assert not res.json()["result"]
+    assert not res.json()["result"][0][0]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_one_seperate_subject(db: Database, test_client: TestClient, auth_headers, db_cleanup):
+    tkn = sd.make_fresh_david_token_encoded()
+    await db.create_grant(GrantModel.model_validate(VIEW_PERMS_GRANT))
+
+    res = test_client.post(
+        "/policy/evaluate_one",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "token_data": {},  # Empty token data <-> 'no token'
+            "resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+            "permission": P_QUERY_DATA,
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    r = res.json()["result"]
+    assert isinstance(r, bool)
+    assert not r
 
 
 # noinspection PyUnusedLocal
@@ -384,15 +425,15 @@ async def test_evaluate_seperate_subject_multiple(db: Database, test_client: Tes
         headers={"Authorization": f"Bearer {tkn}"},
         json={
             "token_data": {},  # Empty token data <-> 'no token'
-            "requested_resource": [
+            "resources": [
                 sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
                 sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
             ],
-            "required_permissions": [P_QUERY_DATA],
+            "permissions": [P_QUERY_DATA],
         },
     )
     assert res.status_code == status.HTTP_200_OK
-    assert compare_via_json(res.json()["result"], [False, False])
+    assert compare_via_json(res.json()["result"], [[False], [False]])
 
 
 # noinspection PyUnusedLocal
@@ -404,8 +445,8 @@ async def test_evaluate_seperate_subject_denied(db: Database, test_client: TestC
         headers={"Authorization": f"Bearer {tkn}"},
         json={
             "token_data": {},  # Empty token data <-> 'no token'
-            "requested_resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-            "required_permissions": [P_QUERY_DATA],
+            "resources": [sd.RESOURCE_PROJECT_1.model_dump(mode="json")],
+            "permissions": [P_QUERY_DATA],
         },
     )
     assert res.status_code == status.HTTP_403_FORBIDDEN
@@ -424,7 +465,7 @@ async def test_evaluate_bad_audience_token(db: Database, test_client: TestClient
     tkn = sd.make_fresh_david_token_encoded(audience="invalid")
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - bad audience
-    assert compare_via_json(res.json()["result"], [False, False])
+    assert compare_via_json(res.json()["result"], [[False], [False]])
 
 
 # noinspection PyUnusedLocal
@@ -434,4 +475,4 @@ async def test_evaluate_expired_token(db: Database, test_client: TestClient, db_
     tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
-    assert compare_via_json(res.json()["result"], [False, False])
+    assert compare_via_json(res.json()["result"], [[False], [False]])

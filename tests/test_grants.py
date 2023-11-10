@@ -107,7 +107,7 @@ async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cle
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
     # create grant in database
-    g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
     db_grant: StoredGrantModel = await db.get_grant(g_id)
 
     # test that without a token, we cannot see anything
@@ -126,7 +126,7 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
     headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
 
     # create grant in database
-    g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
     db_grant: StoredGrantModel = await db.get_grant(g_id)
     db_grant_json = json.dumps(db_grant.model_dump(mode="json"), sort_keys=True)
 
@@ -144,7 +144,7 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
 @pytest.mark.asyncio
 async def test_grant_endpoints_delete(auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup):
     # create grant in database
-    g_id, _ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
 
     # test that without a token, we cannot delete it
     res = test_client.delete(f"/grants/{g_id}")

@@ -1,4 +1,6 @@
 import jwt
+
+from bento_lib.auth.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 from datetime import datetime, timedelta, timezone
 
 from bento_authorization_service.db import Database
@@ -13,7 +15,6 @@ from bento_authorization_service.models import (
     StoredGroupModel,
     GrantModel,
 )
-from bento_authorization_service.policy_engine.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
 
 
 TEST_TOKEN_SECRET = "secret"  # hard-coded test secret
