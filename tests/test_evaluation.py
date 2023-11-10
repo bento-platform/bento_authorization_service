@@ -193,7 +193,14 @@ def test_invalid_resource(r1, r2):
                 sd.RESOURCE_PROJECT_1_DATASET_A,
             ),
             2,
-            frozenset({P_QUERY_DATA}),
+            frozenset(
+                {
+                    # original permission
+                    P_QUERY_DATA,
+                    # from gives
+                    *P_QUERY_DATA.gives,
+                }
+            ),
         ),
         (
             (

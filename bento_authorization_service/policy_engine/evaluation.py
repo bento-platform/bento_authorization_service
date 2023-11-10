@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import json
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
@@ -6,7 +7,7 @@ from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime, timezone
 
-from typing import Callable, Generator
+from typing import Callable, Generator, Iterable
 from typing_extensions import TypedDict  # TODO: py3.12: remove and uninstall library
 
 from ..db import Database
@@ -301,12 +302,18 @@ def determine_permissions(
     :param requested_resource: The resource the token wishes to operate on.
     :return: The permissions frozen set
     """
+
+    def _permission_and_gives_from_string(p: str) -> Iterable[Permission]:
+        perm = PERMISSIONS_BY_STRING[p]
+        yield perm
+        yield from perm.gives
+
     return frozenset(
-        {
-            PERMISSIONS_BY_STRING[p]
+        itertools.chain.from_iterable(
+            _permission_and_gives_from_string(p)
             for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource)
             for p in g.permissions
-        }
+        )
     )
 
 
