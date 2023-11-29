@@ -1,12 +1,14 @@
 import asyncio
 
+from bento_lib.responses.fastapi_errors import http_exception_handler_factory, validation_exception_handler_factory
+from bento_lib.types import BentoExtraServiceInfo
 from fastapi import FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from bento_authorization_service import __version__
-from bento_lib.types import BentoExtraServiceInfo
-
+from . import __version__
 from .config import ConfigDependency, get_config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .logger import logger
@@ -25,6 +27,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
 )
+
+
+app.exception_handler(StarletteHTTPException)(http_exception_handler_factory(logger, MarkAuthzDone))
+app.exception_handler(RequestValidationError)(validation_exception_handler_factory(MarkAuthzDone))
 
 app.include_router(grants_router)
 app.include_router(groups_router)
