@@ -1,7 +1,6 @@
-import asyncio
-
 from bento_lib.responses.fastapi_errors import http_exception_handler_factory, validation_exception_handler_factory
-from bento_lib.types import BentoExtraServiceInfo
+from bento_lib.service_info.helpers import build_service_info_from_pydantic_config
+from bento_lib.service_info.types import BentoExtraServiceInfo
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,14 +66,6 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
     return response
 
 
-async def _git_stdout(*args) -> str:
-    git_proc = await asyncio.create_subprocess_exec(
-        "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    res, _ = await git_proc.communicate()
-    return res.decode().rstrip()
-
-
 @app.get("/service-info", dependencies=[public_endpoint_dependency])
 async def service_info(config: ConfigDependency):
     bento_info: BentoExtraServiceInfo = {
@@ -82,32 +73,4 @@ async def service_info(config: ConfigDependency):
         "dataService": False,
         "gitRepository": "https://github.com/bento-platform/bento_authorization_service",
     }
-
-    debug_mode = config.bento_debug
-    if debug_mode:  # pragma: no cover
-        try:
-            if res_tag := await _git_stdout("describe", "--tags", "--abbrev=0"):
-                # noinspection PyTypeChecker
-                bento_info["gitTag"] = res_tag
-            if res_branch := await _git_stdout("branch", "--show-current"):
-                # noinspection PyTypeChecker
-                bento_info["gitBranch"] = res_branch
-            if res_commit := await _git_stdout("rev-parse", "HEAD"):
-                # noinspection PyTypeChecker
-                bento_info["gitCommit"] = res_commit
-
-        except Exception as e:
-            logger.error(f"Error retrieving git information: {type(e).__name__}")
-
-    # Public endpoint, no permissions checks required
-    return {
-        "id": config.service_id,
-        "name": config.service_name,  # TODO: Should be globally unique?
-        "type": SERVICE_TYPE,
-        "description": "Authorization & permissions service for the Bento platform.",
-        "organization": {"name": "C3G", "url": "https://www.computationalgenomics.ca"},
-        "contactUrl": config.service_contact_url,
-        "version": __version__,
-        "environment": "dev" if debug_mode else "prod",
-        "bento": bento_info,
-    }
+    return await build_service_info_from_pydantic_config(config, logger, bento_info, SERVICE_TYPE, __version__)
