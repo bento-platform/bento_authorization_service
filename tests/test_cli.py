@@ -1,6 +1,6 @@
 import pytest
 
-from bento_lib.auth.permissions import PERMISSIONS
+from bento_lib.auth.permissions import PERMISSIONS, P_QUERY_DATA, P_INGEST_DATA
 
 from bento_authorization_service import cli
 from bento_authorization_service.config import get_config
@@ -160,6 +160,29 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     assert captured.out == json_model_dump_kwargs(existing_grant, sort_keys=True, indent=2) + "\n"
 
     r = await cli.main(["get", "grant", "0"])  # DNE
+    assert r == 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_add_grant_permissions(capsys, db: Database, db_cleanup):
+    assert len(await db.get_grants()) == 1
+
+    existing_grant = (await db.get_grants())[0]  # default: view:permissions, edit:permissions
+
+    r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    assert r == 0
+
+    assert (await db.get_grant(existing_grant.id)).permissions == existing_grant.permissions.union(
+        frozenset({P_QUERY_DATA, P_INGEST_DATA})
+    )
+
+    r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    assert r == 0
+    captured = capsys.readouterr()
+    assert captured.err.startswith(f"Grant {existing_grant.id} already has permissions")
+
+    r = await cli.main(["add-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)])
     assert r == 1
 
 
