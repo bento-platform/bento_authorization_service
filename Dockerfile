@@ -1,4 +1,4 @@
-FROM ghcr.io/bento-platform/bento_base_image:python-debian-2023.11.10
+FROM ghcr.io/bento-platform/bento_base_image:python-debian-2023.12.01
 
 # Use uvicorn (instead of hypercorn) in production since I've found
 # multiple benchmarks showing it to be faster - David L
