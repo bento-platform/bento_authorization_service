@@ -166,8 +166,6 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 async def test_cli_add_grant_permissions(capsys, db: Database, db_cleanup):
-    assert len(await db.get_grants()) == 1
-
     existing_grant = (await db.get_grants())[0]  # default: view:permissions, edit:permissions
 
     r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
@@ -183,6 +181,20 @@ async def test_cli_add_grant_permissions(capsys, db: Database, db_cleanup):
     assert captured.err.startswith(f"Grant {existing_grant.id} already has permissions")
 
     r = await cli.main(["add-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    assert r == 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_cli_set_grant_permissions(capsys, db: Database, db_cleanup):
+    existing_grant = (await db.get_grants())[0]  # default: view:permissions, edit:permissions
+
+    r = await cli.main(["set-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    assert r == 0
+
+    assert (await db.get_grant(existing_grant.id)).permissions == frozenset({P_QUERY_DATA, P_INGEST_DATA})
+
+    r = await cli.main(["set-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)])
     assert r == 1
 
 
