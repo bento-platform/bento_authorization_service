@@ -102,7 +102,7 @@ async def get_group(db: Database, id_: int) -> int:
         print(json_model_dump_kwargs(g, sort_keys=True, indent=2))
         return 0
 
-    print("No group found with that ID.", file=sys.stderr)
+    print(f"No group found with ID: {id_}", file=sys.stderr)
     return 1
 
 
@@ -172,6 +172,32 @@ async def assign_all_cmd(_config: Config, db: Database, args) -> int:
     return 1
 
 
+async def add_grant_permissions_cmd(_config: Config, db: Database, args) -> int:
+    id_ = getattr(args, "grant_id", -1)
+    if (g := await db.get_grant(id_)) is not None:
+        if overlap := (ps := frozenset(args.permissions)).intersection(g.permissions):
+            print(f"Grant {id_} already has permissions {{{', '.join(overlap)}}}", file=sys.stderr)
+        else:
+            await db.add_grant_permissions(id_, ps)
+        return 0
+
+    print(f"No grant found with ID: {id_}", file=sys.stderr)
+    return 1
+
+
+async def set_grant_permissions_cmd(_config: Config, db: Database, args) -> int:
+    id_ = getattr(args, "grant_id", -1)
+    if (await db.get_grant(id_)) is not None:
+        await db.set_grant_permissions(id_, frozenset(args.permissions))
+        return 0
+
+    print(f"No grant found with ID: {id_}", file=sys.stderr)
+    return 1
+
+
+ENTITY_KWARGS = dict(type=str, help="The type of entity to list.")
+
+
 async def main(args: list[str] | None, db: Database | None = None) -> int:
     cfg = get_config()
     args = args if args is not None else sys.argv[1:]
@@ -183,16 +209,20 @@ async def main(args: list[str] | None, db: Database | None = None) -> int:
 
     subparsers = parser.add_subparsers()
 
-    entity_kwargs = dict(type=str, help="The type of entity to list.")
-
+    # list -------------------------------------------------------------------------------------------------------------
     l_sub = subparsers.add_parser("list")
     l_sub.set_defaults(func=list_cmd)
-    l_sub.add_argument("entity", choices=("permissions", "grants", "groups"), **entity_kwargs)
+    l_sub.add_argument("entity", choices=("permissions", "grants", "groups"), **ENTITY_KWARGS)
+    # ------------------------------------------------------------------------------------------------------------------
 
+    # get --------------------------------------------------------------------------------------------------------------
     g_sub = subparsers.add_parser("get")
     g_sub.set_defaults(func=get_cmd)
-    g_sub.add_argument("entity", choices=GET_DELETE_ENTITIES, **entity_kwargs)
+    g_sub.add_argument("entity", choices=GET_DELETE_ENTITIES, **ENTITY_KWARGS)
     g_sub.add_argument("id", type=int, help="Entity ID")
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # create -----------------------------------------------------------------------------------------------------------
 
     c = subparsers.add_parser("create")
     c_subparsers = c.add_subparsers()
@@ -210,18 +240,34 @@ async def main(args: list[str] | None, db: Database | None = None) -> int:
     cr.add_argument("membership", type=str, help="JSON representation of the group membership.")
     cr.add_argument("--notes", type=str, default="", help="Optional human-readable notes to add to the group.")
 
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # delete -----------------------------------------------------------------------------------------------------------
     d_sub = subparsers.add_parser("delete")
     d_sub.set_defaults(func=delete_cmd)
-    d_sub.add_argument("entity", choices=GET_DELETE_ENTITIES, **entity_kwargs)
+    d_sub.add_argument("entity", choices=GET_DELETE_ENTITIES, **ENTITY_KWARGS)
     d_sub.add_argument("id", type=int, help="Entity ID")
+    # ------------------------------------------------------------------------------------------------------------------
 
-    s_sub = subparsers.add_parser(
+    au_sub = subparsers.add_parser(
         "assign-all-to-user",
         help='Assigns all extant permissions for {"everything": true} to an issuer + subject combination.',
     )
-    s_sub.set_defaults(func=assign_all_cmd)
-    s_sub.add_argument("iss", type=str, help="Issuer")
-    s_sub.add_argument("sub", type=str, help="Subject ID")
+    au_sub.set_defaults(func=assign_all_cmd)
+    au_sub.add_argument("iss", type=str, help="Issuer")
+    au_sub.add_argument("sub", type=str, help="Subject ID")
+
+    ap_sub = subparsers.add_parser("add-grant-permissions", help="Adds permission(s) to an existing grant.")
+    ap_sub.set_defaults(func=add_grant_permissions_cmd)
+    ap_sub.add_argument("grant_id", type=int, help="Grant ID (use `bento_authz list` to see grants)")
+    ap_sub.add_argument("permissions", type=str, nargs="+", help="Permissions")
+
+    sp_sub = subparsers.add_parser("set-grant-permissions", help="Edits a grant to have a new set of permissions.")
+    sp_sub.set_defaults(func=set_grant_permissions_cmd)
+    sp_sub.add_argument("grant_id", type=int, help="Grant ID (use `bento_authz list` to see grants)")
+    sp_sub.add_argument("permissions", type=str, nargs="+", help="Permissions")
+
+    # ------------------------------------------------------------------------------------------------------------------
 
     p_args = parser.parse_args(args)
     if not getattr(p_args, "func", None):

@@ -195,6 +195,23 @@ class Database(PgAsyncDatabase):
 
                 return res
 
+    async def add_grant_permissions(
+        self, grant_id: int, permissions: frozenset[str], existing_conn: asyncpg.Connection | None = None
+    ) -> None:
+        conn: asyncpg.Connection
+        async with self.connect(existing_conn) as conn:
+            await conn.executemany(
+                'INSERT INTO grant_permissions ("grant", "permission") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [(grant_id, p) for p in permissions],
+            )
+
+    async def set_grant_permissions(self, grant_id: int, permissions: frozenset[str]) -> None:
+        conn: asyncpg.Connection
+        async with self.connect() as conn:
+            async with conn.transaction():
+                await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
+                await self.add_grant_permissions(grant_id, permissions, existing_conn=conn)
+
     async def delete_grant(self, grant_id: int) -> None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
