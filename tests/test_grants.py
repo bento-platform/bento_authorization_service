@@ -1,6 +1,7 @@
 import json
 import pytest
 
+from bento_lib.auth import permissions
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -60,6 +61,37 @@ def test_bad_grant_resource():
 def test_bad_grant_permission_length():
     with pytest.raises(ValidationError):
         GrantModel(**{**sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(), "permissions": frozenset()})
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_create(db: Database, db_cleanup):
+    id_ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert (await db.get_grant(id_)) is not None
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_add_permissions(db: Database, db_cleanup):
+    id_ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert (await db.get_grant(id_)).permissions == frozenset({permissions.P_QUERY_DATA})
+
+    await db.add_grant_permissions(id_, frozenset({permissions.P_EDIT_PERMISSIONS, permissions.P_INGEST_DATA}))
+    assert (await db.get_grant(id_)).permissions == frozenset(
+        {permissions.P_QUERY_DATA, permissions.P_EDIT_PERMISSIONS, permissions.P_INGEST_DATA}
+    )
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_set_permissions(db: Database, db_cleanup):
+    id_ = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert (await db.get_grant(id_)).permissions == frozenset({permissions.P_QUERY_DATA})
+
+    await db.set_grant_permissions(id_, frozenset({permissions.P_EDIT_PERMISSIONS, permissions.P_INGEST_DATA}))
+    assert (await db.get_grant(id_)).permissions == frozenset(
+        {permissions.P_EDIT_PERMISSIONS, permissions.P_INGEST_DATA}
+    )
 
 
 # noinspection PyUnusedLocal
