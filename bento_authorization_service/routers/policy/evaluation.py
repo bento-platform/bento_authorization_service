@@ -66,7 +66,7 @@ async def req_evaluate(
     idp_manager: IdPManagerDependency,
 ) -> EvaluationMatrixResponse:
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
-    # in which case we need the view:grants permission.
+    # in which case we need the view:grants permission, since this is a form of token introspection, essentially.
 
     # Endpoint permissions: available to everyone if we access it with our own token, since this endpoint's contents
     # are token-specific.
