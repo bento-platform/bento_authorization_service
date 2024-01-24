@@ -1,6 +1,6 @@
 import pytest
 
-from bento_lib.auth.permissions import P_QUERY_DATA, P_QUERY_PROJECT_LEVEL_BOOLEAN
+from bento_lib.auth.permissions import P_QUERY_DATA, P_QUERY_PROJECT_LEVEL_BOOLEAN, P_DELETE_DATA
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, RootModel
@@ -324,6 +324,28 @@ async def test_permissions_endpoint_list(db: Database, test_client: TestClient, 
     res_json = res.json()
     assert P_QUERY_DATA in res_json["result"][0]
     assert P_QUERY_DATA not in res_json["result"][1]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_permissions_endpoint_map(db: Database, test_client: TestClient, db_cleanup):
+    tkn = await _eval_test_data(db)
+    res = test_client.post(
+        "/policy/permissions_map",
+        headers={"Authorization": f"Bearer {tkn}"},
+        json={
+            "resources": [
+                sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+                sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
+            ],
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    res_json = res.json()
+    assert len(res_json["result"]) == 2
+    assert res_json["result"][0][P_QUERY_DATA]
+    assert not res_json["result"][0][P_DELETE_DATA]
+    assert not res_json["result"][1][P_QUERY_DATA]
 
 
 # noinspection PyUnusedLocal
