@@ -11,6 +11,7 @@ from . import __version__
 from .config import ConfigDependency, get_config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .logger import logger
+from .routers.all_permissions import all_permissions_router
 from .routers.grants import grants_router
 from .routers.groups import groups_router
 from .routers.policy import policy_router
@@ -33,6 +34,7 @@ app.add_middleware(
 app.exception_handler(StarletteHTTPException)(http_exception_handler_factory(logger, MarkAuthzDone))
 app.exception_handler(RequestValidationError)(validation_exception_handler_factory(MarkAuthzDone))
 
+app.include_router(all_permissions_router)
 app.include_router(grants_router)
 app.include_router(groups_router)
 app.include_router(policy_router)

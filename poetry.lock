@@ -257,13 +257,13 @@ tests-no-zope = ["attrs[tests-mypy]", "cloudpickle", "hypothesis", "pympler", "p
 
 [[package]]
 name = "bento-lib"
-version = "11.4.1"
+version = "11.5.0"
 description = "A set of common utilities and helpers for Bento platform services."
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "bento_lib-11.4.1-py3-none-any.whl", hash = "sha256:190cafec2dcc2b63ae587c2609ee9f6e0fcfd419e7aee84f90f40cc6e623b216"},
-    {file = "bento_lib-11.4.1.tar.gz", hash = "sha256:1a689b5799effc31a225db1058791136d2347c17c0577091fea407934e0338d4"},
+    {file = "bento_lib-11.5.0-py3-none-any.whl", hash = "sha256:aedbc3665980724d92b93a59642cae545b0d1f280f838878f0cbb16d4dc9fc78"},
+    {file = "bento_lib-11.5.0.tar.gz", hash = "sha256:e609b352c494cf6c96f45ef0080bb69bf97ad46a134d35104daa4287ea815a00"},
 ]
 
 [package.dependencies]
@@ -1934,4 +1934,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "95b50d23bb0c77d2d68dd0e677dfa2aecb42fe8a537e2493a0cc39467482e8de"
+content-hash = "68afacbe8392c3a2c47df10453c13c458e6c6bdb16a7f6e22a928f7175a6f3d8"
