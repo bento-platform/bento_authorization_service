@@ -65,6 +65,47 @@ For more environment variable configuration options see the `Config` object in
 
 ## Usage and API
 
+### All permissions endpoint
+
+#### GET `/all_permissions/` - See all Bento permissions
+
+```js
+[
+  {
+    "id": "view:private_portal",
+    "verb": "view",
+    "noun": "private_portal",
+    "min_level_required": "instance",
+    "gives": []
+  },
+  {
+    "id": "query:project_level_boolean",
+    "verb": "query",
+    "noun": "project_level_boolean",
+    "min_level_required": "project",
+    "gives": []
+  },
+  {
+    "id": "query:dataset_level_boolean",
+    "verb": "query",
+    "noun": "dataset_level_boolean",
+    "min_level_required": "dataset",
+    "gives": []
+  },
+  {
+    "id": "query:project_level_counts",
+    "verb": "query",
+    "noun": "project_level_counts",
+    "min_level_required": "project",
+    "gives": [
+      "query:project_level_boolean"
+    ]
+  },
+  // ...
+]
+```
+
+
 ### Policy evaluation endpoints
 
 Bearer token `Authorization` headers should be forwarded alongside a request to the endpoints here.
