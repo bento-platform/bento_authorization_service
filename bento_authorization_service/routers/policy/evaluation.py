@@ -52,7 +52,7 @@ async def _inner_req_evaluate(
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
-        err_state={"result": [[False] * len(permissions) for _ in resources]},
+        err_state=EvaluationMatrixResponse(result=[[False] * len(permissions) for _ in resources]),
         create_response=_create_response,
     )
 

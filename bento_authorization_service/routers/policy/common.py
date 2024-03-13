@@ -45,7 +45,7 @@ async def check_non_bearer_token_data_use(
 async def use_token_data_or_return_error_state(
     authorization: OptionalBearerToken,
     idp_manager: IdPManager,
-    err_state: dict,
+    err_state: ResponseType,
     create_response: Callable[[dict | None], Awaitable[ResponseType]],
 ) -> ResponseType:
     try:
