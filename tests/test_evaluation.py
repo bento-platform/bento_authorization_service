@@ -43,12 +43,13 @@ class FakeSubjectType1Inner(BaseModel):
 
 
 FakeSubjectType1 = RootModel(FakeSubjectType1Inner)
-
-
 FakeResource = RootModel(int | str)
-
-
 fake_resource = FakeResource.model_validate(4)
+
+VALID_EVALUATE_ONE_BODY = {
+    "resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+    "permission": P_QUERY_DATA,
+}
 
 
 def test_token_issuer_based_comparison():
@@ -371,10 +372,7 @@ async def test_evaluate_one_endpoint(db: Database, test_client: TestClient, db_c
     res = test_client.post(
         "/policy/evaluate_one",
         headers={"Authorization": f"Bearer {tkn}"},
-        json={
-            "resource": sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-            "permission": P_QUERY_DATA,
-        },
+        json=VALID_EVALUATE_ONE_BODY,
     )
     assert res.status_code == status.HTTP_200_OK
     r = res.json()["result"]
@@ -511,3 +509,15 @@ async def test_evaluate_expired_token(db: Database, test_client: TestClient, db_
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
     assert compare_via_json(res.json()["result"], [[False], [False]])
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_one_expired_token(db: Database, test_client: TestClient, db_cleanup):
+    await _eval_test_data(db)
+    tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
+    res = test_client.post(
+        "/policy/evaluate_one", headers={"Authorization": f"Bearer {tkn}"}, json=VALID_EVALUATE_ONE_BODY
+    )
+    assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
+    assert not res.json()["result"]
