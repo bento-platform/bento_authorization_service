@@ -511,3 +511,14 @@ async def test_evaluate_expired_token(db: Database, test_client: TestClient, db_
     res = test_client.post("/policy/evaluate", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
     assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
     assert compare_via_json(res.json()["result"], [[False], [False]])
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_evaluate_one_expired_token(db: Database, test_client: TestClient, db_cleanup):
+    await _eval_test_data(db)
+    tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
+    res = test_client.post(
+        "/policy/evaluate_one", headers={"Authorization": f"Bearer {tkn}"}, json=TWO_PROJECT_DATA_QUERY)
+    assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
+    assert not res.json()["result"]
