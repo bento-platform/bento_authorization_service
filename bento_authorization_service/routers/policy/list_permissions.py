@@ -143,6 +143,8 @@ async def req_permissions_map(
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
-        err_state=PermissionsMapResponse(result=[dict() for _ in r_resources]),
+        err_state=PermissionsMapResponse(
+            result=[{p: False for p in valid_permissions_for_resource(r.model_dump())} for r in r_resources]
+        ),
         create_response=_create_response,
     )
