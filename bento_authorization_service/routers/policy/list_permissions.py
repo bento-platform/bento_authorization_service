@@ -69,7 +69,7 @@ async def req_list_permissions(
     # Given a token and a resource, figure out what permissions the token bearer has on the resource.
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
-    async def _create_response(token_data: TokenData | None):
+    async def _create_response(token_data: TokenData | None) -> ListPermissionsResponse:
         grants: tuple[StoredGrantModel, ...]
         groups: dict[int, StoredGroupModel]
         grants, groups = await asyncio.gather(db.get_grants(), db.get_groups_dict())
@@ -82,7 +82,7 @@ async def req_list_permissions(
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
-        err_state={"result": [list() for _ in r_resources]},
+        err_state=ListPermissionsResponse(result=[list() for _ in r_resources]),
         create_response=_create_response,
     )
 
@@ -143,6 +143,6 @@ async def req_permissions_map(
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
-        err_state={"result": [dict() for _ in r_resources]},
+        err_state=PermissionsMapResponse(result=[dict() for _ in r_resources]),
         create_response=_create_response,
     )
