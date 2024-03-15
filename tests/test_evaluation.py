@@ -307,19 +307,20 @@ async def test_permissions_endpoint(db: Database, test_client: TestClient, db_cl
     assert P_QUERY_DATA in res.json()["result"][0]
 
 
+PERMISSIONS_RESOURCES_LIST = {
+    "resources": [
+        sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
+        sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
+    ],
+}
+
+
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
 async def test_permissions_endpoint_list(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post(
-        "/policy/permissions",
-        headers={"Authorization": f"Bearer {tkn}"},
-        json={
-            "resources": [
-                sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-                sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
-            ],
-        },
+        "/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json=PERMISSIONS_RESOURCES_LIST
     )
     assert res.status_code == status.HTTP_200_OK
     res_json = res.json()
@@ -329,17 +330,22 @@ async def test_permissions_endpoint_list(db: Database, test_client: TestClient, 
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_permissions_endpoint_list_expired_token(db: Database, test_client: TestClient, db_cleanup):
+    await _eval_test_data(db)
+    tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
+    res = test_client.post(
+        "/policy/permissions", headers={"Authorization": f"Bearer {tkn}"}, json=PERMISSIONS_RESOURCES_LIST
+    )
+    assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
+    assert res.json()["result"] == [[], []]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_permissions_endpoint_map(db: Database, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
     res = test_client.post(
-        "/policy/permissions_map",
-        headers={"Authorization": f"Bearer {tkn}"},
-        json={
-            "resources": [
-                sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-                sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
-            ],
-        },
+        "/policy/permissions_map", headers={"Authorization": f"Bearer {tkn}"}, json=PERMISSIONS_RESOURCES_LIST
     )
     assert res.status_code == status.HTTP_200_OK
     res_json = res.json()
@@ -347,6 +353,18 @@ async def test_permissions_endpoint_map(db: Database, test_client: TestClient, d
     assert res_json["result"][0][P_QUERY_DATA]
     assert not res_json["result"][0][P_DELETE_DATA]
     assert not res_json["result"][1][P_QUERY_DATA]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_permissions_endpoint_map_expired_token(db: Database, test_client: TestClient, db_cleanup):
+    await _eval_test_data(db)
+    tkn = sd.make_fresh_david_token_encoded(exp_offset=-10)
+    res = test_client.post(
+        "/policy/permissions_map", headers={"Authorization": f"Bearer {tkn}"}, json=PERMISSIONS_RESOURCES_LIST
+    )
+    assert res.status_code == status.HTTP_200_OK  # 'fine', but no permissions - expired token
+    assert not res.json()["result"][0][P_QUERY_DATA]
 
 
 # noinspection PyUnusedLocal
@@ -380,13 +398,7 @@ async def test_evaluate_one_endpoint(db: Database, test_client: TestClient, db_c
     assert r
 
 
-TWO_PROJECT_DATA_QUERY = {
-    "resources": [
-        sd.RESOURCE_PROJECT_1.model_dump(mode="json"),
-        sd.RESOURCE_PROJECT_2.model_dump(mode="json"),
-    ],
-    "permissions": [P_QUERY_DATA],
-}
+TWO_PROJECT_DATA_QUERY = {**PERMISSIONS_RESOURCES_LIST, "permissions": [P_QUERY_DATA]}
 
 
 # noinspection PyUnusedLocal
