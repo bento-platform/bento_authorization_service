@@ -46,7 +46,7 @@ async def use_token_data_or_return_error_state(
     authorization: OptionalBearerToken,
     idp_manager: IdPManager,
     err_state: ResponseType,
-    create_response: Callable[[dict | None], Awaitable[ResponseType]],
+    create_response: Callable[[TokenData | None], Awaitable[ResponseType]],
 ) -> ResponseType:
     try:
         token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
