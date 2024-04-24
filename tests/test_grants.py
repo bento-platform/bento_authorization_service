@@ -162,9 +162,10 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
     db_grant: StoredGrantModel = await db.get_grant(g_id)
     db_grant_json = json.dumps(db_grant.model_dump(mode="json"), sort_keys=True)
 
-    # test that without a token, we cannot see anything
+    # test that without a token, we cannot see any grants (we get an empty list)
     res = test_client.get("/grants/")
-    assert res.status_code == status.HTTP_403_FORBIDDEN
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.json()) == 0
 
     # test that we can find it in the list
     res = test_client.get("/grants/", headers=headers)

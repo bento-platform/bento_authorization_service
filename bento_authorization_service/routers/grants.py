@@ -5,8 +5,9 @@ from fastapi import APIRouter, HTTPException, Request, status
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManager, IdPManagerDependency
-from ..models import RESOURCE_EVERYTHING, GrantModel, StoredGrantModel
-from .utils import raise_if_no_resource_access, extract_token, require_permission_dependency, MarkAuthzDone
+from ..models import GrantModel, StoredGrantModel
+from ..policy_engine.evaluation import evaluate
+from .utils import raise_if_no_resource_access, extract_token, public_endpoint_dependency, MarkAuthzDone
 
 __all__ = [
     "grants_router",
@@ -41,11 +42,20 @@ async def get_grant_and_check_access(
     raise grant_not_found(grant_id)
 
 
-@grants_router.get("/", dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)])
-async def list_grants(db: DatabaseDependency) -> list[StoredGrantModel]:
-    # TODO: in fact, this should only list grants which are viewable (based on the grant resource)
-    #  So require_permission / similar should be called with grant.resource and P_VIEW_PERMISSIONS instead
-    return await db.get_grants()
+@grants_router.get("/", dependencies=[public_endpoint_dependency])
+async def list_grants(
+    db: DatabaseDependency,
+    idp_manager: IdPManagerDependency,
+    authorization: OptionalBearerToken,
+) -> list[StoredGrantModel]:
+    all_grants = await db.get_grants()
+
+    resources = tuple(g.resource for g in all_grants)
+    permissions = await evaluate(idp_manager, db, extract_token(authorization), resources, (P_VIEW_PERMISSIONS,))
+
+    # For each grant in the database, check if the passed token (or the anonymous user) have "view:permissions"
+    # permission on the resource in question. If so, include the grant in the response.
+    return list(g for g, p in zip(all_grants, permissions) if p[0])
 
 
 @grants_router.post("/", status_code=status.HTTP_201_CREATED)
