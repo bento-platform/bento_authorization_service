@@ -16,6 +16,7 @@ class PermissionResponseItem(BaseModel):
     verb: str
     noun: str
     min_level_required: str
+    supports_data_type_narrowing: bool
     gives: tuple[str, ...]
 
 
@@ -25,6 +26,7 @@ def response_item_from_permission(p: Permission) -> PermissionResponseItem:
         verb=p.verb,
         noun=p.noun,
         min_level_required=p.min_level_required,
+        supports_data_type_narrowing=p.supports_data_type_narrowing,
         gives=tuple(p.gives),
     )
 

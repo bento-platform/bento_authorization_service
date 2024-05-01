@@ -8,3 +8,4 @@ def test_grant_endpoints_create(test_client: TestClient):
     assert res.status_code == status.HTTP_200_OK
     data = res.json()
     assert len(data) == len(PERMISSIONS)
+    assert len(list(data[0].keys())) == 6
