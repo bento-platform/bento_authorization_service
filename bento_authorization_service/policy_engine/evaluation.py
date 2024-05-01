@@ -1,4 +1,3 @@
-import asyncio
 import itertools
 import json
 
@@ -157,15 +156,16 @@ def check_if_token_is_in_group(
         raise NotImplementedError("Group membership is not one of members[], expr")
 
 
+def _subject_not_implemented(err: str) -> NotImplementedError:
+    logger.error(err)
+    return NotImplementedError(err)
+
+
 def check_if_token_matches_subject(
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     subject: SubjectModel,
 ) -> bool:
-    def _not_implemented(err: str) -> NotImplementedError:
-        logger.error(err)
-        return NotImplementedError(err)
-
     # First, check if the subject matches.
     #  - If the grant applies to everyone, it automatically includes the current token/anonymous user.
     #  - Then, check if the grant applies to a specific Group. Then, check if the token is a member of that group.
@@ -182,7 +182,13 @@ def check_if_token_matches_subject(
     elif isinstance(s, BaseIssuerModel):
         return check_token_against_issuer_based_model_obj(token_data, s)
     else:
-        raise _not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {s}")
+        raise _subject_not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {s}")
+
+
+def _resource_not_implemented(unimpl_for: str) -> NotImplementedError:
+    err_ = f"Unimplemented handling for {unimpl_for} (missing everything|project)"
+    logger.error(err_)
+    return NotImplementedError(err_)  # TODO: indicate if requested or grant
 
 
 # TODO: make resource_is_equivalent_or_contained part of a Bento-specific module/class
@@ -203,11 +209,6 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
     rr_is_everything = isinstance(rr, ResourceEverythingModel)
     gr = grant_resource.root
 
-    def _not_implemented(unimpl_for: str) -> NotImplementedError:
-        err_ = f"Unimplemented handling for {unimpl_for} (missing everything|project)"
-        logger.error(err_)
-        return NotImplementedError(err_)  # TODO: indicate if requested or grant
-
     # TODO: idea for making this more generic
     #  Have concepts of resources with top-level ID specifier (project) and a list of lists of narrowing parameters
     #  like ("project", ("dataset", "data_type")) as a generic way of representing a resource hierarchy.
@@ -216,7 +217,7 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
     if isinstance(gr, ResourceEverythingModel):
         if rr_is_everything or isinstance(rr, ResourceSpecificModel):
             return True
-        raise _not_implemented(f"resource request: {rr}")
+        raise _resource_not_implemented(f"resource request: {rr}")
 
     elif isinstance(gr, ResourceSpecificModel):
         # we have {project: ..., possibly with dataset, data_type}
@@ -247,10 +248,10 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
                 and (g_data_type is None or g_data_type == rr.data_type)
             )
         else:  # requested resource doesn't match any known resource pattern, somehow.
-            raise _not_implemented(f"resource request: {rr}")
+            raise _resource_not_implemented(f"resource request: {rr}")
 
     else:  # grant resource hasn't been implemented in this function
-        raise _not_implemented(f"grant resource: {grant_resource}")
+        raise _resource_not_implemented(f"grant resource: {grant_resource}")
 
 
 def filter_matching_grants(
@@ -335,6 +336,9 @@ def evaluate_on_resource_and_permission(
     return permission in permissions
 
 
+LOG_SUBJECT_ANONYMOUS = {"anonymous": True}
+
+
 async def evaluate(
     idp_manager: BaseIdPManager,
     db: Database,
@@ -352,7 +356,7 @@ async def evaluate(
     token_data: TokenData | None = (await idp_manager.decode(token)) if isinstance(token, str) else token
 
     # Fetch grants + groups from the database in parallel
-    grants, groups_dict = await asyncio.gather(db.get_grants(), db.get_groups_dict())
+    grants, groups_dict = await db.get_grants_and_groups_dict()
 
     # Determine the permissions evaluation matrix
     evaluation_matrix = tuple(
@@ -361,7 +365,7 @@ async def evaluate(
     )
 
     # Log the decision made, with some user data
-    user_str = {"anonymous": True}
+    user_str = LOG_SUBJECT_ANONYMOUS
     if token_data is not None:
         # noinspection PyTypedDict
         user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}

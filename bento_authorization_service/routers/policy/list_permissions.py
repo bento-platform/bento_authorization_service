@@ -72,7 +72,7 @@ async def req_list_permissions(
     async def _create_response(token_data: TokenData | None) -> ListPermissionsResponse:
         grants: tuple[StoredGrantModel, ...]
         groups: dict[int, StoredGroupModel]
-        grants, groups = await asyncio.gather(db.get_grants(), db.get_groups_dict())
+        grants, groups = await db.get_grants_and_groups_dict()
 
         return ListPermissionsResponse(
             result=[list_permissions_for_resource(grants, groups, token_data, r) for r in r_resources],
@@ -133,7 +133,7 @@ async def req_permissions_map(
     async def _create_response(token_data: TokenData | None):
         grants: tuple[StoredGrantModel, ...]
         groups: dict[int, StoredGroupModel]
-        grants, groups = await asyncio.gather(db.get_grants(), db.get_groups_dict())
+        grants, groups = await db.get_grants_and_groups_dict()
 
         return PermissionsMapResponse(
             result=[build_permissions_map(grants, groups, token_data, r) for r in r_resources],

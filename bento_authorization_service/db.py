@@ -1,3 +1,4 @@
+import asyncio
 import asyncpg
 import json
 
@@ -233,6 +234,9 @@ class Database(PgAsyncDatabase):
 
     async def get_groups_dict(self) -> dict[int, StoredGroupModel]:
         return {g.id: g for g in (await self.get_groups())}
+
+    async def get_grants_and_groups_dict(self) -> tuple[tuple[StoredGrantModel, ...], dict[int, StoredGroupModel]]:
+        return await asyncio.gather(self.get_grants(), self.get_groups_dict())
 
     async def create_group(self, group: GroupModel) -> int | None:
         # GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid

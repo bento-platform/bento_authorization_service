@@ -68,11 +68,13 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
     return response
 
 
+BENTO_SERVICE_INFO: BentoExtraServiceInfo = {
+    "serviceKind": BENTO_SERVICE_KIND,
+    "dataService": False,
+    "gitRepository": "https://github.com/bento-platform/bento_authorization_service",
+}
+
+
 @app.get("/service-info", dependencies=[public_endpoint_dependency])
 async def service_info(config: ConfigDependency):
-    bento_info: BentoExtraServiceInfo = {
-        "serviceKind": BENTO_SERVICE_KIND,
-        "dataService": False,
-        "gitRepository": "https://github.com/bento-platform/bento_authorization_service",
-    }
-    return await build_service_info_from_pydantic_config(config, logger, bento_info, SERVICE_TYPE, __version__)
+    return await build_service_info_from_pydantic_config(config, logger, BENTO_SERVICE_INFO, SERVICE_TYPE, __version__)
