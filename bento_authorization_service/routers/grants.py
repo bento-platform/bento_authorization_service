@@ -1,4 +1,5 @@
-from bento_lib.auth.permissions import Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
+from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
+from bento_lib.auth.helpers import permission_valid_for_resource
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -78,6 +79,19 @@ async def create_grant(
     # Forbid creating a grant which is expired from the get-go.
     if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
+
+    for p in grant.permissions:
+        if p not in PERMISSIONS_BY_STRING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Grant specifies invalid permission {p}"
+            )
+
+        resource_dict = grant.resource.model_dump()
+        if not permission_valid_for_resource(PERMISSIONS_BY_STRING[p], resource_dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Grant specifies incompatible permission {p} for resource {resource_dict}",
+            )
 
     # Create the grant
     if (g_id := await db.create_grant(grant)) is not None:

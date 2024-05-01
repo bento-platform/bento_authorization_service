@@ -131,6 +131,37 @@ async def test_grant_endpoints_create_expired(test_client: TestClient, db: Datab
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_grant_endpoints_create_invalid_for_resource(test_client: TestClient, db: Database, db_cleanup):
+    headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
+
+    grant = GrantModel(
+        subject=sd.SUBJECT_EVERYONE,
+        resource=sd.RESOURCE_PROJECT_1_PHENOPACKET,
+        permissions={permissions.P_CREATE_DATASET},
+        notes="",
+        expiry=None,
+    ).model_dump(mode="json")
+
+    res = test_client.post("/grants/", json=grant, headers=headers)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "incompatible permission create:dataset for resource" in res.json()["errors"][0]["message"]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_endpoints_create_invalid_permission(test_client: TestClient, db: Database, db_cleanup):
+    headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
+
+    grant = sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json")
+    grant["permissions"] = ["fake:permission"]
+
+    res = test_client.post("/grants/", json=grant, headers=headers)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "invalid permission fake:permission" in res.json()["errors"][0]["message"]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_grant_endpoints_get(test_client: TestClient, db: Database, db_cleanup):
     headers = {"Authorization": f"Bearer {sd.make_fresh_david_token_encoded()}"}
 
