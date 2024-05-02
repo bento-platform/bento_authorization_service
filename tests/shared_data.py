@@ -101,6 +101,7 @@ RESOURCE_PROJECT_1_DATASET_A: ResourceModel = ResourceModel({"project": "1", "da
 RESOURCE_PROJECT_1_DATASET_B: ResourceModel = ResourceModel({"project": "1", "dataset": "B"})
 RESOURCE_PROJECT_2: ResourceModel = ResourceModel({"project": "2"})
 RESOURCE_PROJECT_2_DATASET_C: ResourceModel = ResourceModel({"project": "1", "dataset": "B"})
+RESOURCE_PROJECT_1_PHENOPACKET: ResourceModel = ResourceModel({"project": "1", "data_type": "phenopacket"})
 
 TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership, bool]] = [
     # Member lists
