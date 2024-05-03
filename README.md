@@ -9,6 +9,9 @@ Permissions and authorization service for the Bento platform.
 
 TODO
 
+To see interactive documentation while in development mode in a Bento context, go to, e.g.,
+https://bentov2.local/api/authorization/docs.
+
 
 
 
