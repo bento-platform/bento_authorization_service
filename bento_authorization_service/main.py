@@ -60,9 +60,10 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
 
     # Allow pre-flight responses through
     # Allow docs responses through in development mode
+    req_path = request.url.path
     if request.method == "OPTIONS" or (
         config_for_setup.bento_debug
-        and (request.url.path.startswith(DOCS_URL) or request.url.path.startswith(OPENAPI_URL))
+        and (req_path == DOCS_URL or req_path.startswith(f"{DOCS_URL}/") or req_path == OPENAPI_URL)
     ):
         return await call_next(request)
 
