@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from urllib.parse import urlparse
 
 from . import __version__
 from .config import ConfigDependency, get_config
@@ -22,7 +23,16 @@ from .routers.utils import MarkAuthzDone, public_endpoint_dependency
 # TODO: Find a way to DI this
 config_for_setup = get_config()
 
-app = FastAPI()
+DOCS_URL = "/docs"
+OPENAPI_URL = "/openapi.json"
+
+app = FastAPI(
+    title=config_for_setup.service_name,
+    root_path=urlparse(config_for_setup.service_url_base_path).path,
+    docs_url=DOCS_URL,
+    openapi_url=OPENAPI_URL,
+    version=__version__,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config_for_setup.cors_origins,
@@ -48,7 +58,13 @@ async def permissions_enforcement(request: Request, call_next) -> Response:
     about permissions and decided the request should go through (or be rejected).
     """
 
-    if request.method == "OPTIONS":  # Allow pre-flight responses through
+    # Allow pre-flight responses through
+    # Allow docs responses through in development mode
+    req_path = request.url.path
+    if request.method == "OPTIONS" or (
+        config_for_setup.bento_debug
+        and (req_path == DOCS_URL or req_path.startswith(f"{DOCS_URL}/") or req_path == OPENAPI_URL)
+    ):
         return await call_next(request)
 
     # Set flag saying the request hasn't had its permissions determined yet.
