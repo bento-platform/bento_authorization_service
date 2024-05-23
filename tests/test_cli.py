@@ -131,7 +131,7 @@ async def test_cli_create_grant(capsys, db: Database, db_cleanup):
             "create",
             "grant",
             sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject.model_dump_json(),
-            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.model_dump_json(),
+            sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.resource.model_dump_json(exclude_none=True),
             *sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.permissions,
         ],
         db=db,

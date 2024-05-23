@@ -86,7 +86,7 @@ async def create_grant(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=f"Grant specifies invalid permission {p}"
             )
 
-        resource_dict = grant.resource.model_dump()
+        resource_dict = grant.resource.model_dump(exclude_none=True)
         if not permission_valid_for_resource(PERMISSIONS_BY_STRING[p], resource_dict):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
