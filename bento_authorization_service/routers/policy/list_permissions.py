@@ -1,5 +1,3 @@
-import asyncio
-
 from bento_lib.auth.helpers import valid_permissions_for_resource
 from bento_lib.auth.permissions import Permission
 from fastapi import Request
@@ -98,7 +96,7 @@ def build_permissions_map(
     resource: ResourceModel,
 ) -> dict[Permission, bool]:
     resource_permissions = set(list_permissions_for_resource(grants, groups, token_data, resource))
-    valid_permissions = valid_permissions_for_resource(resource.model_dump())
+    valid_permissions = valid_permissions_for_resource(resource.model_dump(exclude_none=True))
     return {p: p in resource_permissions for p in valid_permissions}
 
 
