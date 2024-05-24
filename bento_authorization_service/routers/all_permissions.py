@@ -2,7 +2,7 @@ from bento_lib.auth.permissions import PERMISSIONS, Permission
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from .utils import public_endpoint_dependency
+from ..authz import authz_middleware
 
 __all__ = [
     "all_permissions_router",
@@ -31,6 +31,6 @@ def response_item_from_permission(p: Permission) -> PermissionResponseItem:
     )
 
 
-@all_permissions_router.get("/", dependencies=[public_endpoint_dependency])
+@all_permissions_router.get("/", dependencies=[authz_middleware.dep_public_endpoint()])
 def list_all_permissions() -> list[PermissionResponseItem]:
     return list(map(response_item_from_permission, PERMISSIONS))

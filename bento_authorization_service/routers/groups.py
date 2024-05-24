@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
 
+from ..authz import authz_middleware
 from ..db import DatabaseDependency
 from ..models import RESOURCE_EVERYTHING, GroupModel, StoredGroupModel
-from .utils import require_permission_dependency
 
 __all__ = [
     "groups_router",
@@ -22,7 +22,9 @@ def group_not_created() -> HTTPException:
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Group could not be created")
 
 
-@groups_router.get("/", dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)])
+@groups_router.get(
+    "/", dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)]
+)
 async def list_groups(db: DatabaseDependency) -> list[StoredGroupModel]:
     return await db.get_groups()
 
@@ -30,7 +32,7 @@ async def list_groups(db: DatabaseDependency) -> list[StoredGroupModel]:
 @groups_router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
+    dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
 )
 async def create_group(
     group: GroupModel,
@@ -47,7 +49,10 @@ async def create_group(
     raise group_not_created()
 
 
-@groups_router.get("/{group_id}", dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)])
+@groups_router.get(
+    "/{group_id}",
+    dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)],
+)
 async def get_group(group_id: int, db: DatabaseDependency) -> StoredGroupModel:
     # TODO: sub-groups owned by another group
     # TODO: test permissions for this endpoint
@@ -60,7 +65,7 @@ async def get_group(group_id: int, db: DatabaseDependency) -> StoredGroupModel:
 @groups_router.delete(
     "/{group_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
+    dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
 )
 async def delete_group(group_id: int, db: DatabaseDependency) -> None:
     # TODO: sub-groups owned by another group
@@ -74,7 +79,7 @@ async def delete_group(group_id: int, db: DatabaseDependency) -> None:
 @groups_router.put(
     "/{group_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
+    dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_EDIT_PERMISSIONS)],
 )
 async def update_group(group_id: int, group: GroupModel, db: DatabaseDependency) -> None:
     # TODO: sub-groups owned by another group

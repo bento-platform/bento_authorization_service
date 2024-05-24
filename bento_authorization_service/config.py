@@ -1,4 +1,4 @@
-from bento_lib.config.pydantic import BentoBaseConfig
+from bento_lib.config.pydantic import BentoFastAPIBaseConfig
 from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated
@@ -12,14 +12,13 @@ __all__ = [
 ]
 
 
-class Config(BentoBaseConfig):
+class Config(BentoFastAPIBaseConfig):
     # the superclass has this as a required field - we ignore it since this IS the authz service
     # TODO: should this maybe be a [str | None] in bento_lib?
     bento_authz_service_url: str = ""
 
     service_id: str = f"{SERVICE_GROUP}:{SERVICE_ARTIFACT}"
     service_name: str = "Bento Authorization Service"
-    service_url_base_path: str = "http://127.0.0.1:5000"  # Base path to construct URIs from
 
     database_uri: str = "postgres://localhost:5432"
 
