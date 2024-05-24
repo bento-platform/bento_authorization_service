@@ -3,12 +3,13 @@ from bento_lib.auth.helpers import permission_valid_for_resource
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, status
 
+from ..authz import authz_middleware
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import GrantModel, StoredGrantModel
 from ..policy_engine.evaluation import evaluate
-from .utils import raise_if_no_resource_access, extract_token, public_endpoint_dependency, MarkAuthzDone
+from ..utils import extract_token
 
 __all__ = [
     "grants_router",
@@ -34,16 +35,18 @@ async def get_grant_and_check_access(
     idp_manager: IdPManager,
 ) -> StoredGrantModel:
     if (grant := await db.get_grant(grant_id)) is not None:
-        await raise_if_no_resource_access(request, token, grant.resource, required_permission, db, idp_manager)
+        await authz_middleware.raise_if_no_resource_access(
+            request, token, grant.resource, required_permission, db, idp_manager
+        )
         return grant
 
     # Flag that we have thought about auth - since we are about to raise a NotFound error; consider this OK since
     # any user could theoretically see some grants.
-    MarkAuthzDone.mark_authz_done(request)
+    authz_middleware.mark_authz_done(request)
     raise grant_not_found(grant_id)
 
 
-@grants_router.get("/", dependencies=[public_endpoint_dependency])
+@grants_router.get("/", dependencies=[authz_middleware.dep_public_endpoint()])
 async def list_grants(
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
@@ -69,12 +72,12 @@ async def create_grant(
 ) -> StoredGrantModel:
     # Make sure the token is allowed to edit permissions (in this case, 'editing permissions'
     # extends to creating grants) on the resource in question.
-    await raise_if_no_resource_access(
+    await authz_middleware.raise_if_no_resource_access(
         request, extract_token(authorization), grant.resource, P_EDIT_PERMISSIONS, db, idp_manager
     )
 
     # Flag that we have thought about auth
-    MarkAuthzDone.mark_authz_done(request)
+    authz_middleware.mark_authz_done(request)
 
     # Forbid creating a grant which is expired from the get-go.
     if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
@@ -116,7 +119,7 @@ async def get_grant(
     )
 
     # Flag that we have thought about auth
-    MarkAuthzDone.mark_authz_done(request)
+    authz_middleware.mark_authz_done(request)
 
     return grant
 
@@ -135,7 +138,7 @@ async def delete_grant(
     )
 
     # Flag that we have thought about auth
-    MarkAuthzDone.mark_authz_done(request)
+    authz_middleware.mark_authz_done(request)
 
     # If the above didn't raise anything, delete the grant.
     await db.delete_grant(grant_id)

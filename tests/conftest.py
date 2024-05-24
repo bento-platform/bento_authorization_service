@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 
 import os
 
+os.environ["BENTO_AUTHZ_ENABLED"] = "false"
 os.environ["BENTO_DEBUG"] = "true"
 os.environ["CORS_ORIGINS"] = "*"
 
