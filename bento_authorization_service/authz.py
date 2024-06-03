@@ -90,9 +90,4 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         return Depends(_inner)
 
 
-authz_middleware = LocalFastApiAuthMiddleware(
-    config_for_setup.bento_authz_service_url,
-    debug_mode=config_for_setup.bento_debug,
-    logger=logger,
-    enabled=config_for_setup.bento_authz_enabled,
-)
+authz_middleware = LocalFastApiAuthMiddleware.build_from_pydantic_config(config_for_setup, logger)
