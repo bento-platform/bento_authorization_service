@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bento-authorization-service"
-version = "0.9.1"
+version = "0.9.2"
 description = "Permissions and authorization service for the Bento platform."
 authors = ["David Lougheed <david.lougheed@mail.mcgill.ca>"]
 license = "LGPL-3.0-only"
@@ -16,7 +16,7 @@ aiodns = "^3.2.0"
 aiofiles = "^23.2.1"
 aiohttp = "^3.9.5"
 asyncpg = "^0.29.0"
-bento-lib = {extras = ["fastapi"], version = "^11.10.0"}
+bento-lib = {extras = ["fastapi"], version = "^11.11.1"}
 fastapi = {extras = ["all"], version = "^0.111.1"}
 jsonschema = "^4.21.1"
 pydantic = "^2.7.1"
