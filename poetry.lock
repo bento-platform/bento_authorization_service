@@ -257,13 +257,13 @@ tests-no-zope = ["attrs[tests-mypy]", "cloudpickle", "hypothesis", "pympler", "p
 
 [[package]]
 name = "bento-lib"
-version = "11.11.0"
+version = "11.11.1"
 description = "A set of common utilities and helpers for Bento platform services."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "bento_lib-11.11.0-py3-none-any.whl", hash = "sha256:3ba1e6edfbc4900f12d65e3065dba1460eec8f9438fa2eed065881a63d091a50"},
-    {file = "bento_lib-11.11.0.tar.gz", hash = "sha256:b1b6e26d78109f49a93ed23817dae97c456c09715b677df9fa90d992c25d90cd"},
+    {file = "bento_lib-11.11.1-py3-none-any.whl", hash = "sha256:db76abe0b26c16b04dc43fe6862b11cfdd292e18867b219d13b6a2a8bb900125"},
+    {file = "bento_lib-11.11.1.tar.gz", hash = "sha256:8ba379ed242665306b2bbe9da63cacf2448a173a873009ff47b4fb6d0747963e"},
 ]
 
 [package.dependencies]
@@ -1809,13 +1809,13 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.23.7"
+version = "0.23.8"
 description = "Pytest support for asyncio"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest_asyncio-0.23.7-py3-none-any.whl", hash = "sha256:009b48127fbe44518a547bddd25611551b0e43ccdbf1e67d12479f569832c20b"},
-    {file = "pytest_asyncio-0.23.7.tar.gz", hash = "sha256:5f5c72948f4c49e7db4f29f2521d4031f1c27f86e57b046126654083d4770268"},
+    {file = "pytest_asyncio-0.23.8-py3-none-any.whl", hash = "sha256:50265d892689a5faefb84df80819d1ecef566eb3549cf915dfb33569359d1ce2"},
+    {file = "pytest_asyncio-0.23.8.tar.gz", hash = "sha256:759b10b33a6dc61cce40a8bd5205e302978bbbcc00e279a8b61d9a6a3c82e4d3"},
 ]
 
 [package.dependencies]
@@ -2654,4 +2654,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "52b78bdd30ccc21033498b5f969e9977915ba13f5b94862518cd578aea88a052"
+content-hash = "3b13e4193731e6c1fba97dd9098cf02f3d34eb43157bda18d15afc2c5b2689d3"
