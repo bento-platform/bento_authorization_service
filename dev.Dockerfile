@@ -1,6 +1,6 @@
-FROM ghcr.io/bento-platform/bento_base_image:python-debian-2024.07.09
+FROM ghcr.io/bento-platform/bento_base_image:python-debian-2024.08.12
 
-RUN pip install --no-cache-dir -U pip && pip install --no-cache-dir "uvicorn[standard]==0.30.1"
+RUN pip install --no-cache-dir -U pip && pip install --no-cache-dir "uvicorn[standard]==0.30.5"
 
 WORKDIR /authorization
 
