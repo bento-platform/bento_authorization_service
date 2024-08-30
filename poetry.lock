@@ -284,13 +284,13 @@ tests-mypy = ["mypy (>=1.11.1)", "pytest-mypy-plugins"]
 
 [[package]]
 name = "bento-lib"
-version = "12.1.1"
+version = "12.2.0"
 description = "A set of common utilities and helpers for Bento platform services."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "bento_lib-12.1.1-py3-none-any.whl", hash = "sha256:85b6e43b730b82a009239d9dc9c5aead70c0d5b8e491753c7f02029350432c43"},
-    {file = "bento_lib-12.1.1.tar.gz", hash = "sha256:0194e3881029d373c44cfba609d98778bede5e7395e94d050fa3086e21d93567"},
+    {file = "bento_lib-12.2.0-py3-none-any.whl", hash = "sha256:30ceee5dfdc9cee7cea424d745ec5a58eba67eddc9f135404e3d06653bce564a"},
+    {file = "bento_lib-12.2.0.tar.gz", hash = "sha256:9425f221b8c13147810c9190e4b954036770722d226254308fa5adf5a02b57bf"},
 ]
 
 [package.dependencies]
@@ -1876,17 +1876,17 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.23.8"
+version = "0.24.0"
 description = "Pytest support for asyncio"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest_asyncio-0.23.8-py3-none-any.whl", hash = "sha256:50265d892689a5faefb84df80819d1ecef566eb3549cf915dfb33569359d1ce2"},
-    {file = "pytest_asyncio-0.23.8.tar.gz", hash = "sha256:759b10b33a6dc61cce40a8bd5205e302978bbbcc00e279a8b61d9a6a3c82e4d3"},
+    {file = "pytest_asyncio-0.24.0-py3-none-any.whl", hash = "sha256:a811296ed596b69bf0b6f3dc40f83bcaf341b155a269052d82efa2b25ac7037b"},
+    {file = "pytest_asyncio-0.24.0.tar.gz", hash = "sha256:d081d828e576d85f875399194281e92bf8a68d60d72d1a2faf2feddb6c46b276"},
 ]
 
 [package.dependencies]
-pytest = ">=7.0.0,<9"
+pytest = ">=8.2,<9"
 
 [package.extras]
 docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
@@ -2749,4 +2749,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "275683f97eb26f84989d70ef371b74db4993320399fb2db170f50766ed6ca7d6"
+content-hash = "34f9c225b1f94fe34ccf8773452fc87ebb319c6f35600596f0d3cfdeb7360403"
