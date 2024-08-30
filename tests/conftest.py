@@ -44,21 +44,27 @@ class MockIdPManager(BaseIdPManager):
 
 async def get_test_db() -> AsyncGenerator[Database, None]:
     db_instance = Database(get_config().database_uri)
-    await db_instance.initialize(pool_size=1)  # Small pool size for testing
-    await bootstrap_meta_permissions_for_david(db_instance)
-    # try:
-    # app.state.db = db_instance
+    r = await db_instance.initialize(pool_size=1)  # Small pool size for testing
+    if r:
+        # if we're initializing for the first time in this test -> cleanup flow, bootstrap permissions for the "david"
+        # test user.
+        await bootstrap_meta_permissions_for_david(db_instance)
     yield db_instance
-    # finally:
-    #     await db_instance.close()
+
+
+async def get_test_db_no_bootstrap() -> AsyncGenerator[Database, None]:
+    # same as the above, but without the default permissions - useful for testing database pool initialization/closing,
+    # or grant creation starting from a fresh database.
+    db_instance = Database(get_config().database_uri)
+    await db_instance.initialize(pool_size=1)  # Small pool size for testing
+    yield db_instance
 
 
 db_fixture = pytest_asyncio.fixture(get_test_db, name="db")
+db_fixture_no_bootstrap = pytest_asyncio.fixture(get_test_db_no_bootstrap, name="db_no")
 
 
-@pytest_asyncio.fixture
-async def db_cleanup(db: Database):
-    yield
+async def _clean_db(db: Database):
     conn: asyncpg.Connection
     async with db.connect() as conn:
         await conn.execute("DROP TABLE IF EXISTS groups")
@@ -67,6 +73,18 @@ async def db_cleanup(db: Database):
         await conn.execute("DROP TABLE IF EXISTS samples")
         await conn.execute("DROP TABLE IF EXISTS resources")
     await db.close()
+
+
+@pytest_asyncio.fixture
+async def db_cleanup(db: Database):
+    yield
+    await _clean_db(db)
+
+
+@pytest_asyncio.fixture
+async def db_cleanup_no(db_no: Database):
+    yield
+    await _clean_db(db_no)
 
 
 @lru_cache()
