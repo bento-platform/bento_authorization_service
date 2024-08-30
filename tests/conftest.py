@@ -53,6 +53,8 @@ async def get_test_db() -> AsyncGenerator[Database, None]:
 
 
 async def get_test_db_no_bootstrap() -> AsyncGenerator[Database, None]:
+    # same as the above, but without the default permissions - useful for testing database pool initialization/closing,
+    # or grant creation starting from a fresh database.
     db_instance = Database(get_config().database_uri)
     await db_instance.initialize(pool_size=1)  # Small pool size for testing
     yield db_instance
