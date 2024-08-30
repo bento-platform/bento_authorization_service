@@ -40,36 +40,52 @@ def grant_created_exit(g: int | None) -> Literal[0, 1]:
     return 1
 
 
-def list_permissions():
+def list_permissions_subcmd():
+    """
+    Sub-command of the list command, for listing all permissions (from bento_lib).
+    """
     for p in PERMISSIONS:
         print(p)
 
 
-async def list_grants(db: Database):
+async def list_grants_subcmd(db: Database):
+    """
+    Sub-command of the list command, for listing all grants in the database.
+    """
     for g in await db.get_grants():
         print(json_model_dump_kwargs(g, sort_keys=True))
 
 
-async def list_groups(db: Database):
+async def list_groups_subcmd(db: Database):
+    """
+    Sub-command of the list command, for listing all groups in the database.
+    """
     for g in await db.get_groups():
         print(json_model_dump_kwargs(g, sort_keys=True))
 
 
 async def list_cmd(_config: Config, db: Database, args):
+    """
+    Command function to list entities related to the authorization service (either as defined in code, or listed from
+    the database).
+    """
     match (entity := getattr(args, "entity", None)):
         case "permissions":
-            list_permissions()
+            list_permissions_subcmd()
         case "grants":
-            await list_grants(db)
+            await list_grants_subcmd(db)
         case "groups":
-            await list_groups(db)
+            await list_groups_subcmd(db)
         case _:
             print(f"Cannot list entity type: {entity}", file=sys.stderr)
             return 1
     return 0
 
 
-async def create_grant(_config: Config, db: Database, args) -> int:
+async def create_grant_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Command to create a grant with specified subject, resource, permissions, and optionally a note.
+    """
     return grant_created_exit(
         await db.create_grant(
             GrantModel(
@@ -83,7 +99,11 @@ async def create_grant(_config: Config, db: Database, args) -> int:
     )
 
 
-async def create_group(_config: Config, db: Database, args) -> int:
+async def create_group_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Command to create a group with specified name, JSON-formatted membership, and optionally a note.
+    """
+
     g = await db.create_group(
         GroupModel.model_validate(
             {
@@ -103,7 +123,12 @@ async def create_group(_config: Config, db: Database, args) -> int:
     return 1
 
 
-async def get_grant(db: Database, id_: int) -> int:
+async def get_grant_subcmd(db: Database, id_: int) -> int:
+    """
+    Sub-command to retrieve and print a grant with a particular ID, or print an error if a grant with that ID does not
+    exist in the database.
+    """
+
     if (g := await db.get_grant(id_)) is not None:
         print(json_model_dump_kwargs(g, sort_keys=True, indent=2))
         return 0
@@ -112,7 +137,12 @@ async def get_grant(db: Database, id_: int) -> int:
     return 1
 
 
-async def get_group(db: Database, id_: int) -> int:
+async def get_group_subcmd(db: Database, id_: int) -> int:
+    """
+    Sub-command to retrieve and print a group with a particular ID, or print an error if a group with that ID does not
+    exist in the database.
+    """
+
     if (g := await db.get_group(id_)) is not None:
         print(json_model_dump_kwargs(g, sort_keys=True, indent=2))
         return 0
@@ -125,9 +155,9 @@ async def get_cmd(_config: Config, db: Database, args):
     id_ = getattr(args, "id", -1)
     match (entity := getattr(args, "entity", None)):
         case ENTITIES.GRANT:
-            return await get_grant(db, id_)
+            return await get_grant_subcmd(db, id_)
         case ENTITIES.GROUP:
-            return await get_group(db, id_)
+            return await get_group_subcmd(db, id_)
         case _:
             print(f"Cannot get entity type: {entity}", file=sys.stderr)
             return 1
@@ -139,6 +169,11 @@ async def _delete_by_id(
     get_fn: Callable[[int], Coroutine[Any, Any, object | None]],
     delete_fn: Callable[[int], Coroutine[Any, Any, None]],
 ) -> int:
+    """
+    Helper function containing common logic for deleting grants/groups based on an ID, or returning an error message if
+    the entity with the ID specified could not be found.
+    """
+
     if (await get_fn(id_)) is None:
         print(f"No {entity} found with ID: {id_}")
         return 1
@@ -148,27 +183,74 @@ async def _delete_by_id(
     return 0
 
 
-async def delete_grant(db: Database, id_: int) -> int:
+async def delete_grant_subcmd(db: Database, id_: int) -> int:
+    """
+    Sub-command to delete a grant with the provided ID.
+    """
     return await _delete_by_id(ENTITIES.GRANT, id_, db.get_grant, db.delete_grant)
 
 
-async def delete_group(db: Database, id_: int) -> int:
+async def delete_group_subcmd(db: Database, id_: int) -> int:
+    """
+    Sub-command to delete a group with the provided ID.
+    """
     return await _delete_by_id(ENTITIES.GROUP, id_, db.get_group, db.delete_group_and_dependent_grants)
 
 
 async def delete_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Command to delete a particular entity (either a grant or a group) based on ID, or return an error message if the
+    entity type or entity cannot be found.
+    """
+
     id_ = getattr(args, "id", -1)
     match (entity := getattr(args, "entity", None)):
         case ENTITIES.GRANT:
-            return await delete_grant(db, id_)
+            return await delete_grant_subcmd(db, id_)
         case ENTITIES.GROUP:
-            return await delete_group(db, id_)
+            return await delete_group_subcmd(db, id_)
         case _:
             print(f"Cannot delete entity type: {entity}", file=sys.stderr)
             return 1
 
 
+async def add_grant_permissions_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Command to add new permissions to an existing grant of a given ID; useful for keeping a trim, manageable set of
+    grants, or for assisting in migrations when new permissions are defined.
+    """
+
+    id_ = getattr(args, "grant_id", -1)
+    if (g := await db.get_grant(id_)) is not None:
+        if overlap := (ps := frozenset(args.permissions)).intersection(g.permissions):
+            print(f"Grant {id_} already has permissions {{{', '.join(overlap)}}}", file=sys.stderr)
+        else:
+            await db.add_grant_permissions(id_, ps)
+        return 0
+
+    print(f"No grant found with ID: {id_}", file=sys.stderr)
+    return 1
+
+
+async def set_grant_permissions_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Command to replace the specified permissions of an existing grant of a given ID, thus altering what it grants.
+    """
+
+    id_ = getattr(args, "grant_id", -1)
+    if (await db.get_grant(id_)) is not None:
+        await db.set_grant_permissions(id_, frozenset(args.permissions))
+        return 0
+
+    print(f"No grant found with ID: {id_}", file=sys.stderr)
+    return 1
+
+
 async def assign_all_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Special helper function to assign all permissions to a specified user. Useful for creating "superusers" which can be
+    used to manage the Bento instance this authorization service is attached to.
+    """
     return grant_created_exit(
         await db.create_grant(
             GrantModel(
@@ -183,6 +265,12 @@ async def assign_all_cmd(_config: Config, db: Database, args) -> int:
 
 
 async def public_data_access_cmd(_config: Config, db: Database, args) -> int:
+    """
+    Special helper function for the initial configuration of data access by the public ({"everyone": true}, i.e.,
+    anonymous users). Depending on the level passed, either no data, censored boolean "yes/no" data, censored counts, or
+    full data access will be available to everyone.
+    """
+
     level: Literal["none", "bool", "counts", "full"] = args.level
 
     if level == "full":
@@ -221,29 +309,6 @@ async def public_data_access_cmd(_config: Config, db: Database, args) -> int:
     )
 
 
-async def add_grant_permissions_cmd(_config: Config, db: Database, args) -> int:
-    id_ = getattr(args, "grant_id", -1)
-    if (g := await db.get_grant(id_)) is not None:
-        if overlap := (ps := frozenset(args.permissions)).intersection(g.permissions):
-            print(f"Grant {id_} already has permissions {{{', '.join(overlap)}}}", file=sys.stderr)
-        else:
-            await db.add_grant_permissions(id_, ps)
-        return 0
-
-    print(f"No grant found with ID: {id_}", file=sys.stderr)
-    return 1
-
-
-async def set_grant_permissions_cmd(_config: Config, db: Database, args) -> int:
-    id_ = getattr(args, "grant_id", -1)
-    if (await db.get_grant(id_)) is not None:
-        await db.set_grant_permissions(id_, frozenset(args.permissions))
-        return 0
-
-    print(f"No grant found with ID: {id_}", file=sys.stderr)
-    return 1
-
-
 ENTITY_KWARGS = dict(type=str, help="The type of entity to list.")
 
 
@@ -277,14 +342,14 @@ async def main(args: list[str] | None, db: Database | None = None) -> int:
     c_subparsers = c.add_subparsers()
 
     cg = c_subparsers.add_parser("grant")
-    cg.set_defaults(func=create_grant)
+    cg.set_defaults(func=create_grant_cmd)
     cg.add_argument("subject", type=str, help="JSON representation of the grant subject.")
     cg.add_argument("resource", type=str, help="JSON representation of the grant resource.")
     cg.add_argument("permissions", type=str, nargs="+", help="Permissions")
     cg.add_argument("--notes", type=str, default="", help="Optional human-readable notes to add to the grant.")
 
     cr = c_subparsers.add_parser("group")
-    cr.set_defaults(func=create_group)
+    cr.set_defaults(func=create_group_cmd)
     cr.add_argument("name", type=str, help="Group name.")
     cr.add_argument("membership", type=str, help="JSON representation of the group membership.")
     cr.add_argument("--notes", type=str, default="", help="Optional human-readable notes to add to the group.")
