@@ -90,4 +90,4 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         return Depends(_inner)
 
 
-authz_middleware = LocalFastApiAuthMiddleware.build_from_pydantic_config(config_for_setup, logger)
+authz_middleware = LocalFastApiAuthMiddleware.build_from_fastapi_pydantic_config(config_for_setup, logger)
