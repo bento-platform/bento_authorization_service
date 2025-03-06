@@ -1,4 +1,4 @@
-FROM ghcr.io/bento-platform/bento_base_image:python-debian-2025.01.01
+FROM ghcr.io/bento-platform/bento_base_image:python-debian-2025.03.01
 
 WORKDIR /authorization
 
