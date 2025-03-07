@@ -22,8 +22,8 @@ jsonschema = "^4.21.1"
 pydantic = "^2.7.1"
 pyjwt = {extras = ["crypto"], version = "^2.8.0"}
 pydantic-settings = "^2.1.0"
-typing-extensions = "^4.11.0"
 structlog = "^25.1.0"
+typing-extensions = "^4.11.0"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.4.1"
