@@ -5,10 +5,11 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from fastapi import Depends
 from functools import lru_cache
+from structlog.stdlib import BoundLogger
 from typing import Annotated, Optional
 
 from .config import ConfigDependency
-from .logger import logger
+from .logger import LoggerDependency
 
 __all__ = [
     "IdPManagerBadAlgorithmError",
@@ -35,11 +36,14 @@ class IdPManagerBadAlgorithmError(IdPManagerError):
 class BaseIdPManager(ABC):
     def __init__(
         self,
+        logger: BoundLogger,
         openid_config_url: str,
         audience: str,
         disabled_token_signing_algorithms: frozenset[str],
         debug: bool,
     ):
+        self._logger: BoundLogger = logger
+
         self._openid_config_url: str = openid_config_url
         self._audience: str = audience
         self._disabled_token_signing_algorithms: frozenset[str] = disabled_token_signing_algorithms
@@ -106,12 +110,13 @@ OPENID_CONFIGURATION_EXPIRY_TIME = 3600  # seconds
 class IdPManager(BaseIdPManager):
     def __init__(
         self,
+        logger: BoundLogger,
         openid_config_url: str,
         audience: str,
         disabled_token_signing_algorithms: frozenset[str],
         debug: bool = False,
     ):
-        super().__init__(openid_config_url, audience, disabled_token_signing_algorithms, debug)
+        super().__init__(logger, openid_config_url, audience, disabled_token_signing_algorithms, debug)
 
         self._openid_config_data: Optional[dict] = None
         self._openid_config_data_last_fetched: Optional[datetime] = None
@@ -131,7 +136,7 @@ class IdPManager(BaseIdPManager):
         await self.fetch_openid_config_if_needed()
 
         if not self._openid_config_data:
-            logger.error("fetch_jwks: Missing OpenID configuration data")
+            await self._logger.aerror("fetch_jwks: missing OpenID configuration data")
             return
 
         if ((now := datetime.now().timestamp()) - self._jwks_last_fetched) > JWKS_EXPIRY_TIME:
@@ -155,7 +160,7 @@ class IdPManager(BaseIdPManager):
             await self.fetch_jwks_if_needed()
             self._initialized = True
         except Exception as e:
-            logger.critical(f"Could not initialize IdPManager: encountered exception '{repr(e)}'")
+            await self._logger.aexception("could not initialize IdPManager: encountered exception", exc_info=e)
             self._initialized = False
 
     def get_supported_token_signing_algs(self) -> frozenset[str]:
@@ -182,8 +187,9 @@ class IdPManager(BaseIdPManager):
 
 
 @lru_cache()
-def get_idp_manager(config: ConfigDependency) -> BaseIdPManager:
+def get_idp_manager(config: ConfigDependency, logger: LoggerDependency) -> BaseIdPManager:
     return IdPManager(
+        logger,
         config.openid_config_url,
         config.token_audience,
         config.disabled_token_signing_algorithms,

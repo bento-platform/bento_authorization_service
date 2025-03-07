@@ -1,10 +1,12 @@
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from fastapi import Request
 from pydantic import BaseModel
+from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.db import Database, DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import IdPManager, IdPManagerDependency
+from bento_authorization_service.logger import LoggerDependency
 from bento_authorization_service.models import ResourceModel
 from bento_authorization_service.policy_engine.evaluation import TokenData, evaluate
 
@@ -40,6 +42,7 @@ async def _inner_req_evaluate(
     permissions: tuple[Permission, ...],
     db: Database,
     idp_manager: IdPManager,
+    logger: BoundLogger,
 ) -> EvaluationMatrixResponse:
     await check_non_bearer_token_data_use(req_token_data, resources, request, authorization, db, idp_manager)
 
@@ -47,11 +50,14 @@ async def _inner_req_evaluate(
     # Builds on the above method, but here a decision is actually being made.
 
     async def _create_response(token_data: TokenData | None):
-        return EvaluationMatrixResponse(result=await evaluate(idp_manager, db, token_data, resources, permissions))
+        return EvaluationMatrixResponse(
+            result=await evaluate(idp_manager, db, logger, token_data, resources, permissions)
+        )
 
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
+        logger,
         err_state=EvaluationMatrixResponse(result=[[False] * len(permissions) for _ in resources]),
         create_response=_create_response,
     )
@@ -64,6 +70,7 @@ async def req_evaluate(
     evaluation_request: EvaluationMatrixRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    logger: LoggerDependency,
 ) -> EvaluationMatrixResponse:
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
     # in which case we need the view:grants permission, since this is a form of token introspection, essentially.
@@ -85,6 +92,7 @@ async def req_evaluate(
         tuple(PERMISSIONS_BY_STRING[p] for p in evaluation_request.permissions),
         db,
         idp_manager,
+        logger,
     )
 
 
@@ -95,6 +103,7 @@ async def req_evaluate_one(
     evaluation_request: EvaluationScalarRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    logger: LoggerDependency,
 ) -> EvaluationScalarResponse:
     # Same concept as above, except with just one resource + permission. We make this a separate endpoint to help
     # prevent 'decoding' / false permissions-granting errors, where someone checks the truthiness of, e.g., [[False]],
@@ -110,6 +119,7 @@ async def req_evaluate_one(
                 (PERMISSIONS_BY_STRING[evaluation_request.permission],),
                 db,
                 idp_manager,
+                logger,
             )
         ).result[0][0]
     )

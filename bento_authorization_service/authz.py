@@ -7,8 +7,8 @@ from fastapi import Depends, HTTPException, Request, status
 from .config import get_config
 from .db import Database, DatabaseDependency
 from .dependencies import OptionalBearerToken
-from .idp_manager import IdPManager, IdPManagerDependency
-from .logger import logger
+from .idp_manager import IdPManagerDependency, BaseIdPManager
+from .logger import get_logger
 from .models import ResourceModel
 from .policy_engine.evaluation import evaluate
 from .utils import extract_token
@@ -16,6 +16,7 @@ from .utils import extract_token
 
 # TODO: Find a way to DI this
 config_for_setup = get_config()
+logger_for_setup = get_logger(config_for_setup)
 
 
 class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
@@ -33,10 +34,12 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         resource: ResourceModel,
         required_permission: Permission,
         db: Database,
-        idp_manager: IdPManager,
+        idp_manager: BaseIdPManager,
     ) -> None:
         try:
-            eval_res = (await evaluate(idp_manager, db, token, (resource,), (required_permission,)))[0][0]
+            eval_res = (
+                await evaluate(idp_manager, db, self._logger, token, (resource,), (required_permission,))
+            )[0][0]
             if not eval_res:
                 # Forbidden from accessing or deleting this grant
                 raise self.forbidden(request)
@@ -45,9 +48,10 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         except jwt.ExpiredSignatureError:  # Straightforward, expired token - don't bother logging
             raise self.forbidden(request)
         except Exception as e:  # Could not properly run evaluate(); return forbidden!
-            logger.error(
-                f"Encountered error while checking permissions for request {request.method} {request.url.path}: "
-                f"{repr(e)}"
+            await self._logger.aexception(
+                f"encountered error while checking permissions for request {request.method} {request.url.path}: ",
+                exc_info=e,
+                request={"method": request.method, "path": request.url.path},
             )
             raise self.forbidden(request)
 
@@ -57,8 +61,8 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         permission: Permission,
         request: Request,
         authorization: OptionalBearerToken,
-        db: DatabaseDependency,
-        idp_manager: IdPManagerDependency,
+        db: Database,
+        idp_manager: BaseIdPManager,
     ):
         await self.raise_if_no_resource_access(
             request,
@@ -90,4 +94,4 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         return Depends(_inner)
 
 
-authz_middleware = LocalFastApiAuthMiddleware.build_from_fastapi_pydantic_config(config_for_setup, logger)
+authz_middleware = LocalFastApiAuthMiddleware.build_from_fastapi_pydantic_config(config_for_setup, logger_for_setup)

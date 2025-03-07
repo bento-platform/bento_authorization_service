@@ -2,10 +2,12 @@ from bento_lib.auth.helpers import valid_permissions_for_resource
 from bento_lib.auth.permissions import Permission
 from fastapi import Request
 from pydantic import BaseModel
+from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.db import DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import IdPManagerDependency
+from bento_authorization_service.logger import LoggerDependency
 from bento_authorization_service.models import ResourceModel, StoredGrantModel, StoredGroupModel
 from bento_authorization_service.policy_engine.evaluation import TokenData, determine_permissions
 
@@ -27,6 +29,7 @@ def list_permissions_for_resource(
     groups: dict[int, StoredGroupModel],
     token_data: dict | None,
     r: ResourceModel,
+    logger: BoundLogger,
 ) -> list[str]:
     return sorted(
         str(p)
@@ -35,6 +38,7 @@ def list_permissions_for_resource(
             groups_dict=groups,
             token_data=token_data,
             requested_resource=r,
+            logger=logger,
         )
     )
 
@@ -46,6 +50,7 @@ async def req_list_permissions(
     list_permissions_request: ResourcesRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    logger: LoggerDependency,
 ) -> ListPermissionsResponse:
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
     # in which case we need the view:grants permission, since this is a form of token introspection, essentially.
@@ -73,13 +78,14 @@ async def req_list_permissions(
         grants, groups = await db.get_grants_and_groups_dict()
 
         return ListPermissionsResponse(
-            result=[list_permissions_for_resource(grants, groups, token_data, r) for r in r_resources],
+            result=[list_permissions_for_resource(grants, groups, token_data, r, logger) for r in r_resources],
         )
 
     # TODO: real error response
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
+        logger,
         err_state=ListPermissionsResponse(result=[list() for _ in r_resources]),
         create_response=_create_response,
     )
@@ -94,8 +100,9 @@ def build_permissions_map(
     groups: dict[int, StoredGroupModel],
     token_data: TokenData,
     resource: ResourceModel,
+    logger: BoundLogger,
 ) -> dict[Permission, bool]:
-    resource_permissions = set(list_permissions_for_resource(grants, groups, token_data, resource))
+    resource_permissions = set(list_permissions_for_resource(grants, groups, token_data, resource, logger))
     valid_permissions = valid_permissions_for_resource(resource.model_dump(exclude_none=True))
     return {p: p in resource_permissions for p in valid_permissions}
 
@@ -107,6 +114,7 @@ async def req_permissions_map(
     list_permissions_request: ResourcesRequest,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    logger: LoggerDependency,
 ):
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
     # in which case we need the view:grants permission, since this is a form of token introspection, essentially.
@@ -134,13 +142,14 @@ async def req_permissions_map(
         grants, groups = await db.get_grants_and_groups_dict()
 
         return PermissionsMapResponse(
-            result=[build_permissions_map(grants, groups, token_data, r) for r in r_resources],
+            result=[build_permissions_map(grants, groups, token_data, r, logger) for r in r_resources],
         )
 
     # TODO: real error response
     return await use_token_data_or_return_error_state(
         authorization,
         idp_manager,
+        logger,
         err_state=PermissionsMapResponse(
             result=[{p: False for p in valid_permissions_for_resource(r.model_dump())} for r in r_resources]
         ),

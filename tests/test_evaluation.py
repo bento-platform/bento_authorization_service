@@ -4,6 +4,7 @@ from bento_lib.auth.permissions import P_QUERY_DATA, P_QUERY_PROJECT_LEVEL_BOOLE
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, RootModel
+from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
@@ -115,51 +116,55 @@ def test_group_membership(group: GroupModel, is_member: bool):
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, False),
     ),
 )
-def test_subject_match(groups_dict, token, subject, res):
-    assert check_if_token_matches_subject(groups_dict, token, subject) == res
+def test_subject_match(groups_dict, token, subject, res, logger: BoundLogger):
+    assert check_if_token_matches_subject(groups_dict, token, subject, logger) == res
 
 
-def test_invalid_subject():
+def test_invalid_subject(logger: BoundLogger):
     # Missing group raise:
     with pytest.raises(InvalidSubject):
         # No groups defined
-        check_if_token_matches_subject({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject)
+        check_if_token_matches_subject(
+            {}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, logger
+        )
 
     # New subject type (not handled):
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
-        check_if_token_matches_subject({}, sd.TEST_TOKEN, FakeSubjectType1.model_validate(FakeSubjectType1Inner()))
+        check_if_token_matches_subject(
+            {}, sd.TEST_TOKEN, FakeSubjectType1.model_validate(FakeSubjectType1Inner()), logger
+        )
 
 
-def test_resource_match():
+def test_resource_match(logger: BoundLogger):
     # equivalent: both everything
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, logger
     )
     assert resource_is_equivalent_or_contained(
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_EVERYTHING
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_EVERYTHING, logger
     )
 
     # Project 1 is a subset of everything:
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, logger
     )
     # ... but everything is not contained in / equivalent to Project 1
     assert not resource_is_equivalent_or_contained(
-        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_PROJECT_1_DATASET_A
+        sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.resource, sd.RESOURCE_PROJECT_1_DATASET_A, logger
     )
 
     # Permission applies to Project 1, but we are checking for Everything, so it should be False:
     assert not resource_is_equivalent_or_contained(
-        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource
+        sd.RESOURCE_EVERYTHING, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource, logger
     )
 
     # Same project, optionally requesting a specific dataset of the project
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource
+        sd.RESOURCE_PROJECT_1, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource, logger
     )
     assert resource_is_equivalent_or_contained(
-        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource
+        sd.RESOURCE_PROJECT_1_DATASET_A, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource, logger
     )
 
 
@@ -172,11 +177,11 @@ def test_resource_match():
         (fake_resource, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.resource),
     ),
 )
-def test_invalid_resource(r1, r2):
+def test_invalid_resource(r1, r2, logger: BoundLogger):
     # Fake resources, raise NotImplementedError
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
-        resource_is_equivalent_or_contained(r1, r2)
+        resource_is_equivalent_or_contained(r1, r2, logger)
 
 
 @pytest.mark.parametrize(
@@ -231,14 +236,15 @@ def test_invalid_resource(r1, r2):
         ),
     ),
 )
-def test_grant_permissions_set(args, num_matching, true_permissions_set):
-    matching_token = tuple(filter_matching_grants(*args))
-    permissions_set = determine_permissions(*args)
+def test_grant_permissions_set(args, num_matching, true_permissions_set, logger):
+    full_args = (*args, logger)
+    matching_token = tuple(filter_matching_grants(*full_args))
+    permissions_set = determine_permissions(*full_args)
     assert len(matching_token) == num_matching  # Missing group definition, so doesn't apply
     assert permissions_set == true_permissions_set
 
 
-def test_grant_filtering_1():
+def test_grant_filtering_1(logger: BoundLogger):
     matching_token = tuple(
         filter_matching_grants(
             (
@@ -248,12 +254,13 @@ def test_grant_filtering_1():
             sd.TEST_GROUPS_DICT,
             sd.TEST_TOKEN_FOREIGN_ISS,
             sd.RESOURCE_PROJECT_1_DATASET_A,
+            logger,
         )
     )
     assert len(matching_token) == 1  # Everyone + everything applies, but not grant 2 (foreign issuer, not in group 0)
 
 
-def test_grant_filtering_2():
+def test_grant_filtering_2(logger: BoundLogger):
     matching_token = tuple(
         filter_matching_grants(
             (
@@ -263,6 +270,7 @@ def test_grant_filtering_2():
             sd.TEST_GROUPS_DICT,
             sd.TEST_TOKEN_FOREIGN_ISS,
             sd.RESOURCE_PROJECT_1_DATASET_A,
+            logger,
         )
     )
     assert len(matching_token) == 0  # Foreign issuer, not in group 0
@@ -280,15 +288,15 @@ async def _eval_test_data(db: Database):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_evaluate_function(db: Database, idp_manager: IdPManager, test_client: TestClient, db_cleanup):
+async def test_evaluate_function(db: Database, idp_manager: IdPManager, logger, test_client: TestClient, db_cleanup):
     tkn = await _eval_test_data(db)
 
     # directly given query:data
-    res = await evaluate(idp_manager, db, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,))
+    res = await evaluate(idp_manager, db, logger, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,))
     assert res
 
     # indirectly (via gives=) given project-level boolean
-    res = await evaluate(idp_manager, db, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,))
+    res = await evaluate(idp_manager, db, logger, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,))
     assert res
 
 

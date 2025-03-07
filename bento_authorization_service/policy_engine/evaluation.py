@@ -5,6 +5,7 @@ from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime, timezone
+from structlog.stdlib import BoundLogger
 
 from typing import Callable, Generator, Iterable
 from typing_extensions import TypedDict  # TODO: py3.12: remove and uninstall library
@@ -29,7 +30,6 @@ from ..models import (
     GroupMembershipMembers,
     GrantModel,
 )
-from ..logger import logger
 
 
 __all__ = [
@@ -156,15 +156,16 @@ def check_if_token_is_in_group(
         raise NotImplementedError("Group membership is not one of members[], expr")
 
 
-def _subject_not_implemented(err: str) -> NotImplementedError:
-    logger.error(err)
-    return NotImplementedError(err)
+def _subject_not_implemented(s, logger: BoundLogger) -> NotImplementedError:
+    logger.error("can only handle everyone|group|iss+client|iss+sub subjects", subject=s)
+    return NotImplementedError(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {s}")
 
 
 def check_if_token_matches_subject(
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     subject: SubjectModel,
+    logger: BoundLogger,
 ) -> bool:
     # First, check if the subject matches.
     #  - If the grant applies to everyone, it automatically includes the current token/anonymous user.
@@ -177,22 +178,27 @@ def check_if_token_matches_subject(
     elif isinstance(s, SubjectGroupModel):
         if (group_def := groups_dict.get(s.group)) is not None:
             return check_if_token_is_in_group(token_data, group_def)  # Will validate group expiry too
-        logger.error(f"Invalid subject encountered: {subject} (group not found: {s.group})")
+        logger.error("invalid subject encountered - group not found", subject=subject, group=s.group)
         raise InvalidSubject(str(subject))
     elif isinstance(s, BaseIssuerModel):
         return check_token_against_issuer_based_model_obj(token_data, s)
     else:
-        raise _subject_not_implemented(f"Can only handle everyone|group|iss+client|iss+sub subjects but got {s}")
+        raise _subject_not_implemented(s, logger)
 
 
-def _resource_not_implemented(unimpl_for: str) -> NotImplementedError:
-    err_ = f"Unimplemented handling for {unimpl_for} (missing everything|project)"
-    logger.error(err_)
-    return NotImplementedError(err_)  # TODO: indicate if requested or grant
+def _resource_not_implemented(resource_kind, resource_obj, logger: BoundLogger) -> NotImplementedError:
+    logger.error(
+        "can only handle everything|project-based resources", resource_kind=resource_kind, resource_obj=resource_obj
+    )
+    return NotImplementedError(
+        f"Unimplemented handling for {resource_kind}: {resource_obj} (missing everything|project)"
+    )
 
 
 # TODO: make resource_is_equivalent_or_contained part of a Bento-specific module/class
-def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant_resource: ResourceModel) -> bool:
+def resource_is_equivalent_or_contained(
+    requested_resource: ResourceModel, grant_resource: ResourceModel, logger: BoundLogger
+) -> bool:
     """
     Given two resources, check that the first resource is a sub-resource or equivalent to the second. Be careful,
     order matters a LOT here and screwing it up could impact security.
@@ -200,6 +206,7 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
       this function returns True.
     :param grant_resource: The second resource; if this resource is a parent resource or equivalent to the first,
       this function returns True.
+    :param logger: Structlog stdlib BoundLogger instance.
     :return: Whether the first (requested) resource is a sub-resource or equivalent to the second (grant) resource.
     """
 
@@ -217,7 +224,7 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
     if isinstance(gr, ResourceEverythingModel):
         if rr_is_everything or isinstance(rr, ResourceSpecificModel):
             return True
-        raise _resource_not_implemented(f"resource request: {rr}")
+        raise _resource_not_implemented("resource request", rr, logger)
 
     elif isinstance(gr, ResourceSpecificModel):
         # we have {project: ..., possibly with dataset, data_type}
@@ -248,10 +255,10 @@ def resource_is_equivalent_or_contained(requested_resource: ResourceModel, grant
                 and (g_data_type is None or g_data_type == rr.data_type)
             )
         else:  # requested resource doesn't match any known resource pattern, somehow.
-            raise _resource_not_implemented(f"resource request: {rr}")
+            raise _resource_not_implemented("resource request", rr, logger)
 
     else:  # grant resource hasn't been implemented in this function
-        raise _resource_not_implemented(f"grant resource: {grant_resource}")
+        raise _resource_not_implemented("grant resource", grant_resource, logger)
 
 
 def filter_matching_grants(
@@ -259,6 +266,7 @@ def filter_matching_grants(
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     requested_resource: ResourceModel,
+    logger: BoundLogger,
     get_now: Callable[[], datetime] = datetime.now,
 ) -> Generator[GrantModel, None, None]:
     """
@@ -267,6 +275,7 @@ def filter_matching_grants(
     :param groups_dict: Dictionary of group IDs and group definitions.
     :param token_data: TODO
     :param requested_resource: TODO
+    :param logger: Structlog stdlib BoundLogger instance.
     :param get_now: TODO
     :return: TODO
     """
@@ -278,8 +287,8 @@ def filter_matching_grants(
             continue  # Skip expired grants
 
         try:
-            subject_matches: bool = check_if_token_matches_subject(groups_dict, token_data, g.subject)
-            resource_matches: bool = resource_is_equivalent_or_contained(requested_resource, g.resource)
+            subject_matches: bool = check_if_token_matches_subject(groups_dict, token_data, g.subject, logger)
+            resource_matches: bool = resource_is_equivalent_or_contained(requested_resource, g.resource, logger)
             if subject_matches and resource_matches:
                 # Grant applies to the token in question, and the requested resource in question, so it is part of the
                 # set of grants which determine the permissions the token bearer has on this resource.
@@ -300,6 +309,7 @@ def determine_permissions(
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     requested_resource: ResourceModel,
+    logger: BoundLogger,
 ) -> frozenset[Permission]:
     """
     Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
@@ -307,13 +317,14 @@ def determine_permissions(
     :param groups_dict: TODO
     :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
     :param requested_resource: The resource the token wishes to operate on.
+    :param logger: Structlog stdlib BoundLogger instance.
     :return: The permissions frozen set
     """
 
     return frozenset(
         itertools.chain.from_iterable(
             _permission_and_gives_from_string(p)
-            for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource)
+            for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource, logger)
             for p in g.permissions
         )
     )
@@ -328,9 +339,10 @@ def evaluate_on_resource_and_permission(
     token_data: TokenData | None,
     resource: ResourceModel,
     permission: Permission,
+    logger: BoundLogger,
 ) -> bool:
     # Determine the permissions the token has on the resource
-    permissions = determine_permissions(grants, groups_dict, token_data, resource)
+    permissions = determine_permissions(grants, groups_dict, token_data, resource, logger)
 
     # Permitted if our required permission is contained in the permissions this token has on this resource.
     return permission in permissions
@@ -342,6 +354,7 @@ LOG_SUBJECT_ANONYMOUS = {"anonymous": True}
 async def evaluate(
     idp_manager: BaseIdPManager,
     db: Database,
+    logger: BoundLogger,
     token: str | TokenData | None,
     resources: list[ResourceModel] | tuple[ResourceModel, ...],
     permissions: list[Permission] | tuple[Permission, ...],
@@ -360,7 +373,7 @@ async def evaluate(
 
     # Determine the permissions evaluation matrix
     evaluation_matrix = tuple(
-        tuple(evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p) for p in permissions)
+        tuple(evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger) for p in permissions)
         for r in resources
     )
 

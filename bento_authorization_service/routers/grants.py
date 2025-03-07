@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from ..authz import authz_middleware
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
+from ..logger import LoggerDependency
 from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import GrantModel, StoredGrantModel
 from ..policy_engine.evaluation import evaluate
@@ -36,7 +37,7 @@ async def get_grant_and_check_access(
 ) -> StoredGrantModel:
     if (grant := await db.get_grant(grant_id)) is not None:
         await authz_middleware.raise_if_no_resource_access(
-            request, token, grant.resource, required_permission, db, idp_manager
+            request, token, grant.resource, required_permission, db, idp_manager,
         )
         return grant
 
@@ -50,12 +51,15 @@ async def get_grant_and_check_access(
 async def list_grants(
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    logger: LoggerDependency,
     authorization: OptionalBearerToken,
 ) -> list[StoredGrantModel]:
     all_grants = await db.get_grants()
 
     resources = tuple(g.resource for g in all_grants)
-    permissions = await evaluate(idp_manager, db, extract_token(authorization), resources, (P_VIEW_PERMISSIONS,))
+    permissions = await evaluate(
+        idp_manager, db, logger, extract_token(authorization), resources, (P_VIEW_PERMISSIONS,)
+    )
 
     # For each grant in the database, check if the passed token (or the anonymous user) have "view:permissions"
     # permission on the resource in question. If so, include the grant in the response.
@@ -115,7 +119,7 @@ async def get_grant(
 ) -> StoredGrantModel:
     # Make sure the grant exists, and we have permissions-viewing capabilities.
     grant = await get_grant_and_check_access(
-        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager
+        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager,
     )
 
     # Flag that we have thought about auth
