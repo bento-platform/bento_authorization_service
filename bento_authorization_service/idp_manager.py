@@ -126,18 +126,24 @@ class IdPManager(BaseIdPManager):
 
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
-        if not lf or (datetime.now() - lf).seconds > OPENID_CONFIGURATION_EXPIRY_TIME:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
-                async with session.get(self._openid_config_url) as res:
-                    self._openid_config_data = await res.json()
-                    self._openid_config_data_last_fetched = datetime.now()
+        time_since_last_fetched = -1
+        if not lf or (time_since_last_fetched := (datetime.now() - lf).seconds) > OPENID_CONFIGURATION_EXPIRY_TIME:
+            logger = self._logger.bind(time_since_last_fetched=time_since_last_fetched)
+            try:
+                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
+                    async with session.get(self._openid_config_url, raise_for_status=True) as res:
+                        self._openid_config_data = await res.json()
+                        self._openid_config_data_last_fetched = datetime.now()
+                        await logger.adebug("fetched OpenID configuration data", status=res.status)
+            except aiohttp.ClientError as e:
+                await logger.aexception("error fetching OpenID configuration data", exc_info=e)
+                # Do not re-raise here; if it's a transient error, we can re-use old configuration data
 
     async def fetch_jwks_if_needed(self):
         await self.fetch_openid_config_if_needed()
 
         if not self._openid_config_data:
-            await self._logger.aerror("fetch_jwks: missing OpenID configuration data")
-            return
+            raise IdPManagerError("fetch_jwks: missing OpenID configuration data")
 
         if ((now := datetime.now().timestamp()) - self._jwks_last_fetched) > JWKS_EXPIRY_TIME:
             # Manually do JWK signing key fetching. This way, we can turn off SSL verification in debug mode.
