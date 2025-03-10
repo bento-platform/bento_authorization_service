@@ -37,9 +37,7 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         idp_manager: BaseIdPManager,
     ) -> None:
         try:
-            eval_res = (
-                await evaluate(idp_manager, db, self._logger, token, (resource,), (required_permission,))
-            )[0][0]
+            eval_res = (await evaluate(idp_manager, db, self._logger, token, (resource,), (required_permission,)))[0][0]
             if not eval_res:
                 # Forbidden from accessing or deleting this grant
                 raise self.forbidden(request)

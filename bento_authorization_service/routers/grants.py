@@ -37,7 +37,7 @@ async def get_grant_and_check_access(
 ) -> StoredGrantModel:
     if (grant := await db.get_grant(grant_id)) is not None:
         await authz_middleware.raise_if_no_resource_access(
-            request, token, grant.resource, required_permission, db, idp_manager,
+            request, token, grant.resource, required_permission, db, idp_manager
         )
         return grant
 
@@ -119,7 +119,7 @@ async def get_grant(
 ) -> StoredGrantModel:
     # Make sure the grant exists, and we have permissions-viewing capabilities.
     grant = await get_grant_and_check_access(
-        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager,
+        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, idp_manager
     )
 
     # Flag that we have thought about auth

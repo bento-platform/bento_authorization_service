@@ -124,9 +124,7 @@ def test_invalid_subject(logger: BoundLogger):
     # Missing group raise:
     with pytest.raises(InvalidSubject):
         # No groups defined
-        check_if_token_matches_subject(
-            {}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, logger
-        )
+        check_if_token_matches_subject({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, logger)
 
     # New subject type (not handled):
     with pytest.raises(NotImplementedError):
