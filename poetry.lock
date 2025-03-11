@@ -284,13 +284,13 @@ tests-mypy = ["mypy (>=1.11.1)", "pytest-mypy-plugins"]
 
 [[package]]
 name = "bento-lib"
-version = "12.4.0"
+version = "12.4.1"
 description = "A set of common utilities and helpers for Bento platform services."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "bento_lib-12.4.0-py3-none-any.whl", hash = "sha256:3de79982758a194f802f00d8481695983b7e33d8d9fa6e0d594475e93f70a7df"},
-    {file = "bento_lib-12.4.0.tar.gz", hash = "sha256:423608aad44080bc4e8dde0ea460a9100077eafc67c63568ba4c6bb190b59a76"},
+    {file = "bento_lib-12.4.1-py3-none-any.whl", hash = "sha256:b37ccef64873852da892825fde0039d53613e3c54b9d662d78473abc8f51d70b"},
+    {file = "bento_lib-12.4.1.tar.gz", hash = "sha256:0ea93b698b66ec86e975ee5124e7f96ea4ae12e7cc7dbca7432d62bd97b474d6"},
 ]
 
 [package.dependencies]
@@ -2979,4 +2979,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "22e2f16c573a6b790b99f2956d2c039ecad44d4f132b07fdb60cf327f8dff8a1"
+content-hash = "3adc46cff5ba6fa6f0022d3ccb257cca704b88681075264a8c953f7593f4cfae"

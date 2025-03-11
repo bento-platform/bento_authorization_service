@@ -20,18 +20,21 @@ def test_base_idp_manager(idp_manager: BaseIdPManager):
     )
 
 
-def test_get_idp_manager():
-    assert isinstance(get_idp_manager(get_config()), BaseIdPManager)
+def test_get_idp_manager(logger):
+    assert isinstance(get_idp_manager(get_config(), logger), BaseIdPManager)
 
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_invalid_token_algo(db: Database, idp_manager: BaseIdPManager, test_client: TestClient, db_cleanup):
+async def test_invalid_token_algo(
+    db: Database, idp_manager: BaseIdPManager, logger, test_client: TestClient, db_cleanup
+):
     # should throw exception (using HS256)
     with pytest.raises(IdPManagerBadAlgorithmError):
         await evaluate(
             idp_manager,
             db,
+            logger,
             sd.make_fresh_david_disabled_alg_encoded(),
             (sd.RESOURCE_PROJECT_1,),
             (P_QUERY_DATA,),

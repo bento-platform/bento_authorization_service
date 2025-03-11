@@ -4,13 +4,13 @@ import jwt
 from bento_lib.auth.permissions import P_VIEW_PERMISSIONS
 from fastapi import HTTPException, Request, status
 from pydantic import BaseModel
+from structlog.stdlib import BoundLogger
 from typing import Awaitable, Callable, TypeVar
 
 from bento_authorization_service.authz import authz_middleware
 from bento_authorization_service.db import Database
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import IdPManager
-from bento_authorization_service.logger import logger
 from bento_authorization_service.models import ResourceModel
 from bento_authorization_service.policy_engine.evaluation import TokenData
 
@@ -47,16 +47,17 @@ async def check_non_bearer_token_data_use(
 async def use_token_data_or_return_error_state(
     authorization: OptionalBearerToken,
     idp_manager: IdPManager,
+    logger: BoundLogger,
     err_state: ResponseType,
     create_response: Callable[[TokenData | None], Awaitable[ResponseType]],
 ) -> ResponseType:
     try:
         token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
     except jwt.InvalidAudienceError as e:
-        logger.warning(f"Got token with bad audience (exception: {repr(e)})")
+        await logger.awarning("got token with bad audience", exception_repr=repr(e))
         return err_state
     except jwt.ExpiredSignatureError:
-        logger.warning(f"Got expired token")
+        logger.warning("got expired token")
         return err_state
     except jwt.DecodeError:
         # Actually throw an HTTP error for this one

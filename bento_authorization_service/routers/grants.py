@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from ..authz import authz_middleware
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
+from ..logger import LoggerDependency
 from ..idp_manager import IdPManager, IdPManagerDependency
 from ..models import GrantModel, StoredGrantModel
 from ..policy_engine.evaluation import evaluate
@@ -50,12 +51,15 @@ async def get_grant_and_check_access(
 async def list_grants(
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    logger: LoggerDependency,
     authorization: OptionalBearerToken,
 ) -> list[StoredGrantModel]:
     all_grants = await db.get_grants()
 
     resources = tuple(g.resource for g in all_grants)
-    permissions = await evaluate(idp_manager, db, extract_token(authorization), resources, (P_VIEW_PERMISSIONS,))
+    permissions = await evaluate(
+        idp_manager, db, logger, extract_token(authorization), resources, (P_VIEW_PERMISSIONS,)
+    )
 
     # For each grant in the database, check if the passed token (or the anonymous user) have "view:permissions"
     # permission on the resource in question. If so, include the grant in the response.

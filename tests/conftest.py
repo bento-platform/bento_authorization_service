@@ -1,20 +1,23 @@
 import asyncio
 import asyncpg
+import logging
+import os
 import pytest
 import pytest_asyncio
+import structlog.stdlib
 
 from fastapi.testclient import TestClient
 from functools import lru_cache
 from typing import AsyncGenerator
 
-import os
-
 os.environ["BENTO_AUTHZ_ENABLED"] = "false"
 os.environ["BENTO_DEBUG"] = "true"
+os.environ["BENTO_JSON_LOGS"] = "false"
 os.environ["CORS_ORIGINS"] = "*"
 
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database, get_db
+from bento_authorization_service.logger import get_logger
 from bento_authorization_service.main import app
 from bento_authorization_service.idp_manager import (
     BaseIdPManager,
@@ -40,6 +43,21 @@ class MockIdPManager(BaseIdPManager):
 
     async def decode(self, token: str) -> dict:
         return self._verify_token_and_decode(token, TEST_TOKEN_SECRET)
+
+
+@pytest.fixture(name="log_output")
+def fixture_log_output():
+    # INFO: see https://www.structlog.org/en/stable/testing.html
+    return structlog.testing.LogCapture()
+
+
+@pytest.fixture(autouse=True)
+def fixture_configure_structlog(log_output):
+    logging.getLogger("asyncio").setLevel(logging.WARN)
+    logging.getLogger("httpx").setLevel(logging.WARN)
+
+    # INFO: see https://www.structlog.org/en/stable/testing.html
+    structlog.configure(processors=[log_output])
 
 
 async def get_test_db() -> AsyncGenerator[Database, None]:
@@ -89,7 +107,8 @@ async def db_cleanup_no(db_no: Database):
 
 @lru_cache()
 def get_mock_idp_manager():
-    return MockIdPManager("", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True)
+    logger = structlog.stdlib.get_logger("test_logger")
+    return MockIdPManager(logger, "", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True)
 
 
 # noinspection PyUnusedLocal
@@ -101,9 +120,16 @@ def test_client(db: Database):
         yield client
 
 
+@pytest.fixture(name="logger")
+def fixture_logger() -> structlog.stdlib.BoundLogger:
+    return get_logger(get_config())
+
+
 @pytest_asyncio.fixture
-async def idp_manager():
-    idp_manager_instance = MockIdPManager("", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True)
+async def idp_manager(logger: structlog.stdlib.BoundLogger):
+    idp_manager_instance = MockIdPManager(
+        logger, "", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True
+    )
     await idp_manager_instance.initialize()
     yield idp_manager_instance
 
