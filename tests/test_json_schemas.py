@@ -12,6 +12,6 @@ def test_token_data_valid():
 
 # noinspection PyUnusedLocal
 def test_token_data_schema_endpoint(test_client: TestClient, db_cleanup):
-    res = test_client.get(f"/schemas/token_data.json")
+    res = test_client.get("/schemas/token_data.json")
     assert res.status_code == 200
     assert compare_via_json(TOKEN_DATA, res.json())
