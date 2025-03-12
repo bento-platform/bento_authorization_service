@@ -20,6 +20,7 @@ jobs:
         run: pip install poetry
       - name: Install dependencies
         run: poetry install
+      - name: Format check
+        run: poetry run ruff format --check
       - name: Lint
-        run: |
-          poetry run black --check bento_authorization_service tests
+        run: poetry run ruff check

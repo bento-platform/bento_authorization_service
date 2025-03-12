@@ -24,7 +24,8 @@ To run the tests locally with Docker (highly recommended), execute the provided 
 ```
 
 This will spin up a containerized instance of Postgres, build a service image, and run the tests.
-It will also determine coverage and generate an HTML coverage report.
+It will also determine coverage and generate an HTML coverage report, and run formatting/linting
+checks using `ruff`.
 
 
 
@@ -252,7 +253,7 @@ TODO
 
 ## Copyright &amp; License
 
-&copy; McGill University 2023.
+&copy; McGill University 2023-2025.
 
 The Bento authorization service is licensed under 
 [the terms of the Lesser GNU General Public License, v3.0](./LICENSE).
