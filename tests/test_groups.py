@@ -124,11 +124,11 @@ async def test_group_endpoints_list(
     g_db_id = await db.create_group(group)
 
     # Test that we cannot list groups without authorization
-    res = test_client.get(f"/groups/")
+    res = test_client.get("/groups/")
     assert res.status_code == status.HTTP_403_FORBIDDEN
 
     # Test that we can find the group via list endpoint
-    res = test_client.get(f"/groups/", headers=auth_headers)
+    res = test_client.get("/groups/", headers=auth_headers)
     assert res.status_code == status.HTTP_200_OK
     res_data = res.json()
     group_in_list = next((g for g in res_data if g["id"] == g_db_id), None)
@@ -195,8 +195,8 @@ async def test_group_endpoints_update(auth_headers: dict[str, str], test_client:
 
     # Check it 404s for a not-found group with auth
 
-    res = test_client.put(f"/groups/0", json=group_2.model_dump(mode="json"))
+    res = test_client.put("/groups/0", json=group_2.model_dump(mode="json"))
     assert res.status_code == status.HTTP_403_FORBIDDEN
 
-    res = test_client.put(f"/groups/0", json=group_2.model_dump(mode="json"), headers=auth_headers)
+    res = test_client.put("/groups/0", json=group_2.model_dump(mode="json"), headers=auth_headers)
     assert res.status_code == status.HTTP_404_NOT_FOUND
