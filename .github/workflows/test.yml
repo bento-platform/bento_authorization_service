@@ -4,6 +4,10 @@ on:
     branches:
       - main
   pull_request:
+
+env:
+  POSTGRES_VERSION: 18
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -12,7 +16,7 @@ jobs:
         python-version: [ "3.12", "3.13" ]
     services:
       postgres:
-        image: postgres:18
+        image: postgres:${{ env.POSTGRES_VERSION }}
         env:
           POSTGRES_DB: postgres
           POSTGRES_PASSWORD: postgres
@@ -27,7 +31,7 @@ jobs:
     steps:
       - name: Tweak Postgres
         run: |
-          docker exec ${{ job.services.postgres.id }} sh -c 'echo "max_connections=200" >> /var/lib/postgresql/data/postgresql.conf'
+          docker exec ${{ job.services.postgres.id }} sh -c 'echo "max_connections=200" >> /var/lib/postgresql/data/${{ env.POSTGRES_VERSION }}/postgresql.conf'
           docker kill --signal=SIGHUP ${{ job.services.postgres.id }}
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
