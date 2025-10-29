@@ -20,7 +20,7 @@ services:
       coverage html
       '
   authorization-db:
-    image: postgres:16
+    image: postgres:18
     environment:
       - POSTGRES_USER=auth_user
       - POSTGRES_PASSWORD=auth_password

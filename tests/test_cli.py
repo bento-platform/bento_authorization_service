@@ -96,7 +96,7 @@ async def test_cli_create_group(capsys, db: Database, db_cleanup):
     grp = sd.TEST_GROUPS[0][0]
 
     # Try creating the group via CLI
-    r = await cli.main(["create", "group", grp.name, grp.membership.model_dump_json(), "--note", "note"])
+    r = await cli.main(["create", "group", grp.name, grp.membership.model_dump_json(), "--note", "note"], db=db)
     assert r == 0
 
     # Make sure the group exists in the database
@@ -170,7 +170,7 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
     assert captured.out == json_model_dump_kwargs(existing_grant, sort_keys=True, indent=2) + "\n"
 
-    r = await cli.main(["get", "grant", "0"])  # DNE
+    r = await cli.main(["get", "grant", "0"], db=db)  # DNE
     assert r == 1
 
 
@@ -179,19 +179,19 @@ async def test_cli_get_grant(capsys, db: Database, db_cleanup):
 async def test_cli_add_grant_permissions(capsys, db: Database, db_cleanup):
     existing_grant = (await db.get_grants())[0]  # default: view:permissions, edit:permissions
 
-    r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)], db=db)
     assert r == 0
 
     assert (await db.get_grant(existing_grant.id)).permissions == existing_grant.permissions.union(
         frozenset({P_QUERY_DATA, P_INGEST_DATA})
     )
 
-    r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    r = await cli.main(["add-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)], db=db)
     assert r == 0
     captured = capsys.readouterr()
     assert captured.err.startswith(f"Grant {existing_grant.id} already has permissions")
 
-    r = await cli.main(["add-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    r = await cli.main(["add-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)], db=db)
     assert r == 1
 
 
@@ -200,12 +200,12 @@ async def test_cli_add_grant_permissions(capsys, db: Database, db_cleanup):
 async def test_cli_set_grant_permissions(capsys, db: Database, db_cleanup):
     existing_grant = (await db.get_grants())[0]  # default: view:permissions, edit:permissions
 
-    r = await cli.main(["set-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    r = await cli.main(["set-grant-permissions", str(existing_grant.id), str(P_QUERY_DATA), str(P_INGEST_DATA)], db=db)
     assert r == 0
 
     assert (await db.get_grant(existing_grant.id)).permissions == frozenset({P_QUERY_DATA, P_INGEST_DATA})
 
-    r = await cli.main(["set-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)])
+    r = await cli.main(["set-grant-permissions", "0", str(P_QUERY_DATA), str(P_INGEST_DATA)], db=db)
     assert r == 1
 
 
@@ -270,7 +270,7 @@ def _check_grant_created(capsys):
 @pytest.mark.asyncio
 async def test_cli_assign_all(capsys, db_no: Database, db_cleanup_no):
     # Assign all permissions to David
-    assert (await cli.main(["assign-all-to-user", sd.SUBJECT_DAVID.root.iss, sd.SUBJECT_DAVID.root.sub])) == 0
+    assert (await cli.main(["assign-all-to-user", sd.SUBJECT_DAVID.root.iss, sd.SUBJECT_DAVID.root.sub], db=db_no)) == 0
 
     # The final set of permissions should have all of them:
     await _check_only_grant_permissions(db_no, frozenset(PERMISSIONS))
@@ -278,7 +278,7 @@ async def test_cli_assign_all(capsys, db_no: Database, db_cleanup_no):
 
 @pytest.mark.asyncio
 async def test_cli_public_data_none(capsys, db_no: Database, db_cleanup_no):
-    assert (await cli.main(["public-data-access", "none"])) == 0
+    assert (await cli.main(["public-data-access", "none"], db=db_no)) == 0
 
     captured = capsys.readouterr()
     assert "Nothing to do" in captured.out
@@ -289,7 +289,7 @@ async def test_cli_public_data_none(capsys, db_no: Database, db_cleanup_no):
 
 @pytest.mark.asyncio
 async def test_cli_public_data_bool(capsys, db_no: Database, db_cleanup_no):
-    assert (await cli.main(["public-data-access", "bool"])) == 0
+    assert (await cli.main(["public-data-access", "bool"], db=db_no)) == 0
     _check_grant_created(capsys)
 
     # There should be 1 grant in the database, with boolean permissions only:
@@ -300,7 +300,7 @@ async def test_cli_public_data_bool(capsys, db_no: Database, db_cleanup_no):
 
 @pytest.mark.asyncio
 async def test_cli_public_data_counts(capsys, db_no: Database, db_cleanup_no):
-    assert (await cli.main(["public-data-access", "counts"])) == 0
+    assert (await cli.main(["public-data-access", "counts"], db=db_no)) == 0
     _check_grant_created(capsys)
 
     # There should be 1 grant in the database, with counts permissions:
@@ -314,7 +314,7 @@ QD_FS = frozenset((P_QUERY_DATA,))
 async def test_cli_public_data_full(capsys, monkeypatch, db_no: Database, db_cleanup_no):
     monkeypatch.setattr("sys.stdin", io.StringIO("y"))  # mock stdin with yes response
 
-    assert (await cli.main(["public-data-access", "full"])) == 0
+    assert (await cli.main(["public-data-access", "full"], db=db_no)) == 0
     _check_grant_created(capsys)
 
     # There should be 1 grant in the database, with full querying permissions:
@@ -323,7 +323,7 @@ async def test_cli_public_data_full(capsys, monkeypatch, db_no: Database, db_cle
 
 @pytest.mark.asyncio
 async def test_cli_public_data_full_force(capsys, monkeypatch, db_no: Database, db_cleanup_no):
-    assert (await cli.main(["public-data-access", "-f", "full"])) == 0
+    assert (await cli.main(["public-data-access", "-f", "full"], db=db_no)) == 0
     _check_grant_created(capsys)
 
     # There should be 1 grant in the database, with full querying permissions:
@@ -334,7 +334,7 @@ async def test_cli_public_data_full_force(capsys, monkeypatch, db_no: Database, 
 async def test_cli_public_data_no(capsys, monkeypatch, db_no: Database, db_cleanup_no):
     monkeypatch.setattr("sys.stdin", io.StringIO("n"))  # mock stdin with no response
 
-    assert (await cli.main(["public-data-access", "full"])) == 0
+    assert (await cli.main(["public-data-access", "full"], db=db_no)) == 0
 
     captured = capsys.readouterr()
     assert "Exiting without doing anything." in captured.out
@@ -347,7 +347,7 @@ async def test_cli_public_data_no(capsys, monkeypatch, db_no: Database, db_clean
 @pytest.mark.asyncio
 async def test_cli_help_works(capsys, db_no: Database, db_cleanup_no):
     with pytest.raises(SystemExit) as e:
-        await cli.main(["--help"])
+        await cli.main(["--help"], db=db_no)
         assert e.value == "0"
 
 
@@ -355,5 +355,5 @@ async def test_cli_help_works(capsys, db_no: Database, db_cleanup_no):
 @pytest.mark.asyncio
 async def test_cli_help_works_2(capsys, db_no: Database, db_cleanup_no):
     with pytest.raises(SystemExit) as e:
-        await cli.main([])
+        await cli.main([], db=db_no)
         assert e.value == "0"
