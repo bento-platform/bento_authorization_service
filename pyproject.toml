@@ -15,9 +15,9 @@ python = ">=3.12,<3.14"
 aiodns = "^3.5.0"
 aiofiles = "^25.1.0"
 aiohttp = "^3.13.1"
-asyncpg = "^0.30.0"
-bento-lib = {extras = ["fastapi"], version = "^14.0.0"}
-fastapi = {extras = ["all"], version = "^0.119.1"}
+asyncpg = "^0.31.0"
+bento-lib = {extras = ["fastapi"], version = "^14.0.3"}
+fastapi = {extras = ["all"], version = "^0.122.0"}
 jsonschema = "^4.25.1"
 pydantic = "^2.12.3"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
