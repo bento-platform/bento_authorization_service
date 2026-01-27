@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bento-authorization-service"
-version = "0.11.2"
+version = "0.11.3"
 description = "Permissions and authorization service for the Bento platform."
 authors = ["David Lougheed <david.lougheed@mail.mcgill.ca>"]
 license = "LGPL-3.0-only"
@@ -16,8 +16,8 @@ aiodns = "^3.5.0"
 aiofiles = "^25.1.0"
 aiohttp = "^3.13.1"
 asyncpg = "^0.31.0"
-bento-lib = {extras = ["fastapi"], version = "^14.0.4"}
-fastapi = {extras = ["all"], version = "^0.123.10"}
+bento-lib = {extras = ["fastapi"], version = "^14.1.2"}
+fastapi = {extras = ["all"], version = "^0.128.0"}
 jsonschema = "^4.25.1"
 pydantic = "^2.12.3"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
@@ -33,6 +33,7 @@ pytest-asyncio = "^1.2.0"
 httpx = "^0.28.1"
 pytest-cov = "^7.0.0"
 ruff = "^0.14.8"
+mypy = "^1.19.1"
 
 [build-system]
 requires = ["poetry-core"]
