@@ -5,22 +5,19 @@ from bento_lib.auth.permissions import P_VIEW_PERMISSIONS
 from fastapi import HTTPException, Request, status
 from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
-from typing import Awaitable, Callable, TypeVar
+from typing import Awaitable, Callable
 
 from bento_authorization_service.authz import authz_middleware
 from bento_authorization_service.db import Database
 from bento_authorization_service.dependencies import OptionalBearerToken
-from bento_authorization_service.idp_manager import IdPManager
+from bento_authorization_service.idp_manager import BaseIdPManager
 from bento_authorization_service.models import ResourceModel
 from bento_authorization_service.policy_engine.evaluation import TokenData
 
 __all__ = [
-    "ResponseType",
     "check_non_bearer_token_data_use",
     "use_token_data_or_return_error_state",
 ]
-
-ResponseType = TypeVar("ResponseType", dict, BaseModel)
 
 
 async def check_non_bearer_token_data_use(
@@ -29,7 +26,7 @@ async def check_non_bearer_token_data_use(
     request: Request,
     authorization: OptionalBearerToken,
     db: Database,
-    idp_manager: IdPManager,
+    idp_manager: BaseIdPManager,
 ) -> None:
     if token_data is None:
         # Using our own token, so this becomes a public endpoint.
@@ -44,13 +41,13 @@ async def check_non_bearer_token_data_use(
     await asyncio.gather(*map(req_inner, resources))
 
 
-async def use_token_data_or_return_error_state(
+async def use_token_data_or_return_error_state[T: BaseModel](
     authorization: OptionalBearerToken,
-    idp_manager: IdPManager,
+    idp_manager: BaseIdPManager,
     logger: BoundLogger,
-    err_state: ResponseType,
-    create_response: Callable[[TokenData | None], Awaitable[ResponseType]],
-) -> ResponseType:
+    err_state: T,
+    create_response: Callable[[TokenData | None], Awaitable[T]],
+) -> T:
     try:
         token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
     except jwt.InvalidAudienceError as e:

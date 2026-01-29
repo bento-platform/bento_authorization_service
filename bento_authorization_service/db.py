@@ -29,29 +29,39 @@ class DatabaseError(Exception):
 
 
 def subject_db_deserialize(r: asyncpg.Record | None) -> SubjectModel | None:
-    return None if r is None else SubjectModel(json.loads(r["def"]))
+    return None if r is None else SubjectModel.model_validate_json(r["def"])
 
 
 def resource_db_deserialize(r: asyncpg.Record | None) -> ResourceModel | None:
-    return None if r is None else ResourceModel(json.loads(r["def"]))
+    return None if r is None else ResourceModel.model_validate_json(r["def"])
 
 
-def grant_db_deserialize(r: asyncpg.Record | None) -> StoredGrantModel | None:
-    if r is None:
-        return None
+def grant_db_deserialize(r: asyncpg.Record) -> StoredGrantModel:
+    """
+    Deserialization function for grant DB records.
+    """
     return StoredGrantModel(
         id=r["id"],
-        subject=SubjectModel(json.loads(r["subject"])),
-        resource=ResourceModel(json.loads(r["resource"])),
+        subject=SubjectModel.model_validate_json(r["subject"]),
+        resource=ResourceModel.model_validate_json(r["resource"]),
         notes=r["notes"],
         created=r["created"],
         expiry=r["expiry"],
         # Aggregated from grant_permissions
-        permissions=set(r["permissions"]),  # TODO: what to do with permissions class vs. string?
+        permissions=frozenset(r["permissions"]),  # TODO: what to do with permissions class vs. string?
     )
 
 
-def group_db_serialize(g: GroupModel) -> tuple[str, str, str, datetime]:
+def grant_db_deserialize_opt(r: asyncpg.Record | None) -> StoredGrantModel | None:
+    """
+    Deserialization function for grant DB records handling None as well.
+    """
+    if r is None:
+        return None
+    return grant_db_deserialize(r)
+
+
+def group_db_serialize(g: GroupModel) -> tuple[str, str, str, datetime | None]:
     return (
         g.name,
         json_model_dump_kwargs(g.membership, sort_keys=True),
@@ -60,9 +70,10 @@ def group_db_serialize(g: GroupModel) -> tuple[str, str, str, datetime]:
     )
 
 
-def group_db_deserialize(r: asyncpg.Record | None) -> StoredGroupModel | None:
-    if r is None:
-        return None
+def group_db_deserialize(r: asyncpg.Record) -> StoredGroupModel:
+    """
+    Deserialization function for group DB records.
+    """
     return StoredGroupModel(
         id=r["id"],
         name=r["name"],
@@ -71,6 +82,15 @@ def group_db_deserialize(r: asyncpg.Record | None) -> StoredGroupModel | None:
         created=r["created"],
         expiry=r["expiry"],
     )
+
+
+def group_db_deserialize_opt(r: asyncpg.Record | None) -> StoredGroupModel | None:
+    """
+    Deserialization function for group DB records handling None as well.
+    """
+    if r is None:
+        return None
+    return group_db_deserialize(r)
 
 
 class Database(PgAsyncDatabase):
@@ -139,7 +159,7 @@ class Database(PgAsyncDatabase):
                 """,
                 id_,
             )
-            return grant_db_deserialize(row)
+            return grant_db_deserialize_opt(row)
 
     async def get_grants(self) -> tuple[StoredGrantModel, ...]:
         conn: asyncpg.Connection
@@ -224,7 +244,7 @@ class Database(PgAsyncDatabase):
             res: asyncpg.Record | None = await conn.fetchrow(
                 "SELECT id, name, membership, notes, created, expiry FROM groups WHERE id = $1", id_
             )
-            return group_db_deserialize(res)
+            return group_db_deserialize_opt(res)
 
     async def get_groups(self) -> tuple[StoredGroupModel, ...]:
         conn: asyncpg.Connection

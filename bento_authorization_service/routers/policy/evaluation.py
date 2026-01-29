@@ -5,7 +5,7 @@ from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.db import Database, DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
-from bento_authorization_service.idp_manager import IdPManager, IdPManagerDependency
+from bento_authorization_service.idp_manager import BaseIdPManager, IdPManagerDependency
 from bento_authorization_service.logger import LoggerDependency
 from bento_authorization_service.models import ResourceModel
 from bento_authorization_service.policy_engine.evaluation import TokenData, evaluate
@@ -41,7 +41,7 @@ async def _inner_req_evaluate(
     resources: tuple[ResourceModel, ...],
     permissions: tuple[Permission, ...],
     db: Database,
-    idp_manager: IdPManager,
+    idp_manager: BaseIdPManager,
     logger: BoundLogger,
 ) -> EvaluationMatrixResponse:
     await check_non_bearer_token_data_use(req_token_data, resources, request, authorization, db, idp_manager)

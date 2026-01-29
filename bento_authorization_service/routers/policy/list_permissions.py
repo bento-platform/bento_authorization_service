@@ -27,7 +27,7 @@ class ListPermissionsResponse(BaseModel):
 def list_permissions_for_resource(
     grants: tuple[StoredGrantModel, ...],
     groups: dict[int, StoredGroupModel],
-    token_data: dict | None,
+    token_data: TokenData | None,
     r: ResourceModel,
     logger: BoundLogger,
 ) -> list[str]:
