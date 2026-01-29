@@ -25,7 +25,7 @@ def group_not_created() -> HTTPException:
 @groups_router.get(
     "/", dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)]
 )
-async def list_groups(db: DatabaseDependency) -> list[StoredGroupModel]:
+async def list_groups(db: DatabaseDependency) -> tuple[StoredGroupModel, ...]:
     return await db.get_groups()
 
 

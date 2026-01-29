@@ -1,5 +1,4 @@
 import itertools
-import json
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
@@ -388,6 +387,6 @@ async def evaluate(
         "permissions": permissions,
         "decisions": evaluation_matrix,
     }
-    logger.info(f"evaluate: {json.dumps(log_obj)})")
+    await logger.ainfo("evaluate", log_obj)
 
     return evaluation_matrix

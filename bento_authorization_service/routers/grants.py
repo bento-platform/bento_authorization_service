@@ -7,7 +7,7 @@ from ..authz import authz_middleware
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..logger import LoggerDependency
-from ..idp_manager import IdPManager, IdPManagerDependency
+from ..idp_manager import BaseIdPManager, IdPManagerDependency
 from ..models import GrantModel, StoredGrantModel
 from ..policy_engine.evaluation import evaluate
 from ..utils import extract_token
@@ -33,7 +33,7 @@ async def get_grant_and_check_access(
     grant_id: int,
     required_permission: Permission,
     db: Database,
-    idp_manager: IdPManager,
+    idp_manager: BaseIdPManager,
 ) -> StoredGrantModel:
     if (grant := await db.get_grant(grant_id)) is not None:
         await authz_middleware.raise_if_no_resource_access(

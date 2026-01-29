@@ -82,7 +82,7 @@ class BaseIdPManager(ABC):
             token,
             signing_key if isinstance(signing_key, str) else signing_key.key,
             audience=self.audience,
-            algorithms=permitted_algs,
+            algorithms=tuple(permitted_algs),  # type hint wants sequence
         )
 
     @staticmethod
@@ -122,7 +122,7 @@ class IdPManager(BaseIdPManager):
         self._openid_config_data_last_fetched: Optional[datetime] = None
 
         self._jwks: tuple[jwt.PyJWK, ...] = ()
-        self._jwks_last_fetched = 0
+        self._jwks_last_fetched = 0.0
 
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
