@@ -1,5 +1,5 @@
 from bento_lib.auth.permissions import PERMISSIONS, Permission
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from pydantic import BaseModel
 
 from ..authz import authz_middleware
@@ -32,5 +32,7 @@ def response_item_from_permission(p: Permission) -> PermissionResponseItem:
 
 
 @all_permissions_router.get("/", dependencies=[authz_middleware.dep_public_endpoint()])
-def list_all_permissions() -> list[PermissionResponseItem]:
+def list_all_permissions(response: Response) -> list[PermissionResponseItem]:
+    # unchanging public JSON served; cache for a day:
+    response.headers["Cache-Control"] = "public, max-age=86400"
     return list(map(response_item_from_permission, PERMISSIONS))
