@@ -17,7 +17,8 @@ from bento_authorization_service.models import (
 )
 
 
-TEST_TOKEN_SECRET = "secret"  # hard-coded test secret
+# secrets are supposed to be 64 bytes or more, not that it matters much in a test setting:
+TEST_TOKEN_SECRET = "secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecret"  # hard-coded test secret
 TEST_TOKEN_AUD = "account"
 TEST_TOKEN_SIGNING_ALG = "HS512"
 
