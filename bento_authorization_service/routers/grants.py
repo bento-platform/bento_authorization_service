@@ -128,6 +128,43 @@ async def get_grant(
     return grant
 
 
+@grants_router.put("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_grant(
+    request: Request,
+    grant_id: int,
+    grant: GrantModel,
+    db: DatabaseDependency,
+    idp_manager: IdPManagerDependency,
+    authorization: OptionalBearerToken,
+):
+    # Make sure the grant exists, and we have permissions-editing capabilities on the existing resource.
+    existing_grant = await get_grant_and_check_access(
+        request, extract_token(authorization), grant_id, P_EDIT_PERMISSIONS, db, idp_manager
+    )
+
+    # Flag that we have thought about auth
+    authz_middleware.mark_authz_done(request)
+
+    # Forbid updating a grant to an already-expired expiry.
+    if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant expiry is already in the past")
+
+    for p in grant.permissions:
+        if p not in PERMISSIONS_BY_STRING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Grant specifies invalid permission {p}"
+            )
+
+        resource_dict = existing_grant.resource.model_dump(exclude_none=True)
+        if not permission_valid_for_resource(PERMISSIONS_BY_STRING[p], resource_dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Grant specifies incompatible permission {p} for resource {resource_dict}",
+            )
+
+    await db.update_grant(grant_id, grant)
+
+
 @grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grant(
     request: Request,
@@ -148,4 +185,3 @@ async def delete_grant(
     await db.delete_grant(grant_id)
 
 
-# EXPLICITLY: No grant updating; they are immutable.
