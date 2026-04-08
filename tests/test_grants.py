@@ -2,6 +2,7 @@ import json
 import pytest
 
 from bento_lib.auth import permissions
+from datetime import datetime, timedelta, timezone
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -202,6 +203,119 @@ async def test_grant_endpoints_list(test_client: TestClient, db: Database, db_cl
     res = test_client.get("/grants/", headers=headers)
     assert res.status_code == status.HTTP_200_OK
     assert any(True for g in res.json() if json.dumps(g, sort_keys=True) == db_grant_json)
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_db_update(db: Database, db_cleanup):
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+    assert (await db.get_grant(g_id)).permissions == frozenset({permissions.P_QUERY_DATA})
+
+    updated = GrantModel(
+        subject=sd.SUBJECT_DAVID,
+        resource=sd.RESOURCE_PROJECT_1,
+        permissions=frozenset({permissions.P_QUERY_DATA, permissions.P_INGEST_DATA}),
+        notes="updated notes",
+        expiry=None,
+    )
+    await db.update_grant(g_id, updated)
+
+    g = await db.get_grant(g_id)
+    assert g.permissions == frozenset({permissions.P_QUERY_DATA, permissions.P_INGEST_DATA})
+    assert g.notes == "updated notes"
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_endpoints_update(auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup):
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+
+    updated_grant = {
+        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
+        "permissions": [permissions.P_QUERY_DATA, permissions.P_INGEST_DATA],
+        "notes": "updated",
+    }
+
+    # no token - forbidden
+    res = test_client.put(f"/grants/{g_id}", json=updated_grant)
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    # valid token - success
+    res = test_client.put(f"/grants/{g_id}", json=updated_grant, headers=auth_headers)
+    assert res.status_code == status.HTTP_204_NO_CONTENT
+
+    g: StoredGrantModel = await db.get_grant(g_id)
+    assert g.permissions == frozenset({permissions.P_QUERY_DATA, permissions.P_INGEST_DATA})
+    assert g.notes == "updated"
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_endpoints_update_not_found(
+    auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
+):
+    body = {
+        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
+        "permissions": [permissions.P_QUERY_DATA],
+    }
+    res = test_client.put("/grants/0", json=body, headers=auth_headers)
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_endpoints_update_expired(
+    auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
+):
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+
+    past_expiry = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    body = {
+        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
+        "permissions": [permissions.P_QUERY_DATA],
+        "expiry": past_expiry,
+    }
+    res = test_client.put(f"/grants/{g_id}", json=body, headers=auth_headers)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_endpoints_update_invalid_permission(
+    auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
+):
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+
+    body = {
+        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
+        "permissions": ["fake:permission"],
+    }
+    res = test_client.put(f"/grants/{g_id}", json=body, headers=auth_headers)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "invalid permission fake:permission" in res.json()["errors"][0]["message"]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
+async def test_grant_endpoints_update_invalid_for_resource(
+    auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
+):
+    grant = GrantModel(
+        subject=sd.SUBJECT_EVERYONE,
+        resource=sd.RESOURCE_PROJECT_1_PHENOPACKET,
+        permissions={permissions.P_QUERY_DATA},
+        notes="",
+        expiry=None,
+    )
+    g_id = await db.create_grant(grant)
+
+    body = {
+        **grant.model_dump(mode="json"),
+        "permissions": [permissions.P_CREATE_DATASET],
+    }
+    res = test_client.put(f"/grants/{g_id}", json=body, headers=auth_headers)
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "incompatible permission create:dataset for resource" in res.json()["errors"][0]["message"]
 
 
 # noinspection PyUnusedLocal
