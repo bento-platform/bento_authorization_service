@@ -251,6 +251,27 @@ async def test_grant_endpoints_update(auth_headers: dict[str, str], test_client:
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
+async def test_grant_endpoints_update_expiry(
+    auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
+):
+    g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
+
+    future_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    body = {
+        **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
+        "permissions": list(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.permissions),
+        "expiry": future_expiry.isoformat(),
+    }
+    res = test_client.put(f"/grants/{g_id}", json=body, headers=auth_headers)
+    assert res.status_code == status.HTTP_204_NO_CONTENT
+
+    g: StoredGrantModel = await db.get_grant(g_id)
+    assert g.expiry is not None
+    assert abs((g.expiry - future_expiry).total_seconds()) < 1
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.asyncio
 async def test_grant_endpoints_update_not_found(
     auth_headers: dict[str, str], test_client: TestClient, db: Database, db_cleanup
 ):
