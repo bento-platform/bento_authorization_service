@@ -183,5 +183,3 @@ async def delete_grant(
 
     # If the above didn't raise anything, delete the grant.
     await db.delete_grant(grant_id)
-
-
