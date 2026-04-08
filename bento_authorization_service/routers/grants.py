@@ -8,7 +8,7 @@ from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..logger import LoggerDependency
 from ..idp_manager import BaseIdPManager, IdPManagerDependency
-from ..models import GrantModel, StoredGrantModel
+from ..models import GrantModel, ResourceModel, StoredGrantModel
 from ..policy_engine.evaluation import evaluate
 from ..utils import extract_token
 
@@ -25,6 +25,23 @@ def grant_not_found(grant_id: int) -> HTTPException:
 
 def grant_could_not_be_created() -> HTTPException:
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Grant could not be created")
+
+
+def _validate_grant_fields(expiry: datetime | None, perms: frozenset[str], resource: ResourceModel) -> None:
+    if expiry is not None and expiry < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant expiry is already in the past")
+
+    resource_dict = resource.model_dump(exclude_none=True)
+    for p in perms:
+        if p not in PERMISSIONS_BY_STRING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Grant specifies invalid permission {p}"
+            )
+        if not permission_valid_for_resource(PERMISSIONS_BY_STRING[p], resource_dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Grant specifies incompatible permission {p} for resource {resource_dict}",
+            )
 
 
 async def get_grant_and_check_access(
@@ -83,22 +100,7 @@ async def create_grant(
     # Flag that we have thought about auth
     authz_middleware.mark_authz_done(request)
 
-    # Forbid creating a grant which is expired from the get-go.
-    if grant.expiry is not None and grant.expiry < datetime.now(timezone.utc):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
-
-    for p in grant.permissions:
-        if p not in PERMISSIONS_BY_STRING:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Grant specifies invalid permission {p}"
-            )
-
-        resource_dict = grant.resource.model_dump(exclude_none=True)
-        if not permission_valid_for_resource(PERMISSIONS_BY_STRING[p], resource_dict):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Grant specifies incompatible permission {p} for resource {resource_dict}",
-            )
+    _validate_grant_fields(grant.expiry, grant.permissions, grant.resource)
 
     # Create the grant
     if (g_id := await db.create_grant(grant)) is not None:
@@ -128,6 +130,28 @@ async def get_grant(
     return grant
 
 
+@grants_router.put("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_grant(
+    request: Request,
+    grant_id: int,
+    grant: GrantModel,
+    db: DatabaseDependency,
+    idp_manager: IdPManagerDependency,
+    authorization: OptionalBearerToken,
+):
+    # Make sure the grant exists, and we have permissions-editing capabilities on the existing resource.
+    existing_grant = await get_grant_and_check_access(
+        request, extract_token(authorization), grant_id, P_EDIT_PERMISSIONS, db, idp_manager
+    )
+
+    # Flag that we have thought about auth
+    authz_middleware.mark_authz_done(request)
+
+    _validate_grant_fields(grant.expiry, grant.permissions, existing_grant.resource)
+
+    await db.update_grant(grant_id, grant)
+
+
 @grants_router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grant(
     request: Request,
@@ -146,6 +170,3 @@ async def delete_grant(
 
     # If the above didn't raise anything, delete the grant.
     await db.delete_grant(grant_id)
-
-
-# EXPLICITLY: No grant updating; they are immutable.

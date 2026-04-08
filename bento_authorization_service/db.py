@@ -233,6 +233,19 @@ class Database(PgAsyncDatabase):
                 await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
                 await self.add_grant_permissions(grant_id, permissions, existing_conn=conn)
 
+    async def update_grant(self, grant_id: int, grant: GrantModel) -> None:
+        conn: asyncpg.Connection
+        async with self.connect() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    'UPDATE grants SET "expiry" = $2, "notes" = $3 WHERE "id" = $1',
+                    grant_id,
+                    grant.expiry,
+                    grant.notes,
+                )
+                await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
+                await self.add_grant_permissions(grant_id, grant.permissions, existing_conn=conn)
+
     async def delete_grant(self, grant_id: int) -> None:
         conn: asyncpg.Connection
         async with self.connect() as conn:
