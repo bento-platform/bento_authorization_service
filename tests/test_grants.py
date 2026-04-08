@@ -277,6 +277,7 @@ async def test_grant_endpoints_update_expired(
     }
     res = test_client.put(f"/grants/{g_id}", json=body, headers=auth_headers)
     assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Grant expiry is already in the past" in res.json()["errors"][0]["message"]
 
 
 # noinspection PyUnusedLocal
