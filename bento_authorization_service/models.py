@@ -1,6 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, RootModel, field_serializer
 from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer
 
 __all__ = [
     # Subject:

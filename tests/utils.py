@@ -1,4 +1,5 @@
 import json
+
 from pydantic import BaseModel
 
 __all__ = ["compare_via_json", "compare_model_json"]

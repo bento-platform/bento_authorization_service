@@ -1,6 +1,6 @@
-from bento_lib.auth.permissions import P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from bento_lib.auth.permissions import P_EDIT_PERMISSIONS, P_VIEW_PERMISSIONS
 from fastapi import APIRouter, HTTPException, status
 
 from ..authz import authz_middleware
@@ -40,7 +40,7 @@ async def create_group(
 ) -> StoredGroupModel:
     # TODO: sub-groups owned by another group
     #  - how to do nested groups only for a subset of the data / groups owned/manageable by a group or individual?
-    if group.expiry is not None and group.expiry <= datetime.now(timezone.utc):
+    if group.expiry is not None and group.expiry <= datetime.now(UTC):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant is already expired")
 
     if (g_id := await db.create_group(group)) is not None and (created_group := await db.get_group(g_id)):

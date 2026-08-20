@@ -1,21 +1,20 @@
-import jwt
+from datetime import UTC, datetime, timedelta
 
-from bento_lib.auth.permissions import P_QUERY_DATA, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
-from datetime import datetime, timedelta, timezone
+import jwt
+from bento_lib.auth.permissions import P_EDIT_PERMISSIONS, P_QUERY_DATA, P_VIEW_PERMISSIONS
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import (
-    IssuerAndSubjectModel,
-    ResourceModel,
-    SubjectModel,
+    GrantModel,
+    GroupMembership,
     GroupMembershipExpr,
     GroupMembershipMembers,
-    GroupMembership,
     GroupModel,
+    IssuerAndSubjectModel,
+    ResourceModel,
     StoredGroupModel,
-    GrantModel,
+    SubjectModel,
 )
-
 
 # secrets are supposed to be 64 bytes or more, not that it matters much in a test setting:
 TEST_TOKEN_SECRET = "secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecret"  # hard-coded test secret
@@ -50,7 +49,7 @@ TEST_TOKEN = {
 
 
 def make_fresh_david_token(audience: str = TEST_TOKEN_AUD, exp_offset: int = 900):
-    dt = int(datetime.now(timezone.utc).timestamp())
+    dt = int(datetime.now(UTC).timestamp())
     return {**TEST_TOKEN, "aud": audience, "iat": dt, "exp": dt + exp_offset}
 
 
@@ -123,22 +122,14 @@ TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership, bool]] = [
 TEST_GROUP_CREATED: datetime = datetime.fromisoformat("2023-05-01T17:20:40.000000")
 TEST_GROUPS: list[tuple[StoredGroupModel, bool]] = [
     (
-        StoredGroupModel(
-            **{
-                "id": i,
-                "name": f"group{i}",
-                "membership": x,
-                "created": TEST_GROUP_CREATED,
-                "expiry": None,
-            }
-        ),
+        StoredGroupModel(id=i, name=f"group{i}", membership=x, created=TEST_GROUP_CREATED, expiry=None),
         r,
     )
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
 ]
 TEST_GROUPS_DICT: dict[int, StoredGroupModel] = {x.id: x for x, _ in TEST_GROUPS}
 
-TEST_EXPIRED_TIME = datetime.now(timezone.utc) - timedelta(hours=1)
+TEST_EXPIRED_TIME = datetime.now(UTC) - timedelta(hours=1)
 
 TEST_EXPIRED_GROUP = GroupModel(
     name="test",

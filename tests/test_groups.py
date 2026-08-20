@@ -1,12 +1,14 @@
+import json
+
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-import json
-import pytest
+
 from bento_authorization_service.db import Database
 from bento_authorization_service.models import GroupModel, StoredGroupModel
 
-from .shared_data import TEST_GROUPS, TEST_EXPIRED_GROUP
-from .utils import compare_via_json, compare_model_json
+from .shared_data import TEST_EXPIRED_GROUP, TEST_GROUPS
+from .utils import compare_model_json, compare_via_json
 
 
 # noinspection PyUnusedLocal

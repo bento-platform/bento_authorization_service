@@ -1,12 +1,12 @@
+from abc import ABC, abstractmethod
+from datetime import UTC, datetime
+from functools import lru_cache
+from typing import Annotated
+
 import aiohttp
 import jwt
-
-from abc import ABC, abstractmethod
-from datetime import datetime
 from fastapi import Depends
-from functools import lru_cache
 from structlog.stdlib import BoundLogger
-from typing import Annotated, Optional
 
 from .config import ConfigDependency
 from .logger import LoggerDependency
@@ -118,8 +118,8 @@ class IdPManager(BaseIdPManager):
     ):
         super().__init__(logger, openid_config_url, audience, disabled_token_signing_algorithms, debug)
 
-        self._openid_config_data: Optional[dict] = None
-        self._openid_config_data_last_fetched: Optional[datetime] = None
+        self._openid_config_data: dict | None = None
+        self._openid_config_data_last_fetched: datetime | None = None
 
         self._jwks: tuple[jwt.PyJWK, ...] = ()
         self._jwks_last_fetched = 0.0
@@ -127,14 +127,16 @@ class IdPManager(BaseIdPManager):
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
         time_since_last_fetched = -1
-        if not lf or (time_since_last_fetched := (datetime.now() - lf).seconds) > OPENID_CONFIGURATION_EXPIRY_TIME:
+        if not lf or (time_since_last_fetched := (datetime.now(UTC) - lf).seconds) > OPENID_CONFIGURATION_EXPIRY_TIME:
             logger = self._logger.bind(time_since_last_fetched=time_since_last_fetched)
             try:
-                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
-                    async with session.get(self._openid_config_url, raise_for_status=True) as res:
-                        self._openid_config_data = await res.json()
-                        self._openid_config_data_last_fetched = datetime.now()
-                        await logger.adebug("fetched OpenID configuration data", status=res.status)
+                async with (
+                    aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session,
+                    session.get(self._openid_config_url, raise_for_status=True) as res,
+                ):
+                    self._openid_config_data = await res.json()
+                    self._openid_config_data_last_fetched = datetime.now(UTC)
+                    await logger.adebug("fetched OpenID configuration data", status=res.status)
             except aiohttp.ClientError as e:
                 await logger.aexception("error fetching OpenID configuration data", exc_info=e)
                 # Do not re-raise here; if it's a transient error, we can re-use old configuration data
@@ -145,16 +147,18 @@ class IdPManager(BaseIdPManager):
         if not self._openid_config_data:
             raise IdPManagerError("fetch_jwks: missing OpenID configuration data")
 
-        if ((now := datetime.now().timestamp()) - self._jwks_last_fetched) > JWKS_EXPIRY_TIME:
+        if ((now := datetime.now(UTC).timestamp()) - self._jwks_last_fetched) > JWKS_EXPIRY_TIME:
             # Manually do JWK signing key fetching. This way, we can turn off SSL verification in debug mode.
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session:
-                async with session.get(self._openid_config_data["jwks_uri"]) as res:
-                    self._jwks = tuple(
-                        k
-                        for k in jwt.PyJWKSet.from_dict(await res.json()).keys
-                        if k.public_key_use in ("sig", None) and k.key_id
-                    )
-                    self._jwks_last_fetched = now
+            async with (
+                aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session,
+                session.get(self._openid_config_data["jwks_uri"]) as res,
+            ):
+                self._jwks = tuple(
+                    k
+                    for k in jwt.PyJWKSet.from_dict(await res.json()).keys
+                    if k.public_key_use in ("sig", None) and k.key_id
+                )
+                self._jwks_last_fetched = now
 
     def get_signing_key_from_jwt(self, token: str) -> jwt.PyJWK | None:
         header = jwt.get_unverified_header(token)
@@ -165,11 +169,14 @@ class IdPManager(BaseIdPManager):
             await self.fetch_openid_config_if_needed()
             await self.fetch_jwks_if_needed()
             self._initialized = True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
+            # TODO: more specific exception-handling
             await self._logger.aexception("could not initialize IdPManager: encountered exception", exc_info=e)
             self._initialized = False
 
     def get_supported_token_signing_algs(self) -> frozenset[str]:
+        if self._openid_config_data is None:
+            return frozenset()
         return frozenset(self._openid_config_data["id_token_signing_alg_values_supported"])
 
     async def decode(self, token: str) -> dict:
@@ -192,7 +199,7 @@ class IdPManager(BaseIdPManager):
         raise IdPManagerError("Could not get signing key for token")
 
 
-@lru_cache()
+@lru_cache
 def get_idp_manager(config: ConfigDependency, logger: LoggerDependency) -> BaseIdPManager:
     return IdPManager(
         logger,

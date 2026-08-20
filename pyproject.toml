@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bento-authorization-service"
-version = "0.12.2"
+version = "0.12.3"
 description = "Permissions and authorization service for the Bento platform."
 authors = ["David Lougheed <david.lougheed@mail.mcgill.ca>"]
 license = "LGPL-3.0-only"
@@ -14,10 +14,10 @@ bento_authz = "bento_authorization_service.cli:main_sync"
 python = ">=3.12,<3.14"
 aiodns = "^4.0.0"
 aiofiles = "^25.1.0"
-aiohttp = "^3.13.1"
+aiohttp = "^3.14.3"
 asyncpg = "^0.31.0"
-bento-lib = {extras = ["fastapi"], version = "^16.1.1"}
-fastapi = {extras = ["all"], version = "^0.139.0"}
+bento-lib = {extras = ["fastapi"], version = "^17.2.0"}
+fastapi = {extras = ["all"], version = "^0.141.1"}
 jsonschema = "^4.25.1"
 pydantic = "^2.12.3"
 pyjwt = {extras = ["crypto"], version = "^2.10.1"}
@@ -32,8 +32,8 @@ debugpy = "^1.8.18"
 pytest-asyncio = "^1.2.0"
 httpx2 = "^2.3.0"
 pytest-cov = "^7.0.0"
-ruff = "^0.15.0"
-mypy = "^2.1.0"
+ruff = "^0.16.0"
+mypy = "~2.3.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -41,6 +41,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+ignore = ["PYI041", "RUF022"]
 
 [tool.mypy]
 disable_error_code = ["import-untyped"]

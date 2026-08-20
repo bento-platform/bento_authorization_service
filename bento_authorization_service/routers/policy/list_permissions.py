@@ -86,7 +86,7 @@ async def req_list_permissions(
         authorization,
         idp_manager,
         logger,
-        err_state=ListPermissionsResponse(result=[list() for _ in r_resources]),
+        err_state=ListPermissionsResponse(result=[[] for _ in r_resources]),
         create_response=_create_response,
     )
 
@@ -98,7 +98,7 @@ class PermissionsMapResponse(BaseModel):
 def build_permissions_map(
     grants: tuple[StoredGrantModel, ...],
     groups: dict[int, StoredGroupModel],
-    token_data: TokenData,
+    token_data: TokenData | None,
     resource: ResourceModel,
     logger: BoundLogger,
 ) -> dict[Permission, bool]:

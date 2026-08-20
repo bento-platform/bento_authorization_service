@@ -1,13 +1,14 @@
-from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission, P_VIEW_PERMISSIONS, P_EDIT_PERMISSIONS
+from datetime import UTC, datetime
+
 from bento_lib.auth.helpers import permission_valid_for_resource
-from datetime import datetime, timezone
+from bento_lib.auth.permissions import P_EDIT_PERMISSIONS, P_VIEW_PERMISSIONS, PERMISSIONS_BY_STRING, Permission
 from fastapi import APIRouter, HTTPException, Request, status
 
 from ..authz import authz_middleware
 from ..db import Database, DatabaseDependency
 from ..dependencies import OptionalBearerToken
-from ..logger import LoggerDependency
 from ..idp_manager import BaseIdPManager, IdPManagerDependency
+from ..logger import LoggerDependency
 from ..models import GrantModel, ResourceModel, StoredGrantModel
 from ..policy_engine.evaluation import evaluate
 from ..utils import extract_token
@@ -28,7 +29,7 @@ def grant_could_not_be_created() -> HTTPException:
 
 
 def _validate_grant_fields(expiry: datetime | None, perms: frozenset[str], resource: ResourceModel) -> None:
-    if expiry is not None and expiry < datetime.now(timezone.utc):
+    if expiry is not None and expiry < datetime.now(UTC):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grant expiry is already in the past")
 
     resource_dict = resource.model_dump(exclude_none=True)
@@ -46,7 +47,7 @@ def _validate_grant_fields(expiry: datetime | None, perms: frozenset[str], resou
 
 async def get_grant_and_check_access(
     request: Request,
-    token: str,
+    token: str | None,
     grant_id: int,
     required_permission: Permission,
     db: Database,
@@ -80,7 +81,7 @@ async def list_grants(
 
     # For each grant in the database, check if the passed token (or the anonymous user) have "view:permissions"
     # permission on the resource in question. If so, include the grant in the response.
-    return list(g for g, p in zip(all_grants, permissions) if p[0])
+    return [g for g, p in zip(all_grants, permissions) if p[0]]
 
 
 @grants_router.post("/", status_code=status.HTTP_201_CREATED)

@@ -1,5 +1,4 @@
 import jwt
-
 from bento_lib.auth.middleware.fastapi import FastApiAuthMiddleware
 from bento_lib.auth.permissions import Permission
 from fastapi import Depends, HTTPException, Request, status
@@ -7,12 +6,11 @@ from fastapi import Depends, HTTPException, Request, status
 from .config import get_config
 from .db import Database, DatabaseDependency
 from .dependencies import OptionalBearerToken
-from .idp_manager import IdPManagerDependency, BaseIdPManager
+from .idp_manager import BaseIdPManager, IdPManagerDependency
 from .logger import get_logger
 from .models import ResourceModel
 from .policy_engine.evaluation import evaluate
 from .utils import extract_token
-
 
 # TODO: Find a way to DI this
 config_for_setup = get_config()
@@ -30,7 +28,7 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
     async def raise_if_no_resource_access(
         self,
         request: Request,
-        token: str,
+        token: str | None,
         resource: ResourceModel,
         required_permission: Permission,
         db: Database,
@@ -41,11 +39,12 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
             if not eval_res:
                 # Forbidden from accessing or deleting this grant
                 raise self.forbidden(request)
-        except HTTPException as e:
-            raise e  # Pass it on
+        except HTTPException:
+            raise  # Pass it on
         except jwt.ExpiredSignatureError:  # Straightforward, expired token - don't bother logging
             raise self.forbidden(request)
-        except Exception as e:  # Could not properly run evaluate(); return forbidden!
+        except Exception as e:  # Could not properly run evaluate(); return forbidden!  # noqa: BLE001
+            # TODO: more specific exception-handling
             await self._logger.aexception(
                 f"encountered error while checking permissions for request {request.method} {request.url.path}: ",
                 exc_info=e,
