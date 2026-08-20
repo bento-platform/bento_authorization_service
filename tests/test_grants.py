@@ -1,8 +1,8 @@
 import json
-import pytest
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from bento_lib.auth import permissions
-from datetime import datetime, timedelta, timezone
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -11,7 +11,7 @@ from bento_authorization_service.db import Database
 from bento_authorization_service.models import GrantModel, StoredGrantModel
 
 from . import shared_data as sd
-from .utils import compare_via_json, compare_model_json
+from .utils import compare_model_json, compare_via_json
 
 
 # noinspection PyUnusedLocal
@@ -256,7 +256,7 @@ async def test_grant_endpoints_update_expiry(
 ):
     g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
 
-    future_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    future_expiry = datetime.now(UTC) + timedelta(hours=1)
     body = {
         **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
         "permissions": list(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.permissions),
@@ -290,7 +290,7 @@ async def test_grant_endpoints_update_expired(
 ):
     g_id = await db.create_grant(sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA)
 
-    past_expiry = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    past_expiry = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
     body = {
         **sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.model_dump(mode="json"),
         "permissions": [permissions.P_QUERY_DATA],

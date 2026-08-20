@@ -3,24 +3,24 @@ import asyncio
 import json
 import sys
 import types
+from collections.abc import Callable, Coroutine
+from typing import Any, Literal
 
 from bento_lib.auth.permissions import (
+    P_QUERY_DATA,
+    P_QUERY_DATASET_LEVEL_BOOLEAN,
+    P_QUERY_DATASET_LEVEL_COUNTS,
+    P_QUERY_PROJECT_LEVEL_BOOLEAN,
+    P_QUERY_PROJECT_LEVEL_COUNTS,
     PERMISSIONS,
     PERMISSIONS_BY_STRING,
-    P_QUERY_PROJECT_LEVEL_BOOLEAN,
-    P_QUERY_DATASET_LEVEL_BOOLEAN,
-    P_QUERY_PROJECT_LEVEL_COUNTS,
-    P_QUERY_DATASET_LEVEL_COUNTS,
-    P_QUERY_DATA,
 )
-from typing import Any, Callable, Coroutine, Literal
 
 from . import __version__
 from .config import Config, get_config
 from .db import Database, get_db
-from .models import GrantModel, GroupModel, SubjectModel, ResourceModel, RESOURCE_EVERYTHING, SUBJECT_EVERYONE
+from .models import RESOURCE_EVERYTHING, SUBJECT_EVERYONE, GrantModel, GroupModel, ResourceModel, SubjectModel
 from .utils import json_model_dump_kwargs
-
 
 ENTITIES = types.SimpleNamespace()
 ENTITIES.GRANT = "grant"
@@ -308,7 +308,7 @@ async def public_data_access_cmd(_config: Config, db: Database, args) -> int:
     )
 
 
-ENTITY_KWARGS = dict(type=str, help="The type of entity to list.")
+ENTITY_KWARGS = {"type": str, "help": "The type of entity to list."}
 
 
 async def main(args: list[str] | None, db: Database | None = None) -> int:
@@ -408,4 +408,4 @@ def main_sync(args: list[str] | None = None):  # pragma: no cover
 
 
 if __name__ == "__main__":  # pragma: no cover
-    exit(main_sync(sys.argv[1:]))
+    sys.exit(main_sync(sys.argv[1:]))

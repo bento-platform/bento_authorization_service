@@ -12,7 +12,6 @@ from .routers.groups import groups_router
 from .routers.policy import policy_router
 from .routers.schemas import schema_router
 
-
 BENTO_SERVICE_INFO: BentoExtraServiceInfo = {
     "serviceKind": BENTO_SERVICE_KIND,
     "dataService": False,

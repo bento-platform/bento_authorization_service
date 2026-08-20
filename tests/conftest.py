@@ -1,14 +1,14 @@
 import asyncio
-import asyncpg
 import logging
 import os
+from collections.abc import AsyncGenerator
+from functools import lru_cache
+
+import asyncpg
 import pytest
 import pytest_asyncio
 import structlog.stdlib
-
 from fastapi.testclient import TestClient
-from functools import lru_cache
-from typing import AsyncGenerator
 
 os.environ["BENTO_AUTHZ_ENABLED"] = "false"
 os.environ["BENTO_DEBUG"] = "true"
@@ -17,18 +17,15 @@ os.environ["CORS_ORIGINS"] = "*"
 
 from bento_authorization_service.config import get_config
 from bento_authorization_service.db import Database, get_db
+from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager
 from bento_authorization_service.logger import get_logger
 from bento_authorization_service.main import app
-from bento_authorization_service.idp_manager import (
-    BaseIdPManager,
-    get_idp_manager,
-)
 
 from .shared_data import (
-    TEST_TOKEN_SECRET,
-    TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
     TEST_DISABLED_TOKEN_SIGNING_ALGOS,
+    TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS,
     TEST_TOKEN_AUD,
+    TEST_TOKEN_SECRET,
     bootstrap_meta_permissions_for_david,
     make_fresh_david_token_encoded,
 )
@@ -53,8 +50,8 @@ def fixture_log_output():
 
 @pytest.fixture(autouse=True)
 def fixture_configure_structlog(log_output):
-    logging.getLogger("asyncio").setLevel(logging.WARN)
-    logging.getLogger("httpx").setLevel(logging.WARN)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     # INFO: see https://www.structlog.org/en/stable/testing.html
     structlog.configure(processors=[log_output])
@@ -105,7 +102,7 @@ async def db_cleanup_no(db_no: Database):
     await _clean_db(db_no)
 
 
-@lru_cache()
+@lru_cache
 def get_mock_idp_manager():
     logger = structlog.stdlib.get_logger("test_logger")
     return MockIdPManager(logger, "", TEST_TOKEN_AUD, frozenset(TEST_DISABLED_TOKEN_SIGNING_ALGOS), True)

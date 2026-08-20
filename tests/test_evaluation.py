@@ -1,6 +1,5 @@
 import pytest
-
-from bento_lib.auth.permissions import P_QUERY_DATA, P_QUERY_PROJECT_LEVEL_BOOLEAN, P_DELETE_DATA
+from bento_lib.auth.permissions import P_DELETE_DATA, P_QUERY_DATA, P_QUERY_PROJECT_LEVEL_BOOLEAN
 from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, RootModel
@@ -8,22 +7,22 @@ from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import IdPManager
-from bento_authorization_service.policy_engine.evaluation import (
-    InvalidSubject,
-    check_token_against_issuer_based_model_obj,
-    check_if_token_is_in_group,
-    check_if_token_matches_subject,
-    resource_is_equivalent_or_contained,
-    filter_matching_grants,
-    determine_permissions,
-    evaluate,
-)
 from bento_authorization_service.models import (
     BaseIssuerModel,
+    GrantModel,
+    GroupModel,
     IssuerAndClientModel,
     IssuerAndSubjectModel,
-    GroupModel,
-    GrantModel,
+)
+from bento_authorization_service.policy_engine.evaluation import (
+    InvalidSubject,
+    check_if_token_is_in_group,
+    check_if_token_matches_subject,
+    check_token_against_issuer_based_model_obj,
+    determine_permissions,
+    evaluate,
+    filter_matching_grants,
+    resource_is_equivalent_or_contained,
 )
 
 from . import shared_data as sd
@@ -111,7 +110,7 @@ def test_group_membership(group: GroupModel, is_member: bool):
         # Client grant:
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
         # David:
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, True),
         # NOT David:
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, False),
     ),

@@ -1,5 +1,4 @@
 import pytest
-
 from bento_lib.auth.permissions import P_QUERY_DATA
 from fastapi.testclient import TestClient
 

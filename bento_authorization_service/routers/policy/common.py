@@ -1,11 +1,11 @@
 import asyncio
-import jwt
+from collections.abc import Awaitable, Callable
 
+import jwt
 from bento_lib.auth.permissions import P_VIEW_PERMISSIONS
 from fastapi import HTTPException, Request, status
 from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
-from typing import Awaitable, Callable
 
 from bento_authorization_service.authz import authz_middleware
 from bento_authorization_service.db import Database

@@ -1,9 +1,10 @@
-from bento_lib.config.pydantic import BentoFastAPIBaseConfig
-from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated
 
-from .constants import SERVICE_GROUP, SERVICE_ARTIFACT
+from bento_lib.config.pydantic import BentoFastAPIBaseConfig
+from fastapi import Depends
+
+from .constants import SERVICE_ARTIFACT, SERVICE_GROUP
 
 __all__ = [
     "Config",
@@ -33,7 +34,7 @@ class Config(BentoFastAPIBaseConfig):
     disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
 
 
-@lru_cache()
+@lru_cache
 def get_config() -> Config:
     return Config()
 

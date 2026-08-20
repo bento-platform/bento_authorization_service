@@ -1,35 +1,33 @@
 import itertools
+from collections.abc import Callable, Generator, Iterable
+from datetime import datetime, timezone
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
-from datetime import datetime, timezone
 from structlog.stdlib import BoundLogger
-
-from typing import Callable, Generator, Iterable
 from typing_extensions import TypedDict  # TODO: py3.12: remove and uninstall library
 
 from ..db import Database
 from ..idp_manager import BaseIdPManager
 from ..json_schemas import TOKEN_DATA
 from ..models import (
+    BaseIssuerModel,
+    GrantModel,
+    GroupMembership,
+    GroupMembershipExpr,
+    GroupMembershipMembers,
+    GroupModel,
+    IssuerAndClientModel,
+    IssuerAndSubjectModel,
     ResourceEverythingModel,
-    ResourceSpecificModel,
     ResourceModel,
+    ResourceSpecificModel,
+    StoredGroupModel,
     SubjectEveryoneModel,
     SubjectGroupModel,
     SubjectModel,
-    BaseIssuerModel,
-    IssuerAndClientModel,
-    IssuerAndSubjectModel,
-    GroupMembership,
-    GroupModel,
-    StoredGroupModel,
-    GroupMembershipExpr,
-    GroupMembershipMembers,
-    GrantModel,
 )
-
 
 __all__ = [
     "InvalidGrant",

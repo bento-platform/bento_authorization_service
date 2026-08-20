@@ -1,15 +1,14 @@
 import io
 
 import pytest
-
 from bento_lib.auth.permissions import (
-    PERMISSIONS,
-    P_QUERY_DATA,
     P_INGEST_DATA,
-    P_QUERY_PROJECT_LEVEL_BOOLEAN,
+    P_QUERY_DATA,
     P_QUERY_DATASET_LEVEL_BOOLEAN,
-    P_QUERY_PROJECT_LEVEL_COUNTS,
     P_QUERY_DATASET_LEVEL_COUNTS,
+    P_QUERY_PROJECT_LEVEL_BOOLEAN,
+    P_QUERY_PROJECT_LEVEL_COUNTS,
+    PERMISSIONS,
     Permission,
 )
 
@@ -47,10 +46,7 @@ async def test_cli_list_grants(capsys, db: Database, db_cleanup):
     captured = capsys.readouterr()
 
     # Default grant set for testing purposes:
-    assert (
-        captured.out
-        == "\n".join(map(lambda x: json_model_dump_kwargs(x, sort_keys=True), await db.get_grants())) + "\n"
-    )
+    assert captured.out == "\n".join(json_model_dump_kwargs(x, sort_keys=True) for x in await db.get_grants()) + "\n"
 
 
 # noinspection PyUnusedLocal

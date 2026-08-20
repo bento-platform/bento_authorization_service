@@ -1,16 +1,16 @@
 import asyncio
-import asyncpg
 import json
-
-from bento_lib.db.pg_async import PgAsyncDatabase
 from datetime import datetime
-from fastapi import Depends
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
+import asyncpg
+from bento_lib.db.pg_async import PgAsyncDatabase
+from fastapi import Depends
+
 from .config import ConfigDependency
-from .models import SubjectModel, ResourceModel, GrantModel, StoredGrantModel, GroupModel, StoredGroupModel
+from .models import GrantModel, GroupModel, ResourceModel, StoredGrantModel, StoredGroupModel, SubjectModel
 from .utils import json_model_dump_kwargs
 
 __all__ = [
@@ -187,34 +187,33 @@ class Database(PgAsyncDatabase):
 
     async def create_grant(self, grant: GrantModel) -> int | None:
         conn: asyncpg.Connection
-        async with self.connect() as conn:
-            async with conn.transaction():
-                sub_res_perm = (
-                    await self.create_subject_or_get_id(grant.subject, conn),
-                    await self.create_resource_or_get_id(grant.resource, conn),
-                    grant.expiry,
-                )
+        async with self.connect() as conn, conn.transaction():
+            sub_res_perm = (
+                await self.create_subject_or_get_id(grant.subject, conn),
+                await self.create_resource_or_get_id(grant.resource, conn),
+                grant.expiry,
+            )
 
-                try:
-                    async with conn.transaction():
-                        res: int | None = await conn.fetchval(
-                            'INSERT INTO grants ("subject", "resource", "expiry", "notes") '
-                            'VALUES ($1, $2, $3, $4) RETURNING "id"',
-                            *sub_res_perm,
-                            grant.notes,
-                        )
+            try:
+                async with conn.transaction():
+                    res: int | None = await conn.fetchval(
+                        'INSERT INTO grants ("subject", "resource", "expiry", "notes") '
+                        'VALUES ($1, $2, $3, $4) RETURNING "id"',
+                        *sub_res_perm,
+                        grant.notes,
+                    )
 
-                        assert res is not None  # Roll back transaction if insert didn't work somehow
+                    assert res is not None  # Roll back transaction if insert didn't work somehow
 
-                        await conn.executemany(
-                            'INSERT INTO grant_permissions ("grant", "permission") VALUES ($1, $2)',
-                            [(res, p) for p in grant.permissions],
-                        )
+                    await conn.executemany(
+                        'INSERT INTO grant_permissions ("grant", "permission") VALUES ($1, $2)',
+                        [(res, p) for p in grant.permissions],
+                    )
 
-                except AssertionError:  # Failed for some reason
-                    return None
+            except AssertionError:  # Failed for some reason
+                return None
 
-                return res
+            return res
 
     async def add_grant_permissions(
         self, grant_id: int, permissions: frozenset[str], existing_conn: asyncpg.Connection | None = None
@@ -228,23 +227,21 @@ class Database(PgAsyncDatabase):
 
     async def set_grant_permissions(self, grant_id: int, permissions: frozenset[str]) -> None:
         conn: asyncpg.Connection
-        async with self.connect() as conn:
-            async with conn.transaction():
-                await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
-                await self.add_grant_permissions(grant_id, permissions, existing_conn=conn)
+        async with self.connect() as conn, conn.transaction():
+            await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
+            await self.add_grant_permissions(grant_id, permissions, existing_conn=conn)
 
     async def update_grant(self, grant_id: int, grant: GrantModel) -> None:
         conn: asyncpg.Connection
-        async with self.connect() as conn:
-            async with conn.transaction():
-                await conn.execute(
-                    'UPDATE grants SET "expiry" = $2, "notes" = $3 WHERE "id" = $1',
-                    grant_id,
-                    grant.expiry,
-                    grant.notes,
-                )
-                await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
-                await self.add_grant_permissions(grant_id, grant.permissions, existing_conn=conn)
+        async with self.connect() as conn, conn.transaction():
+            await conn.execute(
+                'UPDATE grants SET "expiry" = $2, "notes" = $3 WHERE "id" = $1',
+                grant_id,
+                grant.expiry,
+                grant.notes,
+            )
+            await conn.execute('DELETE FROM grant_permissions WHERE "grant" = $1', grant_id)
+            await self.add_grant_permissions(grant_id, grant.permissions, existing_conn=conn)
 
     async def delete_grant(self, grant_id: int) -> None:
         conn: asyncpg.Connection
@@ -274,12 +271,11 @@ class Database(PgAsyncDatabase):
     async def create_group(self, group: GroupModel) -> int | None:
         # GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid
         conn: asyncpg.Connection
-        async with self.connect() as conn:
-            async with conn.transaction():
-                return await conn.fetchval(
-                    "INSERT INTO groups (name, membership, notes, expiry) VALUES ($1, $2, $3, $4) RETURNING id",
-                    *group_db_serialize(group),
-                )
+        async with self.connect() as conn, conn.transaction():
+            return await conn.fetchval(
+                "INSERT INTO groups (name, membership, notes, expiry) VALUES ($1, $2, $3, $4) RETURNING id",
+                *group_db_serialize(group),
+            )
 
     async def set_group(self, id_: int, group: GroupModel) -> None:
         conn: asyncpg.Connection
@@ -292,14 +288,14 @@ class Database(PgAsyncDatabase):
 
     async def delete_group_and_dependent_grants(self, group_id: int) -> None:
         conn: asyncpg.Connection
-        async with self.connect() as conn:
-            async with conn.transaction():  # Use a single transaction to make all deletes occur at the same time
-                # The Postgres JSON access returns NULL if the field doesn't exist, so the below works.
-                await conn.execute("DELETE FROM subjects WHERE (def->>'group')::int = $1", group_id)
-                await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
+        async with self.connect() as conn, conn.transaction():
+            # Use a single transaction to make all deletes occur at the same time
+            # The Postgres JSON access returns NULL if the field doesn't exist, so the below works.
+            await conn.execute("DELETE FROM subjects WHERE (def->>'group')::int = $1", group_id)
+            await conn.execute("DELETE FROM groups WHERE id = $1", group_id)
 
 
-@lru_cache()
+@lru_cache
 def get_db(config: ConfigDependency) -> Database:  # pragma: no cover
     return Database(config.database_uri)
 
