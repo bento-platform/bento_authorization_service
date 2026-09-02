@@ -9,11 +9,11 @@ from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.authz import authz_middleware
-from bento_authorization_service.db import Database
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager
 from bento_authorization_service.models import ResourceModel
-from bento_authorization_service.policy_engine.evaluation import TokenData
+from bento_authorization_service.policy_engine.base import PolicyEngine
+from bento_authorization_service.policy_engine.token_data import TokenData
 
 __all__ = [
     "check_non_bearer_token_data_use",
@@ -26,8 +26,7 @@ async def check_non_bearer_token_data_use(
     resources: tuple[ResourceModel, ...],
     request: Request,
     authorization: OptionalBearerToken,
-    db: Database,
-    idp_manager: BaseIdPManager,
+    pe: PolicyEngine,
 ) -> None:
     if token_data is None:
         # Using our own token, so this becomes a public endpoint.
@@ -35,9 +34,7 @@ async def check_non_bearer_token_data_use(
         return
 
     async def req_inner(r: ResourceModel):
-        await authz_middleware.require_permission_and_flag(
-            r, P_VIEW_PERMISSIONS, request, authorization, db, idp_manager
-        )
+        await authz_middleware.require_permission_and_flag(r, P_VIEW_PERMISSIONS, request, authorization, pe)
 
     await asyncio.gather(*map(req_inner, resources))
 
