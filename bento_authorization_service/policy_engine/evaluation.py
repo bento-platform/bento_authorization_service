@@ -6,7 +6,6 @@ from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from structlog.stdlib import BoundLogger
-from typing_extensions import TypedDict  # TODO: py3.12: remove and uninstall library
 
 from ..db import Database
 from ..idp_manager import BaseIdPManager
@@ -28,12 +27,12 @@ from ..models import (
     SubjectGroupModel,
     SubjectModel,
 )
+from .token_data import TokenData
 
 __all__ = [
     "InvalidGrant",
     "InvalidSubject",
     "InvalidResourceRequest",
-    "TokenData",
     "check_token_against_issuer_based_model_obj",
     "check_if_token_is_in_group",
     "check_if_token_matches_subject",
@@ -80,17 +79,6 @@ class InvalidGrantResource(InvalidResource):
 
 class InvalidResourceRequest(Exception):
     pass
-
-
-class TokenData(TypedDict, total=False):
-    iss: str
-    sub: str
-    aud: str
-    azp: str  # Will contain client ID
-    typ: str
-
-    iat: int
-    exp: int
 
 
 def check_token_against_issuer_based_model_obj(token_data: TokenData | None, m: BaseIssuerModel) -> bool:

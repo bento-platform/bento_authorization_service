@@ -8,7 +8,8 @@ from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager, IdPManagerDependency
 from bento_authorization_service.logger import LoggerDependency
 from bento_authorization_service.models import ResourceModel
-from bento_authorization_service.policy_engine.evaluation import TokenData, evaluate
+from bento_authorization_service.policy_engine.evaluation import evaluate
+from bento_authorization_service.policy_engine.token_data import TokenData
 
 from .common import check_non_bearer_token_data_use, use_token_data_or_return_error_state
 from .router import policy_router
