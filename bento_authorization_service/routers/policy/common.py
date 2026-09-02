@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import cast
 
 import jwt
 from bento_lib.auth.permissions import P_VIEW_PERMISSIONS
@@ -60,4 +61,4 @@ async def use_token_data_or_return_error_state[T: BaseModel](
         # Actually throw an HTTP error for this one
         raise HTTPException(detail="Bearer token must be a valid JWT", status_code=status.HTTP_400_BAD_REQUEST)
 
-    return await create_response(token_data)
+    return await create_response(cast(TokenData | None, token_data))
