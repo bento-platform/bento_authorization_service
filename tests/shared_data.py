@@ -15,6 +15,7 @@ from bento_authorization_service.models import (
     StoredGroupModel,
     SubjectModel,
 )
+from bento_authorization_service.policy_engine.token_data import TokenData
 
 # secrets are supposed to be 64 bytes or more, not that it matters much in a test setting:
 TEST_TOKEN_SECRET = "secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecret"  # hard-coded test secret
@@ -37,7 +38,7 @@ TEST_DISABLED_TOKEN_SIGNING_ALGOS = [  # disable all supported algos except the 
     alg for alg in TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS if alg != TEST_TOKEN_SIGNING_ALG
 ]
 
-TEST_TOKEN = {
+TEST_TOKEN: TokenData = {
     "iss": ISS,
     "sub": SUB,
     "aud": TEST_TOKEN_AUD,
@@ -70,7 +71,7 @@ async def bootstrap_meta_permissions_for_david(db: Database) -> None:
     await db.create_grant(SPECIAL_GRANT_DAVID_EVERYTHING_VIEW_EDIT_PERMISSIONS)
 
 
-TEST_TOKEN_NOT_DAVID = {
+TEST_TOKEN_NOT_DAVID: TokenData = {
     "iss": ISS,
     "sub": "not_david",
     "aud": "account",
@@ -80,7 +81,7 @@ TEST_TOKEN_NOT_DAVID = {
     "iat": 0,  # Not checked here
 }
 
-TEST_TOKEN_FOREIGN_ISS = {
+TEST_TOKEN_FOREIGN_ISS: TokenData = {
     "iss": "https://google.com",
     "sub": SUB,
     "aud": "account",
