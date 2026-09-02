@@ -10,8 +10,6 @@ import pytest_asyncio
 import structlog.stdlib
 from fastapi.testclient import TestClient
 
-from bento_authorization_service.policy_engine.dependency import get_policy_engine
-
 os.environ["BENTO_AUTHZ_ENABLED"] = "false"
 os.environ["BENTO_DEBUG"] = "true"
 os.environ["BENTO_JSON_LOGS"] = "false"
