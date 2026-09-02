@@ -276,8 +276,8 @@ def determine_permissions(
 ) -> frozenset[Permission]:
     """
     Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
-    :param grants: TODO
-    :param groups_dict: TODO
+    :param grants: A tuple of grants from the database.
+    :param groups_dict: A dictionary of {group ID: group definition}
     :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
     :param requested_resource: The resource the token wishes to operate on.
     :param logger: Structlog stdlib BoundLogger instance.
