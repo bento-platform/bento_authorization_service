@@ -30,9 +30,7 @@ from ..models import (
 from .token_data import TokenData
 
 __all__ = [
-    "InvalidGrant",
     "InvalidSubject",
-    "InvalidResourceRequest",
     "check_token_against_issuer_based_model_obj",
     "check_if_token_is_in_group",
     "check_if_token_matches_subject",
@@ -57,27 +55,7 @@ __all__ = [
 #    - a log of the decision made, who the decision was made for (sub/client ID), when, on what, and *why
 
 
-class InvalidGrant(Exception):
-    pass
-
-
 class InvalidSubject(Exception):
-    pass
-
-
-class InvalidResource(Exception):
-    pass
-
-
-class InvalidRequestedResource(InvalidResource):
-    pass
-
-
-class InvalidGrantResource(InvalidResource):
-    pass
-
-
-class InvalidResourceRequest(Exception):
     pass
 
 
