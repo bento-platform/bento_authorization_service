@@ -1,5 +1,9 @@
 # Bento Authorization Service
 
+![Test Status](https://github.com/bento-platform/bento_lib/workflows/Test/badge.svg)
+![Lint Status](https://github.com/bento-platform/bento_lib/workflows/Lint/badge.svg)
+[![codecov](https://codecov.io/gh/bento-platform/bento_authorization_service/graph/badge.svg?token=WFv7hu6RXO)](https://codecov.io/gh/bento-platform/bento_authorization_service)
+
 Permissions and authorization service for the Bento platform.
 
 
