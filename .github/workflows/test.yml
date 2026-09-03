@@ -42,8 +42,11 @@ jobs:
       - name: Test
         run: |
           export DATABASE_URI="postgres://postgres:postgres@localhost:5432/postgres"
-          poetry run pytest -svv --cov=bento_authorization_service --cov-branch
+          poetry run pytest -svv --cov=bento_authorization_service --cov-branch --cov-report=xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        with:
+          file: ./coverage.xml
+          verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
