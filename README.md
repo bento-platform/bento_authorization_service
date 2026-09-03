@@ -4,14 +4,17 @@
 ![Lint Status](https://github.com/bento-platform/bento_lib/workflows/Lint/badge.svg)
 [![codecov](https://codecov.io/gh/bento-platform/bento_authorization_service/graph/badge.svg?token=WFv7hu6RXO)](https://codecov.io/gh/bento-platform/bento_authorization_service)
 
-Permissions and authorization service for the Bento platform.
+This is the repository for the permissions and authorization service for the Bento platform 
+(`bento_authorization_service` or `bento_authz` for short). All Bento services that perform tasks requiring 
+authorization **MUST** defer to this service for decisionmaking.
 
 
 
 
 ## Development
 
-TODO
+The authorization service is usually worked on inside a Bento context. For documentation on developing services within
+Bento, see our main [document on development](https://github.com/bento-platform/bento/blob/main/docs/development.md).
 
 To see interactive documentation while in development mode in a Bento context, go to, e.g.,
 https://bentov2.local/api/authorization/docs.
@@ -230,10 +233,8 @@ The `result` value is returned as a **list of lists of permissions**; one list o
 
 ### Group endpoints
 
-TODO
-
-* `GET /groups`
-* `POST /groups`
+* `GET /groups/`
+* `POST /groups/`
 * `GET /groups/<id>`
 * `PUT /groups/<id>`
 * `DELETE /groups/<id>`
@@ -241,12 +242,51 @@ TODO
 
 ### Grant endpoints
 
-TODO
-
-* `GET /grants`
-* `POST /grants`
+* `GET /grants/`
+* `POST /grants/`
 * `GET /grants/<id>`
 * `DELETE /grants/<id>`
+
+### "All permissions" endpoint
+
+#### `GET /all_permissions/`: A simple list of all possible permissions inside the Bento authorization system:
+
+```js
+[
+  {
+    "id": "view:private_portal",
+    "verb": "view",
+    "noun": "private_portal",
+    "min_level_required": "instance",
+    "supports_data_type_narrowing": false,
+    "gives": []
+  },
+  {
+    "id": "query:project_level_boolean",
+    "verb": "query",
+    "noun": "project_level_boolean",
+    "min_level_required": "project",
+    "supports_data_type_narrowing": true,
+    "gives": []
+  },
+  {
+    "id": "query:dataset_level_boolean",
+    "verb": "query",
+    "noun": "dataset_level_boolean",
+    "min_level_required": "dataset",
+    "supports_data_type_narrowing": true,
+    "gives": []
+  },
+  // ...
+]
+```
+
+### Schema endpoints
+
+These endpoints provide public URLs for JSON schemas associated with the service instance.
+
+* `GET /schemas/token_data.json`: returns the JSON Schema representation of a minimal set of properties inside a bearer
+  JWT.
 
 
 ### Resource permissions cascade
