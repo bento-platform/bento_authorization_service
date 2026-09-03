@@ -257,7 +257,7 @@ TODO
 
 ## Copyright &amp; License
 
-&copy; McGill University 2023-2025.
+&copy; McGill University 2023-2026.
 
 The Bento authorization service is licensed under 
 [the terms of the Lesser GNU General Public License, v3.0](./LICENSE).
