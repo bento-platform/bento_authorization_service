@@ -20,6 +20,7 @@ from bento_authorization_service.db import Database, get_db
 from bento_authorization_service.idp_manager import BaseIdPManager, get_idp_manager
 from bento_authorization_service.logger import get_logger
 from bento_authorization_service.main import app
+from bento_authorization_service.policy_engine.evaluation import BentoPolicyEngine
 
 from .shared_data import (
     TEST_DISABLED_TOKEN_SIGNING_ALGOS,
@@ -129,6 +130,16 @@ async def idp_manager(logger: structlog.stdlib.BoundLogger):
     )
     await idp_manager_instance.initialize()
     yield idp_manager_instance
+
+
+@pytest.fixture(name="pe")
+def policy_engine(db: Database, idp_manager: BaseIdPManager):
+    return BentoPolicyEngine(db, idp_manager)
+
+
+@pytest.fixture(name="pe_no")
+def policy_engine_no_db_init(db_no: Database, idp_manager: BaseIdPManager):
+    return BentoPolicyEngine(db_no, idp_manager)
 
 
 @pytest.fixture()

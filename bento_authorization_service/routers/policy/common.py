@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import cast
 
 import jwt
 from bento_lib.auth.permissions import P_VIEW_PERMISSIONS
@@ -8,11 +9,11 @@ from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.authz import authz_middleware
-from bento_authorization_service.db import Database
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager
 from bento_authorization_service.models import ResourceModel
-from bento_authorization_service.policy_engine.evaluation import TokenData
+from bento_authorization_service.policy_engine.base import PolicyEngine
+from bento_authorization_service.policy_engine.token_data import TokenData
 
 __all__ = [
     "check_non_bearer_token_data_use",
@@ -25,8 +26,7 @@ async def check_non_bearer_token_data_use(
     resources: tuple[ResourceModel, ...],
     request: Request,
     authorization: OptionalBearerToken,
-    db: Database,
-    idp_manager: BaseIdPManager,
+    pe: PolicyEngine,
 ) -> None:
     if token_data is None:
         # Using our own token, so this becomes a public endpoint.
@@ -34,9 +34,7 @@ async def check_non_bearer_token_data_use(
         return
 
     async def req_inner(r: ResourceModel):
-        await authz_middleware.require_permission_and_flag(
-            r, P_VIEW_PERMISSIONS, request, authorization, db, idp_manager
-        )
+        await authz_middleware.require_permission_and_flag(r, P_VIEW_PERMISSIONS, request, authorization, pe)
 
     await asyncio.gather(*map(req_inner, resources))
 
@@ -60,4 +58,4 @@ async def use_token_data_or_return_error_state[T: BaseModel](
         # Actually throw an HTTP error for this one
         raise HTTPException(detail="Bearer token must be a valid JWT", status_code=status.HTTP_400_BAD_REQUEST)
 
-    return await create_response(token_data)
+    return await create_response(cast(TokenData | None, token_data))

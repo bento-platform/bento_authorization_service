@@ -6,7 +6,6 @@ from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from structlog.stdlib import BoundLogger
-from typing_extensions import TypedDict  # TODO: py3.12: remove and uninstall library
 
 from ..db import Database
 from ..idp_manager import BaseIdPManager
@@ -28,20 +27,17 @@ from ..models import (
     SubjectGroupModel,
     SubjectModel,
 )
+from .base import PolicyEngine
+from .token_data import TokenData
 
 __all__ = [
-    "InvalidGrant",
     "InvalidSubject",
-    "InvalidResourceRequest",
-    "TokenData",
     "check_token_against_issuer_based_model_obj",
     "check_if_token_is_in_group",
     "check_if_token_matches_subject",
     "resource_is_equivalent_or_contained",
     "filter_matching_grants",
-    "determine_permissions",
-    "evaluate_on_resource_and_permission",
-    "evaluate",
+    "BentoPolicyEngine",
 ]
 
 
@@ -58,39 +54,8 @@ __all__ = [
 #    - a log of the decision made, who the decision was made for (sub/client ID), when, on what, and *why
 
 
-class InvalidGrant(Exception):
-    pass
-
-
 class InvalidSubject(Exception):
     pass
-
-
-class InvalidResource(Exception):
-    pass
-
-
-class InvalidRequestedResource(InvalidResource):
-    pass
-
-
-class InvalidGrantResource(InvalidResource):
-    pass
-
-
-class InvalidResourceRequest(Exception):
-    pass
-
-
-class TokenData(TypedDict, total=False):
-    iss: str
-    sub: str
-    aud: str
-    azp: str  # Will contain client ID
-    typ: str
-
-    iat: int
-    exp: int
 
 
 def check_token_against_issuer_based_model_obj(token_data: TokenData | None, m: BaseIssuerModel) -> bool:
@@ -301,90 +266,113 @@ def _permission_and_gives_from_string(p: str) -> Iterable[Permission]:
     yield from perm.gives
 
 
-def determine_permissions(
-    grants: tuple[GrantModel, ...],
-    groups_dict: dict[int, StoredGroupModel],
-    token_data: TokenData | None,
-    requested_resource: ResourceModel,
-    logger: BoundLogger,
-) -> frozenset[Permission]:
-    """
-    Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
-    :param grants: TODO
-    :param groups_dict: TODO
-    :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
-    :param requested_resource: The resource the token wishes to operate on.
-    :param logger: Structlog stdlib BoundLogger instance.
-    :return: The permissions frozen set
-    """
-
-    return frozenset(
-        itertools.chain.from_iterable(
-            _permission_and_gives_from_string(p)
-            for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource, logger)
-            for p in g.permissions
-        )
-    )
-
-
 LOG_USER_STR_FIELDS: tuple[str, ...] = ("iss", "azp", "sub")
-
-
-def evaluate_on_resource_and_permission(
-    grants: tuple[GrantModel, ...],
-    groups_dict: dict[int, StoredGroupModel],
-    token_data: TokenData | None,
-    resource: ResourceModel,
-    permission: Permission,
-    logger: BoundLogger,
-) -> bool:
-    # Determine the permissions the token has on the resource
-    permissions = determine_permissions(grants, groups_dict, token_data, resource, logger)
-
-    # Permitted if our required permission is contained in the permissions this token has on this resource.
-    return permission in permissions
-
-
 LOG_SUBJECT_ANONYMOUS = {"anonymous": True}
 
 
-async def evaluate(
-    idp_manager: BaseIdPManager,
-    db: Database,
-    logger: BoundLogger,
-    token: str | TokenData | None,
-    resources: list[ResourceModel] | tuple[ResourceModel, ...],
-    permissions: list[Permission] | tuple[Permission, ...],
-) -> tuple[tuple[bool, ...], ...]:
-    # If an access token is specified, validate it and extract its data.
-    # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
-    # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
-    # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
-    # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
+class BentoPolicyEngine(PolicyEngine):
+    def __init__(self, db: Database, idp_manager: BaseIdPManager):
+        self.db = db
+        self.idp_manager = idp_manager
 
-    # If we instead receive already parsed token data, we just use that instead:
-    token_data: TokenData | None = (await idp_manager.decode(token)) if isinstance(token, str) else token
+    @classmethod
+    def _determine_permissions(
+        cls,
+        grants: tuple[GrantModel, ...],
+        groups_dict: dict[int, StoredGroupModel],
+        token_data: TokenData | None,
+        requested_resource: ResourceModel,
+        logger: BoundLogger,
+    ) -> frozenset[Permission]:
+        """
+        Private method. Given grant and groip definitions, a token (or None if anonymous), and a resource, return the
+        list of permissions the token has on the resource.
+        :param grants: A tuple of grants from the database.
+        :param groups_dict: A dictionary of {group ID: group definition}
+        :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
+        :param requested_resource: The resource the token wishes to operate on.
+        :param logger: Structlog stdlib BoundLogger instance.
+        :return: The permissions frozen set
+        """
+        return frozenset(
+            itertools.chain.from_iterable(
+                _permission_and_gives_from_string(p)
+                for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource, logger)
+                for p in g.permissions
+            )
+        )
 
-    # Fetch grants + groups from the database in parallel
-    grants, groups_dict = await db.get_grants_and_groups_dict()
+    @classmethod
+    def _evaluate_on_resource_and_permission(
+        cls,
+        grants: tuple[GrantModel, ...],
+        groups_dict: dict[int, StoredGroupModel],
+        token_data: TokenData | None,
+        resource: ResourceModel,
+        permission: Permission,
+        logger: BoundLogger,
+    ) -> bool:
+        # Determine the permissions the token has on the resource
+        permissions = cls._determine_permissions(grants, groups_dict, token_data, resource, logger)
 
-    # Determine the permissions evaluation matrix
-    evaluation_matrix = tuple(
-        tuple(evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger) for p in permissions)
-        for r in resources
-    )
+        # Permitted if our required permission is contained in the permissions this token has on this resource.
+        return permission in permissions
 
-    # Log the decision made, with some user data
-    user_str = LOG_SUBJECT_ANONYMOUS
-    if token_data is not None:
-        # noinspection PyTypedDict
-        user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
-    log_obj = {
-        "user": user_str,
-        "resources": [r.model_dump(mode="json") for r in resources],
-        "permissions": permissions,
-        "decisions": evaluation_matrix,
-    }
-    await logger.ainfo("evaluate", log_obj)
+    async def determine_permissions(
+        self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
+    ) -> frozenset[Permission]:
+        """
+        Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
+        :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
+        :param requested_resource: The resource the token wishes to operate on.
+        :param logger: Structlog stdlib BoundLogger instance.
+        :return: The permissions frozen set
+        """
 
-    return evaluation_matrix
+        # Fetch grants + groups from the database in parallel
+        grants, groups_dict = await self.db.get_grants_and_groups_dict()
+
+        return self._determine_permissions(grants, groups_dict, token_data, requested_resource, logger)
+
+    async def evaluate(
+        self,
+        resources: list[ResourceModel] | tuple[ResourceModel, ...],
+        permissions: list[Permission] | tuple[Permission, ...],
+        token: str | TokenData | None,
+        logger: BoundLogger,
+    ) -> tuple[tuple[bool, ...], ...]:
+        # If an access token is specified, validate it and extract its data.
+        # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
+        # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
+        # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
+        # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
+
+        # If we instead receive already parsed token data, we just use that instead:
+        token_data: TokenData | None = (await self.idp_manager.decode(token)) if isinstance(token, str) else token
+
+        # Fetch grants + groups from the database in parallel
+        grants, groups_dict = await self.db.get_grants_and_groups_dict()
+
+        # Determine the permissions evaluation matrix
+        evaluation_matrix = tuple(
+            tuple(
+                self._evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger)
+                for p in permissions
+            )
+            for r in resources
+        )
+
+        # Log the decision made, with some user data
+        user_str = LOG_SUBJECT_ANONYMOUS
+        if token_data is not None:
+            # noinspection PyTypedDict
+            user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
+        log_obj = {
+            "user": user_str,
+            "resources": [r.model_dump(mode="json") for r in resources],
+            "permissions": permissions,
+            "decisions": evaluation_matrix,
+        }
+        await logger.ainfo("evaluate", log_obj)
+
+        return evaluation_matrix

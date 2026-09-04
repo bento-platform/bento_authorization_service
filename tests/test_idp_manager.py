@@ -3,9 +3,8 @@ from bento_lib.auth.permissions import P_QUERY_DATA
 from fastapi.testclient import TestClient
 
 from bento_authorization_service.config import get_config
-from bento_authorization_service.db import Database
 from bento_authorization_service.idp_manager import BaseIdPManager, IdPManagerBadAlgorithmError, get_idp_manager
-from bento_authorization_service.policy_engine.evaluation import evaluate
+from bento_authorization_service.policy_engine.evaluation import BentoPolicyEngine
 
 from . import shared_data as sd
 
@@ -25,16 +24,12 @@ def test_get_idp_manager(logger):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_invalid_token_algo(
-    db: Database, idp_manager: BaseIdPManager, logger, test_client: TestClient, db_cleanup
-):
+async def test_invalid_token_algo(pe: BentoPolicyEngine, logger, test_client: TestClient, db_cleanup):
     # should throw exception (using HS256)
     with pytest.raises(IdPManagerBadAlgorithmError):
-        await evaluate(
-            idp_manager,
-            db,
-            logger,
-            sd.make_fresh_david_disabled_alg_encoded(),
+        await pe.evaluate(
             (sd.RESOURCE_PROJECT_1,),
             (P_QUERY_DATA,),
+            sd.make_fresh_david_disabled_alg_encoded(),
+            logger,
         )
