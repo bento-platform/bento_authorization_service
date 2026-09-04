@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from bento_lib.config.pydantic import BentoFastAPIBaseConfig
 from fastapi import Depends
@@ -21,6 +21,8 @@ class Config(BentoFastAPIBaseConfig):
     service_id: str = f"{SERVICE_GROUP}:{SERVICE_ARTIFACT}"
     service_name: str = "Bento Authorization Service"
 
+    policy_engine: Literal["bento", "pcgl"] = "bento"
+
     database_uri: str = "postgres://localhost:5432"
 
     # OpenID well-known URL of the instance Identity Provider to extract endpoints from
@@ -32,6 +34,10 @@ class Config(BentoFastAPIBaseConfig):
     token_audience: str = "account"
     #  - Default set of disabled 'insecure' algorithms (in this case symmetric key algorithms)
     disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
+
+    # PCGL authorization service URL (IF policy_engine is set to "pcgl")
+    # TODO: validate set if policy engine pcgl
+    pcgl_authz_service_url: str = ""
 
 
 @lru_cache
