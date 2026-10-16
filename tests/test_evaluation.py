@@ -14,13 +14,13 @@ from bento_authorization_service.models import (
     IssuerAndClientModel,
     IssuerAndSubjectModel,
 )
+from bento_authorization_service.policy_engine.base import PolicyEngine
 from bento_authorization_service.policy_engine.evaluation import (
+    BentoPolicyEngine,
     InvalidSubject,
     check_if_token_is_in_group,
     check_if_token_matches_subject,
     check_token_against_issuer_based_model_obj,
-    determine_permissions,
-    evaluate,
     filter_matching_grants,
     resource_is_equivalent_or_contained,
 )
@@ -181,20 +181,19 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
         resource_is_equivalent_or_contained(r1, r2, logger)
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "args, num_matching, true_permissions_set",
+    "grants, groups_dict, token, resource, num_matching, true_permissions_set",
     (
         (
             (
-                (
-                    sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
-                    sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
-                    sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
-                ),
-                sd.TEST_GROUPS_DICT,
-                sd.TEST_TOKEN,
-                sd.RESOURCE_PROJECT_1_DATASET_A,
+                sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA,
+                sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA_EXPIRED,  # Won't apply - expired
+                sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
             ),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
             2,
             frozenset(
                 {
@@ -206,37 +205,51 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
             ),
         ),
         (
-            (
-                (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
-                sd.TEST_GROUPS_DICT,
-                sd.TEST_TOKEN,
-                sd.RESOURCE_PROJECT_1_DATASET_A,
-            ),
+            (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
             0,  # Wrong project
             frozenset(),
         ),
         (
-            (
-                (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
-                sd.TEST_GROUPS_DICT,
-                sd.TEST_TOKEN,
-                sd.RESOURCE_PROJECT_1_DATASET_A,
-            ),
+            (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
+            sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
             0,  # Expired
             frozenset(),
         ),
         (
             # Missing group - will throw SubjectError which will get caught and logged
-            ((sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,), {}, sd.TEST_TOKEN, sd.RESOURCE_PROJECT_1_DATASET_A),
+            (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
+            {},
+            sd.TEST_TOKEN,
+            sd.RESOURCE_PROJECT_1_DATASET_A,
             0,
             frozenset(),
         ),
     ),
 )
-def test_grant_permissions_set(args, num_matching, true_permissions_set, logger):
-    full_args = (*args, logger)
-    matching_token = tuple(filter_matching_grants(*full_args))
-    permissions_set = determine_permissions(*full_args)
+async def test_grant_permissions_set(
+    db_no: Database,
+    grants,
+    groups_dict,
+    token,
+    resource,
+    num_matching,
+    true_permissions_set,
+    logger,
+    pe_no: PolicyEngine,
+    db_cleanup_no,
+):
+    for g in grants:
+        await db_no.create_grant(g)
+    for gid, gr in groups_dict.items():
+        await db_no.set_group(gid, gr)
+
+    matching_token = tuple(filter_matching_grants(grants, groups_dict, token, resource, logger))
+    permissions_set = await pe_no.determine_permissions(resource, token, logger)
     assert len(matching_token) == num_matching  # Missing group definition, so doesn't apply
     assert permissions_set == true_permissions_set
 
@@ -285,15 +298,17 @@ async def _eval_test_data(db: Database):
 
 # noinspection PyUnusedLocal
 @pytest.mark.asyncio
-async def test_evaluate_function(db: Database, idp_manager: IdPManager, logger, test_client: TestClient, db_cleanup):
+async def test_evaluate_function(
+    db: Database, idp_manager: IdPManager, logger, pe: BentoPolicyEngine, test_client: TestClient, db_cleanup
+):
     tkn = await _eval_test_data(db)
 
     # directly given query:data
-    res = await evaluate(idp_manager, db, logger, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,))
+    res = await pe.evaluate((sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,), tkn, logger)
     assert res
 
     # indirectly (via gives=) given project-level boolean
-    res = await evaluate(idp_manager, db, logger, tkn, (sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,))
+    res = await pe.evaluate((sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,), tkn, logger)
     assert res
 
 

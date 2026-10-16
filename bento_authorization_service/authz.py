@@ -4,12 +4,11 @@ from bento_lib.auth.permissions import Permission
 from fastapi import Depends, HTTPException, Request, status
 
 from .config import get_config
-from .db import Database, DatabaseDependency
 from .dependencies import OptionalBearerToken
-from .idp_manager import BaseIdPManager, IdPManagerDependency
 from .logger import get_logger
 from .models import ResourceModel
-from .policy_engine.evaluation import evaluate
+from .policy_engine.base import PolicyEngine
+from .policy_engine.dependency import PolicyEngineDependency
 from .utils import extract_token
 
 # TODO: Find a way to DI this
@@ -31,11 +30,10 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         token: str | None,
         resource: ResourceModel,
         required_permission: Permission,
-        db: Database,
-        idp_manager: BaseIdPManager,
+        pe: PolicyEngine,
     ) -> None:
         try:
-            eval_res = (await evaluate(idp_manager, db, self._logger, token, (resource,), (required_permission,)))[0][0]
+            eval_res = (await pe.evaluate((resource,), (required_permission,), token, self._logger))[0][0]
             if not eval_res:
                 # Forbidden from accessing or deleting this grant
                 raise self.forbidden(request)
@@ -58,35 +56,15 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         permission: Permission,
         request: Request,
         authorization: OptionalBearerToken,
-        db: Database,
-        idp_manager: BaseIdPManager,
+        pe: PolicyEngine,
     ):
-        await self.raise_if_no_resource_access(
-            request,
-            extract_token(authorization),
-            resource,
-            permission,
-            db,
-            idp_manager,
-        )
+        await self.raise_if_no_resource_access(request, extract_token(authorization), resource, permission, pe)
         # Flag that we have thought about auth
         authz_middleware.mark_authz_done(request)
 
     def require_permission_dependency(self, resource: ResourceModel, permission: Permission):
-        async def _inner(
-            request: Request,
-            authorization: OptionalBearerToken,
-            db: DatabaseDependency,
-            idp_manager: IdPManagerDependency,
-        ):
-            return await self.require_permission_and_flag(
-                resource,
-                permission,
-                request,
-                authorization,
-                db,
-                idp_manager,
-            )
+        async def _inner(request: Request, authorization: OptionalBearerToken, pe: PolicyEngineDependency):
+            return await self.require_permission_and_flag(resource, permission, request, authorization, pe)
 
         return Depends(_inner)
 

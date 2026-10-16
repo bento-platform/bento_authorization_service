@@ -4,13 +4,14 @@ from fastapi import Request
 from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
-from bento_authorization_service.db import DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import IdPManagerDependency
 from bento_authorization_service.logger import LoggerDependency
-from bento_authorization_service.models import ResourceModel, StoredGrantModel, StoredGroupModel
-from bento_authorization_service.policy_engine.evaluation import TokenData, determine_permissions
+from bento_authorization_service.models import ResourceModel
+from bento_authorization_service.policy_engine.dependency import PolicyEngineDependency
+from bento_authorization_service.policy_engine.token_data import TokenData
 
+from ...policy_engine.base import PolicyEngine
 from .common import check_non_bearer_token_data_use, use_token_data_or_return_error_state
 from .router import policy_router
 
@@ -24,23 +25,10 @@ class ListPermissionsResponse(BaseModel):
     result: list[list[str]]
 
 
-def list_permissions_for_resource(
-    grants: tuple[StoredGrantModel, ...],
-    groups: dict[int, StoredGroupModel],
-    token_data: TokenData | None,
-    r: ResourceModel,
-    logger: BoundLogger,
+async def list_permissions_for_resource(
+    pe: PolicyEngine, token_data: TokenData | None, r: ResourceModel, logger: BoundLogger
 ) -> list[str]:
-    return sorted(
-        str(p)
-        for p in determine_permissions(
-            grants=grants,
-            groups_dict=groups,
-            token_data=token_data,
-            requested_resource=r,
-            logger=logger,
-        )
-    )
+    return sorted(str(p) for p in await pe.determine_permissions(r, token_data, logger))
 
 
 @policy_router.post("/permissions")
@@ -48,9 +36,9 @@ async def req_list_permissions(
     request: Request,
     authorization: OptionalBearerToken,
     list_permissions_request: ResourcesRequest,
-    db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
     logger: LoggerDependency,
+    pe: PolicyEngineDependency,
 ) -> ListPermissionsResponse:
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
     # in which case we need the view:grants permission, since this is a form of token introspection, essentially.
@@ -63,7 +51,7 @@ async def req_list_permissions(
     r_token_data = list_permissions_request.token_data
     r_resources = list_permissions_request.resources
 
-    await check_non_bearer_token_data_use(r_token_data, r_resources, request, authorization, db, idp_manager)
+    await check_non_bearer_token_data_use(r_token_data, r_resources, request, authorization, pe)
 
     # Request structure:
     #   Header: Authorization: Bearer <token> | None
@@ -73,13 +61,10 @@ async def req_list_permissions(
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
     async def _create_response(token_data: TokenData | None) -> ListPermissionsResponse:
-        grants: tuple[StoredGrantModel, ...]
-        groups: dict[int, StoredGroupModel]
-        grants, groups = await db.get_grants_and_groups_dict()
-
-        return ListPermissionsResponse(
-            result=[list_permissions_for_resource(grants, groups, token_data, r, logger) for r in r_resources],
-        )
+        res = []
+        for r in r_resources:
+            res.append(await list_permissions_for_resource(pe, token_data, r, logger))
+        return ListPermissionsResponse(result=res)
 
     # TODO: real error response
     return await use_token_data_or_return_error_state(
@@ -95,14 +80,13 @@ class PermissionsMapResponse(BaseModel):
     result: list[dict[str, bool]]
 
 
-def build_permissions_map(
-    grants: tuple[StoredGrantModel, ...],
-    groups: dict[int, StoredGroupModel],
+async def build_permissions_map(
+    pe: PolicyEngine,
     token_data: TokenData | None,
     resource: ResourceModel,
     logger: BoundLogger,
 ) -> dict[Permission, bool]:
-    resource_permissions = set(list_permissions_for_resource(grants, groups, token_data, resource, logger))
+    resource_permissions = set(await list_permissions_for_resource(pe, token_data, resource, logger))
     valid_permissions = valid_permissions_for_resource(resource.model_dump(exclude_none=True))
     return {p: p in resource_permissions for p in valid_permissions}
 
@@ -112,8 +96,8 @@ async def req_permissions_map(
     request: Request,
     authorization: OptionalBearerToken,
     list_permissions_request: ResourcesRequest,
-    db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    pe: PolicyEngineDependency,
     logger: LoggerDependency,
 ):
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
@@ -127,7 +111,7 @@ async def req_permissions_map(
     r_token_data = list_permissions_request.token_data
     r_resources = list_permissions_request.resources
 
-    await check_non_bearer_token_data_use(r_token_data, r_resources, request, authorization, db, idp_manager)
+    await check_non_bearer_token_data_use(r_token_data, r_resources, request, authorization, pe)
 
     # Request structure:
     #   Header: Authorization: Bearer <token> | None
@@ -137,12 +121,8 @@ async def req_permissions_map(
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
     async def _create_response(token_data: TokenData | None):
-        grants: tuple[StoredGrantModel, ...]
-        groups: dict[int, StoredGroupModel]
-        grants, groups = await db.get_grants_and_groups_dict()
-
         return PermissionsMapResponse(
-            result=[build_permissions_map(grants, groups, token_data, r, logger) for r in r_resources],
+            result=[await build_permissions_map(pe, token_data, r, logger) for r in r_resources],
         )
 
     # TODO: real error response

@@ -3,12 +3,14 @@ from fastapi import Request
 from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
-from bento_authorization_service.db import Database, DatabaseDependency
+from bento_authorization_service.db import DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager, IdPManagerDependency
 from bento_authorization_service.logger import LoggerDependency
 from bento_authorization_service.models import ResourceModel
-from bento_authorization_service.policy_engine.evaluation import TokenData, evaluate
+from bento_authorization_service.policy_engine.base import PolicyEngine
+from bento_authorization_service.policy_engine.dependency import PolicyEngineDependency
+from bento_authorization_service.policy_engine.token_data import TokenData
 
 from .common import check_non_bearer_token_data_use, use_token_data_or_return_error_state
 from .router import policy_router
@@ -40,19 +42,17 @@ async def _inner_req_evaluate(
     req_token_data: TokenData | None,
     resources: tuple[ResourceModel, ...],
     permissions: tuple[Permission, ...],
-    db: Database,
     idp_manager: BaseIdPManager,
     logger: BoundLogger,
+    pe: PolicyEngine,
 ) -> EvaluationMatrixResponse:
-    await check_non_bearer_token_data_use(req_token_data, resources, request, authorization, db, idp_manager)
+    await check_non_bearer_token_data_use(req_token_data, resources, request, authorization, pe)
 
     # Given a token or token-like data, a resource, and a list of required permissions, figure out if the
     # Builds on the above method, but here a decision is actually being made.
 
     async def _create_response(token_data: TokenData | None):
-        return EvaluationMatrixResponse(
-            result=await evaluate(idp_manager, db, logger, token_data, resources, permissions)
-        )
+        return EvaluationMatrixResponse(result=await pe.evaluate(resources, permissions, token_data, logger))
 
     return await use_token_data_or_return_error_state(
         authorization,
@@ -71,6 +71,7 @@ async def req_evaluate(
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
     logger: LoggerDependency,
+    policy_engine: PolicyEngineDependency,
 ) -> EvaluationMatrixResponse:
     # Semi-public endpoint; no permissions checks required unless we've provided a dictionary of 'token-like' data,
     # in which case we need the view:grants permission, since this is a form of token introspection, essentially.
@@ -90,9 +91,9 @@ async def req_evaluate(
         evaluation_request.token_data,
         evaluation_request.resources,
         tuple(PERMISSIONS_BY_STRING[p] for p in evaluation_request.permissions),
-        db,
         idp_manager,
         logger,
+        policy_engine,
     )
 
 
@@ -101,8 +102,8 @@ async def req_evaluate_one(
     request: Request,
     authorization: OptionalBearerToken,
     evaluation_request: EvaluationScalarRequest,
-    db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
+    policy_engine: PolicyEngineDependency,
     logger: LoggerDependency,
 ) -> EvaluationScalarResponse:
     # Same concept as above, except with just one resource + permission. We make this a separate endpoint to help
@@ -117,9 +118,9 @@ async def req_evaluate_one(
                 evaluation_request.token_data,
                 (evaluation_request.resource,),
                 (PERMISSIONS_BY_STRING[evaluation_request.permission],),
-                db,
                 idp_manager,
                 logger,
+                policy_engine,
             )
         ).result[0][0]
     )
