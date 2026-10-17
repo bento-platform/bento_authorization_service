@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Literal
 
@@ -92,6 +94,13 @@ class GroupModel(BaseImmutableModel):
 class StoredGroupModel(GroupModel):
     id: int
     created: datetime
+    mutable: bool = Field(
+        ..., description="Whether the group can be altered. Groups loaded from external sources may not be mutable."
+    )
+
+    @classmethod
+    def from_group(cls, group: GroupModel, id_: int, created: datetime, mutable: bool) -> StoredGroupModel:
+        return StoredGroupModel(**group.model_dump(mode="python"), id=id_, created=created, mutable=mutable)
 
 
 class ResourceEverythingModel(BaseImmutableModel):
@@ -128,3 +137,10 @@ class GrantModel(BaseImmutableModel):
 class StoredGrantModel(GrantModel):
     id: int
     created: datetime
+    mutable: bool = Field(
+        ..., description="Whether the grant can be altered. Grants loaded from external sources may not be mutable."
+    )
+
+    @classmethod
+    def from_grant(cls, grant: GrantModel, id_: int, created: datetime, mutable: bool) -> StoredGrantModel:
+        return StoredGrantModel(**grant.model_dump(mode="python"), id=id_, created=created, mutable=mutable)
