@@ -123,7 +123,7 @@ TEST_GROUP_MEMBERSHIPS: list[tuple[GroupMembership, bool]] = [
 TEST_GROUP_CREATED: datetime = datetime.fromisoformat("2023-05-01T17:20:40.000000")
 TEST_GROUPS: list[tuple[StoredGroupModel, bool]] = [
     (
-        StoredGroupModel(id=i, name=f"group{i}", membership=x, created=TEST_GROUP_CREATED, expiry=None),
+        StoredGroupModel(id=i, name=f"group{i}", membership=x, created=TEST_GROUP_CREATED, expiry=None, mutable=True),
         r,
     )
     for i, (x, r) in enumerate(TEST_GROUP_MEMBERSHIPS)
