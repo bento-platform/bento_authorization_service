@@ -8,6 +8,7 @@ from .config import ConfigDependency
 from .data_source import JsonDataSource
 
 __all__ = [
+    "JsonDataSourceDependency",
     "OptionalBearerToken",
 ]
 
@@ -20,4 +21,4 @@ def get_json_data_source(config: ConfigDependency) -> JsonDataSource:
     return JsonDataSource(None, None)  # TODO
 
 
-JsonDataSourceDependency = Annotated[Depends(get_json_data_source), JsonDataSource]
+JsonDataSourceDependency = Annotated[JsonDataSource, Depends(get_json_data_source)]
