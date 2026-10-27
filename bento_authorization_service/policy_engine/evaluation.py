@@ -225,7 +225,7 @@ def resource_is_equivalent_or_contained(
 
 
 def filter_matching_grants(
-    grants: tuple[GrantModel, ...],
+    grants: Sequence[GrantModel],
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     requested_resource: ResourceModel,
@@ -319,6 +319,18 @@ class BentoPolicyEngine(PolicyEngine):
         # Permitted if our required permission is contained in the permissions this token has on this resource.
         return permission in permissions
 
+    async def _get_grants_and_groups_dict(self) -> tuple[list[GrantModel], dict[int, StoredGroupModel]]:
+        grants: list[GrantModel] = []
+        groups_dict: dict[int, StoredGroupModel] = {}
+
+        for grants_, groups_dict_ in await asyncio.gather(
+            *[ds.get_grants_and_groups_dict() for ds in self.data_sources]
+        ):
+            grants.extend(grants_)
+            groups_dict.update(groups_dict_)
+
+        return grants, groups_dict
+
     async def determine_permissions(
         self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]:
@@ -330,14 +342,8 @@ class BentoPolicyEngine(PolicyEngine):
         :return: The permissions frozen set
         """
 
-        # Fetch grants + groups from the database in parallel
-        grants: list[GrantModel] = []
-        groups_dict: dict[int, StoredGroupModel] = {}
-
-        for grants_, groups_dict_ in await asyncio.gather(ds.get_grants_and_groups_dict() for ds in self.data_sources):
-            grants.extend(grants_)
-            groups_dict.update(groups_dict_)
-
+        # Fetch grants + groups from the database and any other permissions providers in parallel
+        grants, groups_dict = await self._get_grants_and_groups_dict()
         return self._determine_permissions(grants, groups_dict, token_data, requested_resource, logger)
 
     async def evaluate(
@@ -356,8 +362,8 @@ class BentoPolicyEngine(PolicyEngine):
         # If we instead receive already parsed token data, we just use that instead:
         token_data: TokenData | None = (await self.idp_manager.decode(token)) if isinstance(token, str) else token
 
-        # Fetch grants + groups from the database in parallel
-        grants, groups_dict = await self.db.get_grants_and_groups_dict()
+        # Fetch grants + groups from the database and any other permissions providers in parallel
+        grants, groups_dict = await self._get_grants_and_groups_dict()
 
         # Determine the permissions evaluation matrix
         evaluation_matrix = tuple(
