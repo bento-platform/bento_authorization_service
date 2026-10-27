@@ -34,12 +34,24 @@ GROUPS_ADAPTER = TypeAdapter(list[GroupModel])
 
 
 class JsonDataSource(BaseDataSource):
-    def __init__(self, grants_path: Path, groups_path: Path):
+    @staticmethod
+    def load_grants(path: Path | None) -> list[GrantModel]:
+        if path:
+            with open(path, "r") as fh:
+                return GRANTS_ADAPTER.validate_python(json.load(fh))
+        return []
+
+    @staticmethod
+    def load_groups(path: Path | None) -> list[GroupModel]:
+        if path:
+            with open(path, "r") as fh:
+                return GROUPS_ADAPTER.validate_python(json.load(fh))
+        return []
+
+    def __init__(self, grants_path: Path | None, groups_path: Path | None):
         # TODO: figure out how to handle async initialization?
-        with open(grants_path, "r") as fh:
-            loaded_grants = GRANTS_ADAPTER.validate_python(json.load(fh))
-        with open(groups_path, "r") as fh:
-            loaded_groups = GROUPS_ADAPTER.validate_python(json.load(fh))
+        loaded_grants = self.load_grants(grants_path)
+        loaded_groups = self.load_groups(groups_path)
 
         self.grants: dict[int, StoredGrantModel] = {
             -1 * i: StoredGrantModel.from_grant(g, id_=-1 * i, created=datetime.now(UTC), mutable=False)
