@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
@@ -16,9 +16,10 @@ security = HTTPBearer(auto_error=False)
 OptionalBearerToken = Annotated[HTTPAuthorizationCredentials | None, Depends(security)]
 
 
-@cache
-def get_json_data_source(config: ConfigDependency) -> JsonDataSource:
-    return JsonDataSource(None, None)  # TODO
+@lru_cache
+def get_json_data_source(config: ConfigDependency) -> JsonDataSource | None:
+    # return JsonDataSource(None, None)  # TODO
+    return None
 
 
-JsonDataSourceDependency = Annotated[JsonDataSource, Depends(get_json_data_source)]
+JsonDataSourceDependency = Annotated[JsonDataSource | None, Depends(get_json_data_source)]

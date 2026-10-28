@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from ..data_source import BaseDataSource
 from ..db import DatabaseDependency
 from ..dependencies import JsonDataSourceDependency
 from ..idp_manager import IdPManagerDependency
@@ -16,7 +17,10 @@ __all__ = ["get_policy_engine", "PolicyEngineDependency"]
 def get_policy_engine(
     db: DatabaseDependency, json_ds: JsonDataSourceDependency, idp_manager: IdPManagerDependency
 ) -> PolicyEngine:
-    return BentoPolicyEngine((db, json_ds), idp_manager)
+    sources: list[BaseDataSource] = [db]
+    if json_ds:
+        sources.append(json_ds)
+    return BentoPolicyEngine(tuple(sources), idp_manager)
 
 
 PolicyEngineDependency = Annotated[PolicyEngine, Depends(get_policy_engine)]
