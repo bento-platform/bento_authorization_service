@@ -3,8 +3,10 @@ from abc import ABC, abstractmethod
 
 from bento_authorization_service.models import StoredGrantModel, StoredGroupModel
 
+__all__ = ["BaseDataProvider"]
 
-class BaseDataSource(ABC):
+
+class BaseDataProvider(ABC):
     @abstractmethod
     async def get_grant(self, id_: int) -> StoredGrantModel | None: ...
 

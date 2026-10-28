@@ -9,7 +9,7 @@ from bento_lib.db.pg_async import PgAsyncDatabase
 from fastapi import Depends
 
 from .config import ConfigDependency
-from .data_source import BaseDataSource
+from .data_provider.base import BaseDataProvider
 from .models import GrantModel, GroupModel, ResourceModel, StoredGrantModel, StoredGroupModel, SubjectModel
 from .utils import json_model_dump_kwargs
 
@@ -95,7 +95,7 @@ def group_db_deserialize_opt(r: asyncpg.Record | None) -> StoredGroupModel | Non
     return group_db_deserialize(r)
 
 
-class Database(PgAsyncDatabase, BaseDataSource):
+class Database(PgAsyncDatabase, BaseDataProvider):
     def __init__(self, db_uri: str):
         super().__init__(db_uri, SCHEMA_PATH)
 
