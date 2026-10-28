@@ -68,7 +68,6 @@ async def req_evaluate(
     request: Request,
     authorization: OptionalBearerToken,
     evaluation_request: EvaluationMatrixRequest,
-    db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
     logger: LoggerDependency,
     policy_engine: PolicyEngineDependency,
