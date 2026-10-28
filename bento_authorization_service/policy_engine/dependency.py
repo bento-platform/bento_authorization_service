@@ -16,7 +16,7 @@ def get_policy_engine(
     config: ConfigDependency, idp_manager: IdPManagerDependency, provider: AuthzDataProviderDependency
 ) -> PolicyEngine:
     if config.policy_engine == "pcgl":
-        return PcglPolicyEngine(config.pcgl_authz_service_url)
+        return PcglPolicyEngine(idp_manager, provider, config.pcgl_authz_service_url)
     return BentoPolicyEngine(idp_manager, provider)
 
 

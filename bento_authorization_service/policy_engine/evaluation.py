@@ -336,7 +336,7 @@ class BentoPolicyEngine(PolicyEngine):
     async def evaluate(
         self,
         resources: Sequence[ResourceModel],
-        permissions: list[Permission] | tuple[Permission, ...],
+        permissions: Sequence[Permission],
         token: str | TokenData | None,
         logger: BoundLogger,
     ) -> tuple[tuple[bool, ...], ...]:

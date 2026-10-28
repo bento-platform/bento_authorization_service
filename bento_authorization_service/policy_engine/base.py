@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from bento_lib.auth.permissions import Permission
 from structlog.stdlib import BoundLogger
@@ -23,8 +24,8 @@ class PolicyEngine(ABC):
     @abstractmethod
     async def evaluate(
         self,
-        resources: list[ResourceModel] | tuple[ResourceModel, ...],
-        permissions: list[Permission] | tuple[Permission, ...],
+        resources: Sequence[ResourceModel],
+        permissions: Sequence[Permission],
         token: str | TokenData | None,
         logger: BoundLogger,
     ) -> tuple[tuple[bool, ...], ...]: ...
