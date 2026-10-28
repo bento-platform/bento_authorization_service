@@ -44,6 +44,8 @@ class Config(BentoFastAPIBaseConfig):
     token_audience: str = "account"
     #  - Default set of disabled 'insecure' algorithms (in this case symmetric key algorithms)
     disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
+    #  - Whether we expect access tokens to be JWTs. Defaults to True as this was the default behaviour historically.
+    jwt_access_tokens: bool = True
 
     # PCGL authorization service URL (IF policy_engine is set to "pcgl")
     # TODO: validate set if policy engine pcgl

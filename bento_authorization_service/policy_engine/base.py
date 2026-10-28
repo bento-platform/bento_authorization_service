@@ -18,7 +18,7 @@ class PolicyEngine(ABC):
 
     @abstractmethod
     async def determine_permissions(
-        self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
+        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]: ...
 
     @abstractmethod
@@ -26,6 +26,7 @@ class PolicyEngine(ABC):
         self,
         resources: Sequence[ResourceModel],
         permissions: Sequence[Permission],
-        token: str | TokenData | None,
+        token: str | None,
+        token_data: TokenData | None,
         logger: BoundLogger,
     ) -> tuple[tuple[bool, ...], ...]: ...

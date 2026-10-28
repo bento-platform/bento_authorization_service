@@ -3,6 +3,7 @@ from fastapi import Request
 from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
+from bento_authorization_service.config import Config, ConfigDependency
 from bento_authorization_service.db import DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager, IdPManagerDependency
@@ -42,6 +43,7 @@ async def _inner_req_evaluate(
     req_token_data: TokenData | None,
     resources: tuple[ResourceModel, ...],
     permissions: tuple[Permission, ...],
+    config: Config,
     idp_manager: BaseIdPManager,
     logger: BoundLogger,
     pe: PolicyEngine,
@@ -51,11 +53,12 @@ async def _inner_req_evaluate(
     # Given a token or token-like data, a resource, and a list of required permissions, figure out if the
     # Builds on the above method, but here a decision is actually being made.
 
-    async def _create_response(token_data: TokenData | None):
-        return EvaluationMatrixResponse(result=await pe.evaluate(resources, permissions, token_data, logger))
+    async def _create_response(token: str | None, token_data: TokenData | None):
+        return EvaluationMatrixResponse(result=await pe.evaluate(resources, permissions, token, token_data, logger))
 
     return await use_token_data_or_return_error_state(
         authorization,
+        config,
         idp_manager,
         logger,
         err_state=EvaluationMatrixResponse(result=[[False] * len(permissions) for _ in resources]),
@@ -68,6 +71,7 @@ async def req_evaluate(
     request: Request,
     authorization: OptionalBearerToken,
     evaluation_request: EvaluationMatrixRequest,
+    config: ConfigDependency,
     db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
     logger: LoggerDependency,
@@ -91,6 +95,7 @@ async def req_evaluate(
         evaluation_request.token_data,
         evaluation_request.resources,
         tuple(PERMISSIONS_BY_STRING[p] for p in evaluation_request.permissions),
+        config,
         idp_manager,
         logger,
         policy_engine,
@@ -102,6 +107,7 @@ async def req_evaluate_one(
     request: Request,
     authorization: OptionalBearerToken,
     evaluation_request: EvaluationScalarRequest,
+    config: ConfigDependency,
     idp_manager: IdPManagerDependency,
     policy_engine: PolicyEngineDependency,
     logger: LoggerDependency,
@@ -118,6 +124,7 @@ async def req_evaluate_one(
                 evaluation_request.token_data,
                 (evaluation_request.resource,),
                 (PERMISSIONS_BY_STRING[evaluation_request.permission],),
+                config,
                 idp_manager,
                 logger,
                 policy_engine,

@@ -319,10 +319,11 @@ class BentoPolicyEngine(PolicyEngine):
         return permission in permissions
 
     async def determine_permissions(
-        self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
+        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]:
         """
         Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
+        :param token: The bearer token from the request, or None if an anonymous request.
         :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
         :param requested_resource: The resource the token wishes to operate on.
         :param logger: Structlog stdlib BoundLogger instance.
@@ -337,7 +338,8 @@ class BentoPolicyEngine(PolicyEngine):
         self,
         resources: Sequence[ResourceModel],
         permissions: Sequence[Permission],
-        token: str | TokenData | None,
+        token: str | None,
+        token_data: TokenData | None,
         logger: BoundLogger,
     ) -> tuple[tuple[bool, ...], ...]:
         # If an access token is specified, validate it and extract its data.
