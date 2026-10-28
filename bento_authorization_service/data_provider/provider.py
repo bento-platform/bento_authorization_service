@@ -22,6 +22,9 @@ class AuthzDataProvider(BaseDataProvider):
         # TODO: figure out how to handle async initialization?
         loaded_grants, loaded_groups = load_static_authz_data(static_data_file)
 
+        # Store static grants/groups with strictly negative integer IDs. This prevents ID clashes and means we can do
+        # easy lookup routing to avoid bouncing off the database too much:
+
         self.static_grants: dict[int, StoredGrantModel] = {
             -1 * i: StoredGrantModel.from_grant(g, id_=-1 * i, created=datetime.now(UTC), mutable=False)
             for i, g in enumerate(loaded_grants, 1)
