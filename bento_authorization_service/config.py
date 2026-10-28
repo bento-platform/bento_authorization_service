@@ -1,8 +1,10 @@
 from functools import lru_cache
-from typing import Annotated
+from pathlib import Path
+from typing import Annotated, Any
 
 from bento_lib.config.pydantic import BentoFastAPIBaseConfig
 from fastapi import Depends
+from pydantic import BeforeValidator
 
 from .constants import SERVICE_ARTIFACT, SERVICE_GROUP
 
@@ -11,6 +13,12 @@ __all__ = [
     "get_config",
     "ConfigDependency",
 ]
+
+
+def ensure_blank_to_none(value: Any) -> Any:
+    if not value:
+        return None
+    return value
 
 
 class Config(BentoFastAPIBaseConfig):
@@ -22,6 +30,9 @@ class Config(BentoFastAPIBaseConfig):
     service_name: str = "Bento Authorization Service"
 
     database_uri: str = "postgres://localhost:5432"
+
+    grants_file: Annotated[Path | None, BeforeValidator(ensure_blank_to_none)] = None
+    groups_file: Annotated[Path | None, BeforeValidator(ensure_blank_to_none)] = None
 
     # OpenID well-known URL of the instance Identity Provider to extract endpoints from
     #  - Schemas in this service are written ready for multi-IdP/federation support; however, for now, only

@@ -3,9 +3,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from ..data_source import BaseDataSource
+from ..data_source import BaseDataSource, JsonDataSourceDependency
 from ..db import DatabaseDependency
-from ..dependencies import JsonDataSourceDependency
 from ..idp_manager import IdPManagerDependency
 from .base import PolicyEngine
 from .evaluation import BentoPolicyEngine

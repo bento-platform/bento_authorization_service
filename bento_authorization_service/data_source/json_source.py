@@ -1,33 +1,21 @@
-import asyncio
 import json
-from abc import ABC, abstractmethod
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
+from fastapi import Depends
 from pydantic import TypeAdapter
 
 from bento_authorization_service.models import GrantModel, GroupModel, StoredGrantModel, StoredGroupModel
 
+from ..config import ConfigDependency
+from .base import BaseDataSource
 
-class BaseDataSource(ABC):
-    @abstractmethod
-    async def get_grant(self, id_: int) -> StoredGrantModel | None: ...
-
-    @abstractmethod
-    async def get_grants(self) -> tuple[StoredGrantModel, ...]: ...
-
-    @abstractmethod
-    async def get_group(self, id_: int) -> StoredGroupModel | None: ...
-
-    @abstractmethod
-    async def get_groups(self) -> tuple[StoredGroupModel, ...]: ...
-
-    async def get_groups_dict(self) -> dict[int, StoredGroupModel]:
-        return {g.id: g for g in (await self.get_groups())}
-
-    async def get_grants_and_groups_dict(self) -> tuple[tuple[StoredGrantModel, ...], dict[int, StoredGroupModel]]:
-        return await asyncio.gather(self.get_grants(), self.get_groups_dict())
-
+__all__ = [
+    "JsonDataSource",
+    "JsonDataSourceDependency",
+]
 
 GRANTS_ADAPTER = TypeAdapter(list[GrantModel])
 GROUPS_ADAPTER = TypeAdapter(list[GroupModel])
@@ -35,16 +23,20 @@ GROUPS_ADAPTER = TypeAdapter(list[GroupModel])
 
 class JsonDataSource(BaseDataSource):
     @staticmethod
-    def load_grants(path: Path) -> list[GrantModel]:
-        with open(path, "r") as fh:
-            return GRANTS_ADAPTER.validate_python(json.load(fh))
+    def load_grants(path: Path | None) -> list[GrantModel]:
+        if path:
+            with open(path, "r") as fh:
+                return GRANTS_ADAPTER.validate_python(json.load(fh))
+        return []
 
     @staticmethod
-    def load_groups(path: Path) -> list[GroupModel]:
-        with open(path, "r") as fh:
-            return GROUPS_ADAPTER.validate_python(json.load(fh))
+    def load_groups(path: Path | None) -> list[GroupModel]:
+        if path:
+            with open(path, "r") as fh:
+                return GROUPS_ADAPTER.validate_python(json.load(fh))
+        return []
 
-    def __init__(self, grants_path: Path, groups_path: Path):
+    def __init__(self, grants_path: Path | None, groups_path: Path | None):
         # TODO: figure out how to handle async initialization?
         loaded_grants = self.load_grants(grants_path)
         loaded_groups = self.load_groups(groups_path)
@@ -69,3 +61,13 @@ class JsonDataSource(BaseDataSource):
 
     async def get_groups(self) -> tuple[StoredGroupModel, ...]:
         return tuple(self.groups.values())
+
+
+@lru_cache
+def get_json_data_source(config: ConfigDependency) -> JsonDataSource | None:
+    if not config.grants_file and not config.groups_file:
+        return None
+    return JsonDataSource(config.grants_file, config.groups_file)
+
+
+JsonDataSourceDependency = Annotated[JsonDataSource | None, Depends(get_json_data_source)]
