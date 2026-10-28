@@ -198,6 +198,25 @@ class IdPManager(BaseIdPManager):
 
         raise IdPManagerError("Could not get signing key for token")
 
+    async def user_info(self, token: str) -> dict:
+        # This returns UserInfo corresponding to a particular access token, allowing access tokens to be opaque.
+
+        if not self._initialized:  # Initialize the IdPManager lazily on first decode request
+            await self.initialize()
+            if not self._initialized:  # Initialization failed
+                raise UninitializedIdPManagerError("IdpManager initialization failed")
+
+        if self._openid_config_data is None:
+            raise UninitializedIdPManagerError("No OpenID config data")
+
+        async with (
+            aiohttp.ClientSession(
+                connector=self._tcp_connector, headers={"Authorization": f"Bearer {token}"}
+            ) as session,
+            session.get(self._openid_config_data["userinfo_endpoint"], raise_for_status=True) as res,
+        ):
+            return await res.json()
+
 
 @lru_cache
 def get_idp_manager(config: ConfigDependency, logger: LoggerDependency) -> BaseIdPManager:
