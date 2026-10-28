@@ -1,11 +1,10 @@
-import json
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
-from pydantic import TypeAdapter
+from pydantic import BaseModel, Field
 
 from bento_authorization_service.models import GrantModel, GroupModel, StoredGrantModel, StoredGroupModel
 
@@ -17,29 +16,24 @@ __all__ = [
     "JsonDataSourceDependency",
 ]
 
-GRANTS_ADAPTER = TypeAdapter(list[GrantModel])
-GROUPS_ADAPTER = TypeAdapter(list[GroupModel])
+
+class StaticAuthzData(BaseModel):
+    grants: list[GrantModel] = Field(default_factory=list)
+    groups: list[GroupModel] = Field(default_factory=list)
 
 
 class JsonDataSource(BaseDataSource):
     @staticmethod
-    def load_grants(path: Path | None) -> list[GrantModel]:
+    def load_data(path: Path | None) -> tuple[list[GrantModel], list[GroupModel]]:
         if path:
             with open(path, "r") as fh:
-                return GRANTS_ADAPTER.validate_python(json.load(fh))
-        return []
+                loaded = StaticAuthzData.model_validate_json(fh.read())
+                return loaded.grants, loaded.groups
+        return [], []
 
-    @staticmethod
-    def load_groups(path: Path | None) -> list[GroupModel]:
-        if path:
-            with open(path, "r") as fh:
-                return GROUPS_ADAPTER.validate_python(json.load(fh))
-        return []
-
-    def __init__(self, grants_path: Path | None, groups_path: Path | None):
+    def __init__(self, data_path: Path):
         # TODO: figure out how to handle async initialization?
-        loaded_grants = self.load_grants(grants_path)
-        loaded_groups = self.load_groups(groups_path)
+        loaded_grants, loaded_groups = self.load_data(data_path)
 
         self.grants: dict[int, StoredGrantModel] = {
             -1 * i: StoredGrantModel.from_grant(g, id_=-1 * i, created=datetime.now(UTC), mutable=False)
@@ -65,9 +59,9 @@ class JsonDataSource(BaseDataSource):
 
 @lru_cache
 def get_json_data_source(config: ConfigDependency) -> JsonDataSource | None:
-    if not config.grants_file and not config.groups_file:
-        return None
-    return JsonDataSource(config.grants_file, config.groups_file)
+    if config.static_authz_data:
+        return JsonDataSource(config.static_authz_data)
+    return None
 
 
 JsonDataSourceDependency = Annotated[JsonDataSource | None, Depends(get_json_data_source)]

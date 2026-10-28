@@ -31,8 +31,7 @@ class Config(BentoFastAPIBaseConfig):
 
     database_uri: str = "postgres://localhost:5432"
 
-    grants_file: Annotated[Path | None, BeforeValidator(ensure_blank_to_none)] = None
-    groups_file: Annotated[Path | None, BeforeValidator(ensure_blank_to_none)] = None
+    static_authz_data: Annotated[Path | None, BeforeValidator(ensure_blank_to_none)] = None
 
     # OpenID well-known URL of the instance Identity Provider to extract endpoints from
     #  - Schemas in this service are written ready for multi-IdP/federation support; however, for now, only
