@@ -8,16 +8,16 @@ __all__ = ["BaseDataProvider"]
 
 class BaseDataProvider(ABC):
     @abstractmethod
-    async def get_grant(self, id_: int) -> StoredGrantModel | None: ...
+    async def get_grant(self, id_: int) -> StoredGrantModel | None: ...  # pragma: no cover
 
     @abstractmethod
-    async def get_grants(self) -> tuple[StoredGrantModel, ...]: ...
+    async def get_grants(self) -> tuple[StoredGrantModel, ...]: ...  # pragma: no cover
 
     @abstractmethod
-    async def get_group(self, id_: int) -> StoredGroupModel | None: ...
+    async def get_group(self, id_: int) -> StoredGroupModel | None: ...  # pragma: no cover
 
     @abstractmethod
-    async def get_groups(self) -> tuple[StoredGroupModel, ...]: ...
+    async def get_groups(self) -> tuple[StoredGroupModel, ...]: ...  # pragma: no cover
 
     async def get_groups_dict(self) -> dict[int, StoredGroupModel]:
         return {g.id: g for g in (await self.get_groups())}

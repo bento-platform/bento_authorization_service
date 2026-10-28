@@ -50,12 +50,6 @@ class AuthzDataProvider(BaseDataProvider):
     async def get_groups(self) -> tuple[StoredGroupModel, ...]:
         return *self.static_groups.values(), *(await self.db.get_groups())
 
-    async def get_groups_dict(self) -> dict[int, StoredGroupModel]:
-        return self.static_groups | (await self.db.get_groups_dict())
-
-    async def get_grants_and_groups_dict(self) -> tuple[tuple[StoredGrantModel, ...], dict[int, StoredGroupModel]]:
-        return await asyncio.gather(self.get_grants(), self.get_groups_dict())
-
 
 @lru_cache
 def get_authz_data_provider(config: ConfigDependency, db: DatabaseDependency) -> AuthzDataProvider:
