@@ -72,6 +72,33 @@ For more environment variable configuration options see the `Config` object in
 [config.py](./bento_authorization_service/config.py).
 
 
+### Static Authorization Data Format
+
+A file can be provided via the configuration environment variable `STATIC_AUTHZ_DATA` with the following format, 
+for example:
+
+```json
+{
+  "grants": [
+    {
+      "subject": {"everyone": true},
+      "resource": {"everything": true},
+      "expiry": null,
+      "permissions": ["query:dataset_level_counts"]
+    }
+  ],
+  "groups": [
+    {
+      "name": "My Group",
+      "membership": {
+        "members": [{"iss": "asdf", "sub": "hjkl"}]
+      }
+    }
+  ]
+}
+```
+
+
 
 
 ## Usage and API
