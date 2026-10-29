@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.config import Config, ConfigDependency
-from bento_authorization_service.db import DatabaseDependency
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager, IdPManagerDependency
 from bento_authorization_service.logger import LoggerDependency
@@ -72,7 +71,6 @@ async def req_evaluate(
     authorization: OptionalBearerToken,
     evaluation_request: EvaluationMatrixRequest,
     config: ConfigDependency,
-    db: DatabaseDependency,
     idp_manager: IdPManagerDependency,
     logger: LoggerDependency,
     policy_engine: PolicyEngineDependency,
