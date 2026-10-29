@@ -100,7 +100,16 @@ class PcglPolicyEngine(BentoPolicyEngine):
             if study_id := _resource_dataset_id(r):
                 pcgl_checkable_studies.append((i, study_id))
 
-        delegated_perm_indices = [permissions.index(p) for p in self.PCGL_DELEGATED_PERMISSIONS]
+        delegated_perm_indices_set: set[int] = set()
+
+        for p in self.PCGL_DELEGATED_PERMISSIONS:
+            if p in permissions:
+                delegated_perm_indices_set.add(permissions.index(p))
+                for pg in p.gives:
+                    if pg in permissions:
+                        delegated_perm_indices_set.add(permissions.index(pg))
+
+        delegated_perm_indices = list(delegated_perm_indices_set)
 
         if delegated_perm_indices and pcgl_checkable_studies:
             res = await self._call_pcgl_authz(
@@ -109,6 +118,5 @@ class PcglPolicyEngine(BentoPolicyEngine):
             for (i, s), r in zip(pcgl_checkable_studies, res):
                 for j in delegated_perm_indices:
                     bento_res[i][j] = True
-                # TODO: 'gives' permissions
 
         return bento_res
