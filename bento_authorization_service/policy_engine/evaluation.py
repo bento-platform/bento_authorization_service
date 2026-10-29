@@ -341,7 +341,7 @@ class BentoPolicyEngine(PolicyEngine):
         token: str | None,
         token_data: TokenData | None,
         logger: BoundLogger,
-    ) -> tuple[tuple[bool, ...], ...]:
+    ) -> list[list[bool]]:
         # If an access token is specified, validate it and extract its data.
         # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
         # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
@@ -355,13 +355,13 @@ class BentoPolicyEngine(PolicyEngine):
         grants, groups_dict = await self.provider.get_grants_and_groups_dict()
 
         # Determine the permissions evaluation matrix
-        evaluation_matrix = tuple(
-            tuple(
+        evaluation_matrix = [
+            [
                 self._evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger)
                 for p in permissions
-            )
+            ]
             for r in resources
-        )
+        ]
 
         # Log the decision made, with some user data
         user_str = LOG_SUBJECT_ANONYMOUS

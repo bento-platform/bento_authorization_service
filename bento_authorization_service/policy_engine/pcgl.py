@@ -20,6 +20,16 @@ class PcglAuthzError(Exception):
     """
 
 
+def _resource_dataset_id(resource: ResourceModel) -> str | None:
+    """
+    If the resource is a dataset, extract the dataset ID. Otherwise, return None since we do not have a dataset
+    (PCGL study) that can be checked.
+    """
+    if isinstance(resource.root, ResourceSpecificModel) and (dataset_id := resource.root.dataset):
+        return dataset_id
+    return None
+
+
 class PcglPolicyEngine(BentoPolicyEngine):
     """
     A policy engine which back-channels policy decisions to the PCGL authorization service, and falls back to the Bento
@@ -55,8 +65,6 @@ class PcglPolicyEngine(BentoPolicyEngine):
     async def determine_permissions(
         self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]:
-        # TODO: implement me
-
         # query:data and download:data are determined by the PCGL authz service
         perms = (
             set(await super().determine_permissions(requested_resource, token, token_data, logger))
@@ -64,12 +72,15 @@ class PcglPolicyEngine(BentoPolicyEngine):
         )
 
         # TODO: handle non-dataset resources
-        if isinstance(requested_resource.root, ResourceSpecificModel) and (study_id := requested_resource.root.dataset):
+        if study_id := _resource_dataset_id(requested_resource):
             res = await self._call_pcgl_authz(token, (study_id,), logger)
             if res[0]:  # first element, corresponding to requested study
                 # Having "access" to a study in the PCGL context means full data access:
                 #  querying + downloading files, plus derived permissions
                 perms.update(self.PCGL_DELEGATED_PERMISSIONS)
+                #  we also give all derived permissions from these delegated permissions:
+                for p in self.PCGL_DELEGATED_PERMISSIONS:
+                    perms.update(p.gives)
 
         return frozenset(perms)
 
@@ -80,6 +91,24 @@ class PcglPolicyEngine(BentoPolicyEngine):
         token: str | None,
         token_data: TokenData | None,
         logger: BoundLogger,
-    ) -> tuple[tuple[bool, ...], ...]:
-        # TODO: implement me
-        return await super().evaluate(resources, permissions, token, token_data, logger)
+    ) -> list[list[bool]]:
+        bento_res = await super().evaluate(resources, permissions, token, token_data, logger)
+
+        pcgl_checkable_studies: list[tuple[int, str]] = []
+
+        for i, r in enumerate(resources):
+            if study_id := _resource_dataset_id(r):
+                pcgl_checkable_studies.append((i, study_id))
+
+        delegated_perm_indices = [permissions.index(p) for p in self.PCGL_DELEGATED_PERMISSIONS]
+
+        if delegated_perm_indices and pcgl_checkable_studies:
+            res = await self._call_pcgl_authz(
+                token, tuple(study_id for (_, study_id) in pcgl_checkable_studies), logger
+            )
+            for (i, s), r in zip(pcgl_checkable_studies, res):
+                for j in delegated_perm_indices:
+                    bento_res[i][j] = True
+                # TODO: 'gives' permissions
+
+        return bento_res
