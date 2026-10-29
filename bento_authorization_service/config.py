@@ -47,9 +47,12 @@ class Config(BentoFastAPIBaseConfig):
     #  - Whether we expect access tokens to be JWTs.
     jwt_access_tokens: bool = False
 
-    # PCGL authorization service URL (IF policy_engine is set to "pcgl")
+    # PCGL authorization service connection:
+    #   - URL (IF policy_engine is set to "pcgl")
     # TODO: validate set if policy engine pcgl
     pcgl_authz_service_url: str = ""
+    #  - Service ID (X-Service-Id) for calls to the PCGL authz service
+    pcgl_service_id: str = ""
 
 
 @lru_cache
