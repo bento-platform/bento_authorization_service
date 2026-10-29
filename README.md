@@ -57,7 +57,7 @@ services:
     ports:
       - "80:5000"
   authorization-db:
-    image: postgres:15
+    image: postgres:18
     environment:
       - POSTGRES_USER=auth_user
       - POSTGRES_PASSWORD=auth_password
