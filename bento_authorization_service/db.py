@@ -1,4 +1,3 @@
-import asyncio
 import json
 from datetime import datetime
 from functools import lru_cache
@@ -10,6 +9,7 @@ from bento_lib.db.pg_async import PgAsyncDatabase
 from fastapi import Depends
 
 from .config import ConfigDependency
+from .data_provider.base import BaseDataProvider
 from .models import GrantModel, GroupModel, ResourceModel, StoredGrantModel, StoredGroupModel, SubjectModel
 from .utils import json_model_dump_kwargs
 
@@ -49,6 +49,7 @@ def grant_db_deserialize(r: asyncpg.Record) -> StoredGrantModel:
         expiry=r["expiry"],
         # Aggregated from grant_permissions
         permissions=frozenset(r["permissions"]),  # TODO: what to do with permissions class vs. string?
+        mutable=True,  # database grants are mutable
     )
 
 
@@ -81,6 +82,7 @@ def group_db_deserialize(r: asyncpg.Record) -> StoredGroupModel:
         notes=r["notes"],
         created=r["created"],
         expiry=r["expiry"],
+        mutable=True,  # database groups are mutable by users with sufficient permissions
     )
 
 
@@ -93,7 +95,7 @@ def group_db_deserialize_opt(r: asyncpg.Record | None) -> StoredGroupModel | Non
     return group_db_deserialize(r)
 
 
-class Database(PgAsyncDatabase):
+class Database(PgAsyncDatabase, BaseDataProvider):
     def __init__(self, db_uri: str):
         super().__init__(db_uri, SCHEMA_PATH)
 
@@ -261,12 +263,6 @@ class Database(PgAsyncDatabase):
         async with self.connect() as conn:
             res = await conn.fetch("SELECT id, name, membership, notes, created, expiry FROM groups")
             return tuple(group_db_deserialize(g) for g in res)
-
-    async def get_groups_dict(self) -> dict[int, StoredGroupModel]:
-        return {g.id: g for g in (await self.get_groups())}
-
-    async def get_grants_and_groups_dict(self) -> tuple[tuple[StoredGrantModel, ...], dict[int, StoredGroupModel]]:
-        return await asyncio.gather(self.get_grants(), self.get_groups_dict())
 
     async def create_group(self, group: GroupModel) -> int | None:
         # GROUP_SCHEMA_VALIDATOR.validate(group)  # Will raise if the group is invalid

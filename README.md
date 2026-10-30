@@ -57,7 +57,7 @@ services:
     ports:
       - "80:5000"
   authorization-db:
-    image: postgres:15
+    image: postgres:18
     environment:
       - POSTGRES_USER=auth_user
       - POSTGRES_PASSWORD=auth_password
@@ -70,6 +70,33 @@ services:
 
 For more environment variable configuration options see the `Config` object in
 [config.py](./bento_authorization_service/config.py).
+
+
+### Static Authorization Data Format
+
+A file can be provided via the configuration environment variable `STATIC_AUTHZ_DATA_PATH` with the following format, 
+for example:
+
+```json
+{
+  "grants": [
+    {
+      "subject": {"everyone": true},
+      "resource": {"everything": true},
+      "expiry": null,
+      "permissions": ["query:dataset_level_counts"]
+    }
+  ],
+  "groups": [
+    {
+      "name": "My Group",
+      "membership": {
+        "members": [{"iss": "asdf", "sub": "hjkl"}]
+      }
+    }
+  ]
+}
+```
 
 
 

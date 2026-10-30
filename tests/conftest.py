@@ -134,12 +134,12 @@ async def idp_manager(logger: structlog.stdlib.BoundLogger):
 
 @pytest.fixture(name="pe")
 def policy_engine(db: Database, idp_manager: BaseIdPManager):
-    return BentoPolicyEngine(db, idp_manager)
+    return BentoPolicyEngine(idp_manager, db)
 
 
 @pytest.fixture(name="pe_no")
 def policy_engine_no_db_init(db_no: Database, idp_manager: BaseIdPManager):
-    return BentoPolicyEngine(db_no, idp_manager)
+    return BentoPolicyEngine(idp_manager, db_no)
 
 
 @pytest.fixture()

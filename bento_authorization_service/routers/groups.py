@@ -4,6 +4,7 @@ from bento_lib.auth.permissions import P_EDIT_PERMISSIONS, P_VIEW_PERMISSIONS
 from fastapi import APIRouter, HTTPException, status
 
 from ..authz import authz_middleware
+from ..data_provider.provider import AuthzDataProviderDependency
 from ..db import DatabaseDependency
 from ..models import RESOURCE_EVERYTHING, GroupModel, StoredGroupModel
 
@@ -25,8 +26,8 @@ def group_not_created() -> HTTPException:
 @groups_router.get(
     "/", dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)]
 )
-async def list_groups(db: DatabaseDependency) -> tuple[StoredGroupModel, ...]:
-    return await db.get_groups()
+async def list_groups(provider: AuthzDataProviderDependency) -> tuple[StoredGroupModel, ...]:
+    return await provider.get_groups()
 
 
 @groups_router.post(
@@ -53,11 +54,11 @@ async def create_group(
     "/{group_id}",
     dependencies=[authz_middleware.require_permission_dependency(RESOURCE_EVERYTHING, P_VIEW_PERMISSIONS)],
 )
-async def get_group(group_id: int, db: DatabaseDependency) -> StoredGroupModel:
+async def get_group(group_id: int, provider: AuthzDataProviderDependency) -> StoredGroupModel:
     # TODO: sub-groups owned by another group
     # TODO: test permissions for this endpoint
 
-    if group := await db.get_group(group_id):
+    if group := await provider.get_group(group_id):
         return group
     raise group_not_found(group_id)
 
