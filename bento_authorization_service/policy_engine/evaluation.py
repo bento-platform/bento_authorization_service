@@ -319,10 +319,11 @@ class BentoPolicyEngine(PolicyEngine):
         return permission in permissions
 
     async def determine_permissions(
-        self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
+        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]:
         """
         Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
+        :param token: The bearer token from the request, or None if an anonymous request.
         :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
         :param requested_resource: The resource the token wishes to operate on.
         :param logger: Structlog stdlib BoundLogger instance.
@@ -336,10 +337,11 @@ class BentoPolicyEngine(PolicyEngine):
     async def evaluate(
         self,
         resources: Sequence[ResourceModel],
-        permissions: list[Permission] | tuple[Permission, ...],
-        token: str | TokenData | None,
+        permissions: Sequence[Permission],
+        token: str | None,
+        token_data: TokenData | None,
         logger: BoundLogger,
-    ) -> tuple[tuple[bool, ...], ...]:
+    ) -> list[list[bool]]:
         # If an access token is specified, validate it and extract its data.
         # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
         # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
@@ -353,13 +355,13 @@ class BentoPolicyEngine(PolicyEngine):
         grants, groups_dict = await self.provider.get_grants_and_groups_dict()
 
         # Determine the permissions evaluation matrix
-        evaluation_matrix = tuple(
-            tuple(
+        evaluation_matrix = [
+            [
                 self._evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger)
                 for p in permissions
-            )
+            ]
             for r in resources
-        )
+        ]
 
         # Log the decision made, with some user data
         user_str = LOG_SUBJECT_ANONYMOUS

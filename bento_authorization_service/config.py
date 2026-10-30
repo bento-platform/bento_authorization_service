@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from bento_lib.config.pydantic import BentoFastAPIBaseConfig
 from fastapi import Depends
@@ -29,6 +29,8 @@ class Config(BentoFastAPIBaseConfig):
     service_id: str = f"{SERVICE_GROUP}:{SERVICE_ARTIFACT}"
     service_name: str = "Bento Authorization Service"
 
+    policy_engine: Literal["bento", "pcgl"] = "bento"
+
     database_uri: str = "postgres://localhost:5432"
 
     static_authz_data: Annotated[Path | None, BeforeValidator(ensure_blank_to_none)] = None
@@ -42,6 +44,19 @@ class Config(BentoFastAPIBaseConfig):
     token_audience: str = "account"
     #  - Default set of disabled 'insecure' algorithms (in this case symmetric key algorithms)
     disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
+    #  - Whether we expect access tokens to be JWTs.
+    jwt_access_tokens: bool = False
+
+    # PCGL authorization service connection:
+    #   - URL (IF policy_engine is set to "pcgl")
+    # TODO: validate set if policy engine pcgl
+    pcgl_authz_service_url: str = ""
+    #  - PCGL service public ID for calls to the PCGL authz service
+    pcgl_service_id: str = ""
+    #  - PCGL service secret/UUID for calls to the PCGL authz service
+    pcgl_service_secret: str = ""
+    #  - PCGL service token lifespan, in seconds
+    pcgl_service_token_lifespan: int = 1500  # defaults to 25 minutes
 
 
 @lru_cache

@@ -124,6 +124,8 @@ class IdPManager(BaseIdPManager):
         self._jwks: tuple[jwt.PyJWK, ...] = ()
         self._jwks_last_fetched = 0.0
 
+        self._tcp_connector = aiohttp.TCPConnector(verify_ssl=not self.debug)
+
     async def fetch_openid_config_if_needed(self):
         lf = self._openid_config_data_last_fetched
         time_since_last_fetched = -1
@@ -131,7 +133,7 @@ class IdPManager(BaseIdPManager):
             logger = self._logger.bind(time_since_last_fetched=time_since_last_fetched)
             try:
                 async with (
-                    aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not self.debug)) as session,
+                    aiohttp.ClientSession(connector=self._tcp_connector) as session,
                     session.get(self._openid_config_url, raise_for_status=True) as res,
                 ):
                     self._openid_config_data = await res.json()

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from bento_lib.auth.permissions import Permission
 from structlog.stdlib import BoundLogger
@@ -17,14 +18,15 @@ class PolicyEngine(ABC):
 
     @abstractmethod
     async def determine_permissions(
-        self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
+        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]: ...
 
     @abstractmethod
     async def evaluate(
         self,
-        resources: list[ResourceModel] | tuple[ResourceModel, ...],
-        permissions: list[Permission] | tuple[Permission, ...],
-        token: str | TokenData | None,
+        resources: Sequence[ResourceModel],
+        permissions: Sequence[Permission],
+        token: str | None,
+        token_data: TokenData | None,
         logger: BoundLogger,
-    ) -> tuple[tuple[bool, ...], ...]: ...
+    ) -> list[list[bool]]: ...

@@ -11,6 +11,7 @@ from bento_authorization_service.models import ResourceModel
 from bento_authorization_service.policy_engine.dependency import PolicyEngineDependency
 from bento_authorization_service.policy_engine.token_data import TokenData
 
+from ...config import ConfigDependency
 from ...policy_engine.base import PolicyEngine
 from .common import check_non_bearer_token_data_use, use_token_data_or_return_error_state
 from .router import policy_router
@@ -26,9 +27,9 @@ class ListPermissionsResponse(BaseModel):
 
 
 async def list_permissions_for_resource(
-    pe: PolicyEngine, token_data: TokenData | None, r: ResourceModel, logger: BoundLogger
+    pe: PolicyEngine, token: str | None, token_data: TokenData | None, r: ResourceModel, logger: BoundLogger
 ) -> list[str]:
-    return sorted(str(p) for p in await pe.determine_permissions(r, token_data, logger))
+    return sorted(str(p) for p in await pe.determine_permissions(r, token, token_data, logger))
 
 
 @policy_router.post("/permissions")
@@ -36,6 +37,7 @@ async def req_list_permissions(
     request: Request,
     authorization: OptionalBearerToken,
     list_permissions_request: ResourcesRequest,
+    config: ConfigDependency,
     idp_manager: IdPManagerDependency,
     logger: LoggerDependency,
     pe: PolicyEngineDependency,
@@ -60,15 +62,16 @@ async def req_list_permissions(
     # Given a token and a resource, figure out what permissions the token bearer has on the resource.
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
-    async def _create_response(token_data: TokenData | None) -> ListPermissionsResponse:
+    async def _create_response(token: str | None, token_data: TokenData | None) -> ListPermissionsResponse:
         res = []
         for r in r_resources:
-            res.append(await list_permissions_for_resource(pe, token_data, r, logger))
+            res.append(await list_permissions_for_resource(pe, token, token_data, r, logger))
         return ListPermissionsResponse(result=res)
 
     # TODO: real error response
     return await use_token_data_or_return_error_state(
         authorization,
+        config,
         idp_manager,
         logger,
         err_state=ListPermissionsResponse(result=[[] for _ in r_resources]),
@@ -82,11 +85,12 @@ class PermissionsMapResponse(BaseModel):
 
 async def build_permissions_map(
     pe: PolicyEngine,
+    token: str | None,
     token_data: TokenData | None,
     resource: ResourceModel,
     logger: BoundLogger,
 ) -> dict[Permission, bool]:
-    resource_permissions = set(await list_permissions_for_resource(pe, token_data, resource, logger))
+    resource_permissions = set(await list_permissions_for_resource(pe, token, token_data, resource, logger))
     valid_permissions = valid_permissions_for_resource(resource.model_dump(exclude_none=True))
     return {p: p in resource_permissions for p in valid_permissions}
 
@@ -96,6 +100,7 @@ async def req_permissions_map(
     request: Request,
     authorization: OptionalBearerToken,
     list_permissions_request: ResourcesRequest,
+    config: ConfigDependency,
     idp_manager: IdPManagerDependency,
     pe: PolicyEngineDependency,
     logger: LoggerDependency,
@@ -120,14 +125,15 @@ async def req_permissions_map(
     # Given a token and a resource, figure out what permissions the token bearer has on the resource.
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
-    async def _create_response(token_data: TokenData | None):
+    async def _create_response(token: str | None, token_data: TokenData | None):
         return PermissionsMapResponse(
-            result=[await build_permissions_map(pe, token_data, r, logger) for r in r_resources],
+            result=[await build_permissions_map(pe, token, token_data, r, logger) for r in r_resources],
         )
 
     # TODO: real error response
     return await use_token_data_or_return_error_state(
         authorization,
+        config,
         idp_manager,
         logger,
         err_state=PermissionsMapResponse(

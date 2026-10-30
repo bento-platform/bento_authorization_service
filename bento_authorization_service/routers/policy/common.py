@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from structlog.stdlib import BoundLogger
 
 from bento_authorization_service.authz import authz_middleware
+from bento_authorization_service.config import Config
 from bento_authorization_service.dependencies import OptionalBearerToken
 from bento_authorization_service.idp_manager import BaseIdPManager
 from bento_authorization_service.models import ResourceModel
@@ -41,13 +42,15 @@ async def check_non_bearer_token_data_use(
 
 async def use_token_data_or_return_error_state[T: BaseModel](
     authorization: OptionalBearerToken,
+    config: Config,
     idp_manager: BaseIdPManager,
     logger: BoundLogger,
     err_state: T,
-    create_response: Callable[[TokenData | None], Awaitable[T]],
+    create_response: Callable[[str | None, TokenData | None], Awaitable[T]],
 ) -> T:
+    token = (authorization.credentials if authorization is not None else None) or None
     try:
-        token_data = (await idp_manager.decode(authorization.credentials)) if authorization is not None else None
+        token_data = (await idp_manager.decode(token)) if token is not None and config.jwt_access_tokens else None
     except jwt.InvalidAudienceError as e:
         await logger.awarning("got token with bad audience", exception_repr=repr(e))
         return err_state
@@ -58,4 +61,4 @@ async def use_token_data_or_return_error_state[T: BaseModel](
         # Actually throw an HTTP error for this one
         raise HTTPException(detail="Bearer token must be a valid JWT", status_code=status.HTTP_400_BAD_REQUEST)
 
-    return await create_response(cast(TokenData | None, token_data))
+    return await create_response(token, cast(TokenData | None, token_data))
