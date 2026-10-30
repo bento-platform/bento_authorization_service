@@ -21,6 +21,7 @@ def get_policy_engine(
             provider,
             config.pcgl_authz_service_url,
             config.pcgl_service_id,
+            config.pcgl_service_secret,
             config.pcgl_service_token_lifespan,
         )
     return BentoPolicyEngine(idp_manager, provider)

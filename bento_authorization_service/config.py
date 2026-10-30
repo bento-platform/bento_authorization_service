@@ -51,8 +51,10 @@ class Config(BentoFastAPIBaseConfig):
     #   - URL (IF policy_engine is set to "pcgl")
     # TODO: validate set if policy engine pcgl
     pcgl_authz_service_url: str = ""
-    #  - PCGL service UUID (X-Service-Id) for calls to the PCGL authz service
+    #  - PCGL service public ID for calls to the PCGL authz service
     pcgl_service_id: str = ""
+    #  - PCGL service secret/UUID for calls to the PCGL authz service
+    pcgl_service_secret: str = ""
     #  - PCGL service token lifespan, in seconds
     pcgl_service_token_lifespan: int = 1500  # defaults to 25 minutes
 

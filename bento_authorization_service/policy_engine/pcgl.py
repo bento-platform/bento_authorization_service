@@ -45,6 +45,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
         provider: BaseDataProvider,
         pcgl_authz_url: str,
         pcgl_service_id: str,
+        pcgl_service_secret: str,
         pcgl_service_token_lifespan: int,
         debug: bool = False,
     ):
@@ -54,6 +55,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
 
         self.pcgl_authz_url = pcgl_authz_url.rstrip("/")
         self.pcgl_service_id = pcgl_service_id
+        self.pcgl_service_secret = pcgl_service_secret
         self.pcgl_service_token_lifespan = pcgl_service_token_lifespan
 
         self._service_token: str | None = None
@@ -76,7 +78,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
 
         # Otherwise, we don't have an extant token to use. Request a new one.
 
-        payload = {"service_uuid": self.pcgl_service_id}
+        payload = {"service_uuid": self.pcgl_service_secret}
 
         async with (
             aiohttp.ClientSession(connector=self._tcp_connector) as session,
@@ -99,7 +101,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
         headers = {
             "Authorization": f"Bearer {token}",
             "X-Service-Id": self.pcgl_service_id,
-            "X-Service-Token": self._get_pcgl_authz_request_token(logger),
+            "X-Service-Token": await self._get_pcgl_authz_request_token(logger),
         }
 
         # TODO: fill in endpoint properly
