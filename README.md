@@ -74,7 +74,7 @@ For more environment variable configuration options see the `Config` object in
 
 ### Static Authorization Data Format
 
-A file can be provided via the configuration environment variable `STATIC_AUTHZ_DATA` with the following format, 
+A file can be provided via the configuration environment variable `STATIC_AUTHZ_DATA_PATH` with the following format, 
 for example:
 
 ```json

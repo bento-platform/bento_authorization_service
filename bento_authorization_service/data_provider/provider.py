@@ -52,7 +52,7 @@ class AuthzDataProvider(BaseDataProvider):
 
 @lru_cache
 def get_authz_data_provider(config: ConfigDependency, db: DatabaseDependency) -> AuthzDataProvider:
-    return AuthzDataProvider(db, config.static_authz_data)
+    return AuthzDataProvider(db, config.static_authz_data_path)
 
 
 AuthzDataProviderDependency = Annotated[AuthzDataProvider, Depends(get_authz_data_provider)]
