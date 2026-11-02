@@ -191,7 +191,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "grants, groups_dict, token_data, resource, num_matching, true_permissions_set",
+    "grants, groups_dict, token, token_data, resource, num_matching, true_permissions_set",
     (
         (
             (
@@ -200,6 +200,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
                 sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
             ),
             sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
             sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             2,
@@ -215,6 +216,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
         (
             (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
             sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
             sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             0,  # Wrong project
@@ -223,6 +225,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
         (
             (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
             sd.TEST_GROUPS_DICT,
+            sd.TEST_TOKEN,
             sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             0,  # Expired
@@ -232,6 +235,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
             # Missing group - will throw SubjectError which will get caught and logged
             (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
             {},
+            sd.TEST_TOKEN,
             sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             0,
@@ -243,6 +247,7 @@ async def test_grant_permissions_set(
     db_no: Database,
     grants,
     groups_dict,
+    token: str,
     token_data,
     resource,
     num_matching,
@@ -257,7 +262,7 @@ async def test_grant_permissions_set(
         await db_no.set_group(gid, gr)
 
     matching_token = tuple(filter_matching_grants(grants, groups_dict, token_data, resource, logger))
-    permissions_set = await pe_no.determine_permissions(resource, token_data, token_data, logger)
+    permissions_set = await pe_no.determine_permissions(resource, token, token_data, logger)
     assert len(matching_token) == num_matching  # Missing group definition, so doesn't apply
     assert permissions_set == true_permissions_set
 

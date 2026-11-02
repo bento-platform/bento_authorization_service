@@ -47,6 +47,7 @@ TEST_TOKEN_DATA: TokenData = {
     "exp": 100,  # Not checked here
     "iat": 0,  # Not checked here
 }
+TEST_TOKEN = jwt.encode(TEST_TOKEN_DATA, TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
 def make_fresh_david_token(audience: str = TEST_TOKEN_AUD, exp_offset: int = 900):
