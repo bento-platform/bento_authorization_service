@@ -66,6 +66,8 @@ async def get_test_db() -> AsyncGenerator[Database, None]:
         # test user.
         await bootstrap_meta_permissions_for_david(db_instance)
     yield db_instance
+    # Close the pool so each request/test doesn't leave a Postgres connection open.
+    await db_instance.close()
 
 
 async def get_test_db_no_bootstrap() -> AsyncGenerator[Database, None]:
@@ -74,6 +76,7 @@ async def get_test_db_no_bootstrap() -> AsyncGenerator[Database, None]:
     db_instance = Database(get_config().database_uri)
     await db_instance.initialize(pool_size=1)  # Small pool size for testing
     yield db_instance
+    await db_instance.close()
 
 
 db_fixture = pytest_asyncio.fixture(get_test_db, name="db")
@@ -134,12 +137,12 @@ async def idp_manager(logger: structlog.stdlib.BoundLogger):
 
 @pytest.fixture(name="pe")
 def policy_engine(db: Database, idp_manager: BaseIdPManager):
-    return BentoPolicyEngine(db, idp_manager)
+    return BentoPolicyEngine(idp_manager, db)
 
 
 @pytest.fixture(name="pe_no")
 def policy_engine_no_db_init(db_no: Database, idp_manager: BaseIdPManager):
-    return BentoPolicyEngine(db_no, idp_manager)
+    return BentoPolicyEngine(idp_manager, db_no)
 
 
 @pytest.fixture()

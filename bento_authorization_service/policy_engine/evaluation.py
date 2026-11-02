@@ -1,5 +1,5 @@
 import itertools
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import datetime, timezone
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
@@ -7,7 +7,7 @@ from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from structlog.stdlib import BoundLogger
 
-from ..db import Database
+from ..data_provider.base import BaseDataProvider
 from ..idp_manager import BaseIdPManager
 from ..json_schemas import TOKEN_DATA
 from ..models import (
@@ -224,7 +224,7 @@ def resource_is_equivalent_or_contained(
 
 
 def filter_matching_grants(
-    grants: tuple[GrantModel, ...],
+    grants: Sequence[GrantModel],
     groups_dict: dict[int, StoredGroupModel],
     token_data: TokenData | None,
     requested_resource: ResourceModel,
@@ -271,14 +271,14 @@ LOG_SUBJECT_ANONYMOUS = {"anonymous": True}
 
 
 class BentoPolicyEngine(PolicyEngine):
-    def __init__(self, db: Database, idp_manager: BaseIdPManager):
-        self.db = db
+    def __init__(self, idp_manager: BaseIdPManager, provider: BaseDataProvider):
         self.idp_manager = idp_manager
+        self.provider = provider
 
     @classmethod
     def _determine_permissions(
         cls,
-        grants: tuple[GrantModel, ...],
+        grants: Sequence[GrantModel],
         groups_dict: dict[int, StoredGroupModel],
         token_data: TokenData | None,
         requested_resource: ResourceModel,
@@ -305,7 +305,7 @@ class BentoPolicyEngine(PolicyEngine):
     @classmethod
     def _evaluate_on_resource_and_permission(
         cls,
-        grants: tuple[GrantModel, ...],
+        grants: Sequence[GrantModel],
         groups_dict: dict[int, StoredGroupModel],
         token_data: TokenData | None,
         resource: ResourceModel,
@@ -329,14 +329,13 @@ class BentoPolicyEngine(PolicyEngine):
         :return: The permissions frozen set
         """
 
-        # Fetch grants + groups from the database in parallel
-        grants, groups_dict = await self.db.get_grants_and_groups_dict()
-
+        # Fetch grants + groups from the database and any other permissions providers in parallel
+        grants, groups_dict = await self.provider.get_grants_and_groups_dict()
         return self._determine_permissions(grants, groups_dict, token_data, requested_resource, logger)
 
     async def evaluate(
         self,
-        resources: list[ResourceModel] | tuple[ResourceModel, ...],
+        resources: Sequence[ResourceModel],
         permissions: list[Permission] | tuple[Permission, ...],
         token: str | TokenData | None,
         logger: BoundLogger,
@@ -350,8 +349,8 @@ class BentoPolicyEngine(PolicyEngine):
         # If we instead receive already parsed token data, we just use that instead:
         token_data: TokenData | None = (await self.idp_manager.decode(token)) if isinstance(token, str) else token
 
-        # Fetch grants + groups from the database in parallel
-        grants, groups_dict = await self.db.get_grants_and_groups_dict()
+        # Fetch grants + groups from the database and any other permissions providers in parallel
+        grants, groups_dict = await self.provider.get_grants_and_groups_dict()
 
         # Determine the permissions evaluation matrix
         evaluation_matrix = tuple(

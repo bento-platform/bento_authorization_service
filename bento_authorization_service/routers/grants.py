@@ -5,7 +5,9 @@ from bento_lib.auth.permissions import P_EDIT_PERMISSIONS, P_VIEW_PERMISSIONS, P
 from fastapi import APIRouter, HTTPException, Request, status
 
 from ..authz import authz_middleware
-from ..db import Database, DatabaseDependency
+from ..data_provider.base import BaseDataProvider
+from ..data_provider.provider import AuthzDataProviderDependency
+from ..db import DatabaseDependency
 from ..dependencies import OptionalBearerToken
 from ..logger import LoggerDependency
 from ..models import GrantModel, ResourceModel, StoredGrantModel
@@ -49,10 +51,10 @@ async def get_grant_and_check_access(
     token: str | None,
     grant_id: int,
     required_permission: Permission,
-    db: Database,
+    provider: BaseDataProvider,
     pe: PolicyEngineDependency,
 ) -> StoredGrantModel:
-    if (grant := await db.get_grant(grant_id)) is not None:
+    if (grant := await provider.get_grant(grant_id)) is not None:
         await authz_middleware.raise_if_no_resource_access(request, token, grant.resource, required_permission, pe)
         return grant
 
@@ -64,12 +66,12 @@ async def get_grant_and_check_access(
 
 @grants_router.get("/", dependencies=[authz_middleware.dep_public_endpoint()])
 async def list_grants(
-    db: DatabaseDependency,
+    provider: AuthzDataProviderDependency,
     logger: LoggerDependency,
     pe: PolicyEngineDependency,
     authorization: OptionalBearerToken,
 ) -> list[StoredGrantModel]:
-    all_grants = await db.get_grants()
+    all_grants = await provider.get_grants()
 
     resources = tuple(g.resource for g in all_grants)
     permissions = await pe.evaluate(resources, (P_VIEW_PERMISSIONS,), extract_token(authorization), logger)
@@ -111,13 +113,13 @@ async def create_grant(
 async def get_grant(
     request: Request,
     grant_id: int,
-    db: DatabaseDependency,
+    provider: AuthzDataProviderDependency,
     pe: PolicyEngineDependency,
     authorization: OptionalBearerToken,
 ) -> StoredGrantModel:
     # Make sure the grant exists, and we have permissions-viewing capabilities.
     grant = await get_grant_and_check_access(
-        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, db, pe
+        request, extract_token(authorization), grant_id, P_VIEW_PERMISSIONS, provider, pe
     )
 
     # Flag that we have thought about auth
@@ -136,6 +138,7 @@ async def update_grant(
     authorization: OptionalBearerToken,
 ):
     # Make sure the grant exists, and we have permissions-editing capabilities on the existing resource.
+    #  - here, the database is the data provider, since we cannot mutate static grants/groups
     existing_grant = await get_grant_and_check_access(
         request, extract_token(authorization), grant_id, P_EDIT_PERMISSIONS, db, pe
     )
@@ -157,6 +160,7 @@ async def delete_grant(
     authorization: OptionalBearerToken,
 ):
     # Make sure the grant exists, and we have permissions-editing capabilities.
+    #  - here, the database is the data provider, since we cannot mutate static grants/groups
     await get_grant_and_check_access(request, extract_token(authorization), grant_id, P_EDIT_PERMISSIONS, db, pe)
 
     # Flag that we have thought about auth
