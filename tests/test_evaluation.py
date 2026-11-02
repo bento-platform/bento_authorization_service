@@ -53,41 +53,47 @@ VALID_EVALUATE_ONE_BODY = {
 
 
 def test_token_issuer_based_comparison():
-    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss="other", sub=sd.SUB))
-
-    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub=sd.SUB))
-    assert not check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndSubjectModel(iss=sd.ISS, sub="other"))
-
-    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, IssuerAndClientModel(iss=sd.ISS, client=sd.CLIENT))
     assert not check_token_against_issuer_based_model_obj(
-        sd.TEST_TOKEN, IssuerAndClientModel(iss=sd.ISS, client="other")
+        sd.TEST_TOKEN_DATA, IssuerAndSubjectModel(iss="other", sub=sd.SUB)
+    )
+
+    assert check_token_against_issuer_based_model_obj(sd.TEST_TOKEN_DATA, IssuerAndSubjectModel(iss=sd.ISS, sub=sd.SUB))
+    assert not check_token_against_issuer_based_model_obj(
+        sd.TEST_TOKEN_DATA, IssuerAndSubjectModel(iss=sd.ISS, sub="other")
+    )
+
+    assert check_token_against_issuer_based_model_obj(
+        sd.TEST_TOKEN_DATA, IssuerAndClientModel(iss=sd.ISS, client=sd.CLIENT)
+    )
+    assert not check_token_against_issuer_based_model_obj(
+        sd.TEST_TOKEN_DATA, IssuerAndClientModel(iss=sd.ISS, client="other")
     )
 
     with pytest.raises(NotImplementedError):
-        check_token_against_issuer_based_model_obj(sd.TEST_TOKEN, FakeIssBased(iss=sd.ISS))
+        check_token_against_issuer_based_model_obj(sd.TEST_TOKEN_DATA, FakeIssBased(iss=sd.ISS))
 
 
 def test_invalid_group_membership():
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
-        check_if_token_is_in_group(sd.TEST_TOKEN, FakeGroupType1())
+        check_if_token_is_in_group(sd.TEST_TOKEN_DATA, FakeGroupType1())
 
 
-#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {}})
+#         check_if_token_is_in_group(sd.TEST_TOKEN_DATA, {"id": 1000, "membership": {}})
 #     with pytest.raises(InvalidGroupMembership):  # Must not be a malformatted member
-#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"bad": True}]}})
+#         check_if_token_is_in_group(sd.TEST_TOKEN_DATA, {"id": 1000, "membership": {"members": [{"bad": True}]}})
 #     with pytest.raises(InvalidGroupMembership):  # Must specify client or subject
-#         check_if_token_is_in_group(sd.TEST_TOKEN, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
+#         check_if_token_is_in_group(sd.TEST_TOKEN_DATA, {"id": 1000, "membership": {"members": [{"iss": sd.ISS}]}})
 
 
 def test_group_expiry():
-    assert not check_if_token_is_in_group(sd.TEST_TOKEN, sd.TEST_EXPIRED_GROUP)
+    assert not check_if_token_is_in_group(sd.TEST_TOKEN_DATA, sd.TEST_EXPIRED_GROUP)
 
 
 @pytest.mark.parametrize("group, is_member", sd.TEST_GROUPS)
 def test_group_membership(group: GroupModel, is_member: bool):
     assert not check_if_token_is_in_group(None, group)
-    assert check_if_token_is_in_group(sd.TEST_TOKEN, group) == is_member
+    assert check_if_token_is_in_group(sd.TEST_TOKEN_DATA, group) == is_member
     assert not check_if_token_is_in_group(sd.TEST_TOKEN_FOREIGN_ISS, group)  # All groups have local issuer
 
 
@@ -95,22 +101,22 @@ def test_group_membership(group: GroupModel, is_member: bool):
     "groups_dict, token, subject, res",
     (
         # Everyone:
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
         # Everyone (even foreign issuer):
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_FOREIGN_ISS, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
         # No token:
         (sd.TEST_GROUPS_DICT, None, sd.TEST_GRANT_EVERYONE_EVERYTHING_QUERY_DATA.subject, True),
         # Everyone:
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_EVERYONE_PROJECT_1_QUERY_DATA.subject, True),
         # Members of group 0 (iss/client-based):
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, True),
         # NOT a member of group 2:
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject, False),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_GROUP_2_PROJECT_1_QUERY_DATA.subject, False),
         # Client grant:
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_CLIENT_PROJECT_1_QUERY_DATA.subject, True),
         # David:
-        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, True),
+        (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, True),
         # NOT David:
         (sd.TEST_GROUPS_DICT, sd.TEST_TOKEN_NOT_DAVID, sd.TEST_GRANT_DAVID_PROJECT_1_QUERY_DATA.subject, False),
     ),
@@ -123,13 +129,15 @@ def test_invalid_subject(logger: BoundLogger):
     # Missing group raise:
     with pytest.raises(InvalidSubject):
         # No groups defined
-        check_if_token_matches_subject({}, sd.TEST_TOKEN, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, logger)
+        check_if_token_matches_subject(
+            {}, sd.TEST_TOKEN_DATA, sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA.subject, logger
+        )
 
     # New subject type (not handled):
     with pytest.raises(NotImplementedError):
         # noinspection PyTypeChecker
         check_if_token_matches_subject(
-            {}, sd.TEST_TOKEN, FakeSubjectType1.model_validate(FakeSubjectType1Inner()), logger
+            {}, sd.TEST_TOKEN_DATA, FakeSubjectType1.model_validate(FakeSubjectType1Inner()), logger
         )
 
 
@@ -183,7 +191,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "grants, groups_dict, token, resource, num_matching, true_permissions_set",
+    "grants, groups_dict, token_data, resource, num_matching, true_permissions_set",
     (
         (
             (
@@ -192,7 +200,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
                 sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA,
             ),
             sd.TEST_GROUPS_DICT,
-            sd.TEST_TOKEN,
+            sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             2,
             frozenset(
@@ -207,7 +215,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
         (
             (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
             sd.TEST_GROUPS_DICT,
-            sd.TEST_TOKEN,
+            sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             0,  # Wrong project
             frozenset(),
@@ -215,7 +223,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
         (
             (sd.TEST_GRANT_GROUP_0_PROJECT_1_QUERY_DATA_EXPIRED,),
             sd.TEST_GROUPS_DICT,
-            sd.TEST_TOKEN,
+            sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             0,  # Expired
             frozenset(),
@@ -224,7 +232,7 @@ def test_invalid_resource(r1, r2, logger: BoundLogger):
             # Missing group - will throw SubjectError which will get caught and logged
             (sd.TEST_GRANT_GROUP_0_PROJECT_2_QUERY_DATA,),
             {},
-            sd.TEST_TOKEN,
+            sd.TEST_TOKEN_DATA,
             sd.RESOURCE_PROJECT_1_DATASET_A,
             0,
             frozenset(),
@@ -235,7 +243,7 @@ async def test_grant_permissions_set(
     db_no: Database,
     grants,
     groups_dict,
-    token,
+    token_data,
     resource,
     num_matching,
     true_permissions_set,
@@ -248,8 +256,8 @@ async def test_grant_permissions_set(
     for gid, gr in groups_dict.items():
         await db_no.set_group(gid, gr)
 
-    matching_token = tuple(filter_matching_grants(grants, groups_dict, token, resource, logger))
-    permissions_set = await pe_no.determine_permissions(resource, token, logger)
+    matching_token = tuple(filter_matching_grants(grants, groups_dict, token_data, resource, logger))
+    permissions_set = await pe_no.determine_permissions(resource, token_data, token_data, logger)
     assert len(matching_token) == num_matching  # Missing group definition, so doesn't apply
     assert permissions_set == true_permissions_set
 
