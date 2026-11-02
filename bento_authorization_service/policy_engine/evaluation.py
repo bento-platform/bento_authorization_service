@@ -1,6 +1,7 @@
 import itertools
 from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import datetime, timezone
+from typing import cast
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
@@ -349,7 +350,9 @@ class BentoPolicyEngine(PolicyEngine):
         # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
 
         # If we instead receive already parsed token data, we just use that instead:
-        token_data: TokenData | None = (await self.idp_manager.decode(token)) if isinstance(token, str) else token
+        token_data: TokenData | None = token_data or (
+            cast(TokenData, await self.idp_manager.decode(token)) if isinstance(token, str) else None
+        )
 
         # Fetch grants + groups from the database and any other permissions providers in parallel
         grants, groups_dict = await self.provider.get_grants_and_groups_dict()

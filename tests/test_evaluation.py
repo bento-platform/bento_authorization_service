@@ -317,11 +317,11 @@ async def test_evaluate_function(
     tkn = await _eval_test_data(db)
 
     # directly given query:data
-    res = await pe.evaluate((sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,), tkn, logger)
+    res = await pe.evaluate((sd.RESOURCE_PROJECT_1,), (P_QUERY_DATA,), tkn, None, logger)
     assert res
 
     # indirectly (via gives=) given project-level boolean
-    res = await pe.evaluate((sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,), tkn, logger)
+    res = await pe.evaluate((sd.RESOURCE_PROJECT_1,), (P_QUERY_PROJECT_LEVEL_BOOLEAN,), tkn, None, logger)
     assert res
 
 
