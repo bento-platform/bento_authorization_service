@@ -31,5 +31,6 @@ async def test_invalid_token_algo(pe: BentoPolicyEngine, logger, test_client: Te
             (sd.RESOURCE_PROJECT_1,),
             (P_QUERY_DATA,),
             sd.make_fresh_david_disabled_alg_encoded(),
+            None,
             logger,
         )

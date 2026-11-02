@@ -3,16 +3,27 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from ..config import ConfigDependency
 from ..data_provider.provider import AuthzDataProviderDependency
 from ..idp_manager import IdPManagerDependency
 from .base import PolicyEngine
 from .evaluation import BentoPolicyEngine
-
-__all__ = ["get_policy_engine", "PolicyEngineDependency"]
+from .pcgl import PcglPolicyEngine
 
 
 @lru_cache
-def get_policy_engine(provider: AuthzDataProviderDependency, idp_manager: IdPManagerDependency) -> PolicyEngine:
+def get_policy_engine(
+    config: ConfigDependency, idp_manager: IdPManagerDependency, provider: AuthzDataProviderDependency
+) -> PolicyEngine:
+    if config.policy_engine == "pcgl":
+        return PcglPolicyEngine(
+            idp_manager,
+            provider,
+            config.pcgl_authz_service_url,
+            config.pcgl_service_id,
+            config.pcgl_service_secret,
+            config.pcgl_service_token_lifespan,
+        )
     return BentoPolicyEngine(idp_manager, provider)
 
 

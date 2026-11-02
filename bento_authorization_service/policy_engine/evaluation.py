@@ -1,6 +1,7 @@
 import itertools
 from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import datetime, timezone
+from typing import cast
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
 from bento_lib.search.data_structure import check_ast_against_data_structure
@@ -319,10 +320,11 @@ class BentoPolicyEngine(PolicyEngine):
         return permission in permissions
 
     async def determine_permissions(
-        self, requested_resource: ResourceModel, token_data: TokenData | None, logger: BoundLogger
+        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
     ) -> frozenset[Permission]:
         """
         Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
+        :param token: The bearer token from the request, or None if an anonymous request.
         :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
         :param requested_resource: The resource the token wishes to operate on.
         :param logger: Structlog stdlib BoundLogger instance.
@@ -336,10 +338,11 @@ class BentoPolicyEngine(PolicyEngine):
     async def evaluate(
         self,
         resources: Sequence[ResourceModel],
-        permissions: list[Permission] | tuple[Permission, ...],
-        token: str | TokenData | None,
+        permissions: Sequence[Permission],
+        token: str | None,
+        token_data: TokenData | None,
         logger: BoundLogger,
-    ) -> tuple[tuple[bool, ...], ...]:
+    ) -> list[list[bool]]:
         # If an access token is specified, validate it and extract its data.
         # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
         # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
@@ -347,19 +350,21 @@ class BentoPolicyEngine(PolicyEngine):
         # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
 
         # If we instead receive already parsed token data, we just use that instead:
-        token_data: TokenData | None = (await self.idp_manager.decode(token)) if isinstance(token, str) else token
+        token_data: TokenData | None = token_data or (
+            cast(TokenData, await self.idp_manager.decode(token)) if isinstance(token, str) else None
+        )
 
         # Fetch grants + groups from the database and any other permissions providers in parallel
         grants, groups_dict = await self.provider.get_grants_and_groups_dict()
 
         # Determine the permissions evaluation matrix
-        evaluation_matrix = tuple(
-            tuple(
+        evaluation_matrix = [
+            [
                 self._evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger)
                 for p in permissions
-            )
+            ]
             for r in resources
-        )
+        ]
 
         # Log the decision made, with some user data
         user_str = LOG_SUBJECT_ANONYMOUS

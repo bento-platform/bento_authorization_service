@@ -38,7 +38,7 @@ TEST_DISABLED_TOKEN_SIGNING_ALGOS = [  # disable all supported algos except the 
     alg for alg in TEST_IDP_SUPPORTED_TOKEN_SIGNING_ALGOS if alg != TEST_TOKEN_SIGNING_ALG
 ]
 
-TEST_TOKEN: TokenData = {
+TEST_TOKEN_DATA: TokenData = {
     "iss": ISS,
     "sub": SUB,
     "aud": TEST_TOKEN_AUD,
@@ -47,11 +47,12 @@ TEST_TOKEN: TokenData = {
     "exp": 100,  # Not checked here
     "iat": 0,  # Not checked here
 }
+TEST_TOKEN = jwt.encode(TEST_TOKEN_DATA, TEST_TOKEN_SECRET, TEST_TOKEN_SIGNING_ALG)
 
 
 def make_fresh_david_token(audience: str = TEST_TOKEN_AUD, exp_offset: int = 900):
     dt = int(datetime.now(UTC).timestamp())
-    return {**TEST_TOKEN, "aud": audience, "iat": dt, "exp": dt + exp_offset}
+    return {**TEST_TOKEN_DATA, "aud": audience, "iat": dt, "exp": dt + exp_offset}
 
 
 def make_fresh_david_token_encoded(**kwargs) -> str:
