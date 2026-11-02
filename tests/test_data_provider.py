@@ -20,6 +20,7 @@ STATIC_GROUP_DAVID = GroupModel.model_validate(
 )
 # TODO: test static grant pointing to a static group
 
+
 @pytest.fixture
 def static_data_file(tmp_path: Path) -> Path:
     path = tmp_path / "static_authz_data.json"
