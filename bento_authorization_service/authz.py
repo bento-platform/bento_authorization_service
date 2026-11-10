@@ -33,7 +33,7 @@ class LocalFastApiAuthMiddleware(FastApiAuthMiddleware):
         pe: PolicyEngine,
     ) -> None:
         try:
-            eval_res = (await pe.evaluate((resource,), (required_permission,), token, self._logger))[0][0]
+            eval_res = (await pe.evaluate((resource,), (required_permission,), token, None, self._logger))[0][0]
             if not eval_res:
                 # Forbidden from accessing or deleting this grant
                 raise self.forbidden(request)
