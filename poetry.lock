@@ -482,7 +482,7 @@ flask = ["flask (>=3.0.3,<4)"]
 type = "git"
 url = "https://github.com/bento-platform/bento_lib.git"
 reference = "feat/authz-download-query"
-resolved_reference = "33b52f2a94ef0cfe24a8a3b30be33f760ffa4550"
+resolved_reference = "3bb41b2c6f44dac29294fc395843e0eced8fda4b"
 
 [[package]]
 name = "certifi"
