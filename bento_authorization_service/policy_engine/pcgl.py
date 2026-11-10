@@ -204,6 +204,23 @@ class PcglPolicyEngine(BentoPolicyEngine):
             return bento_perms | self.PCGL_GRANTED_PERMISSIONS
         return bento_perms
 
+    def _pcgl_pending_cells(
+        self, resources: Sequence[ResourceModel], permissions: Sequence[Permission], matrix: list[list[bool]]
+    ) -> list[tuple[int, int, str]]:
+        """
+        Find the cells of an evaluation matrix that PCGL could still flip to True, as (row, column, study ID):
+        a permission PCGL can grant, denied by Bento grants, on a resource which maps to a PCGL study.
+        """
+        pending_cells: list[tuple[int, int, str]] = []
+        for row, resource in enumerate(resources):
+            study_id = self._pcgl_study_id(resource)
+            if study_id is None:
+                continue  # not a PCGL study resource: Bento grants only
+            for column, permission in enumerate(permissions):
+                if permission in self.PCGL_GRANTED_PERMISSIONS and not matrix[row][column]:
+                    pending_cells.append((row, column, study_id))
+        return pending_cells
+
     async def evaluate(
         self,
         resources: Sequence[ResourceModel],
@@ -217,27 +234,19 @@ class PcglPolicyEngine(BentoPolicyEngine):
         # First, evaluate the matrix using just Bento grants. PCGL decisions can then only flip cells to True.
         matrix = await self._evaluate_matrix(resources, permissions, resolved_token_data, logger)
 
-        # Columns PCGL can grant (by index, so repeated permissions are all handled)
-        pcgl_cols = [j for j, p in enumerate(permissions) if p in self.PCGL_GRANTED_PERMISSIONS]
-
-        # PCGL-checkable rows still missing a PCGL-grantable permission, grouped by study
-        rows_by_study: dict[str, list[int]] = {}
-        if token and pcgl_cols:
-            for i, r in enumerate(resources):
-                if (study_id := self._pcgl_study_id(r)) is not None and not all(matrix[i][j] for j in pcgl_cols):
-                    rows_by_study.setdefault(study_id, []).append(i)
+        # Cells PCGL could still flip to True. PCGL has no anonymous access, so there are none without a token.
+        pending_cells = self._pcgl_pending_cells(resources, permissions, matrix) if token else []
 
         pcgl_decisions: dict[str, bool] = {}
-        if rows_by_study:
-            # One call for all unique studies
-            pcgl_decisions = await self.pcgl_allowed(token, list(rows_by_study), logger)
-            for study_id, rows in rows_by_study.items():
+        if pending_cells:
+            # One call for all the studies involved (unique, in order of first appearance)
+            study_ids = list(dict.fromkeys(study_id for _, _, study_id in pending_cells))
+            pcgl_decisions = await self.pcgl_allowed(token, study_ids, logger)
+            for row, column, study_id in pending_cells:
                 if pcgl_decisions.get(study_id):
-                    for i in rows:
-                        for j in pcgl_cols:
-                            matrix[i][j] = True
+                    matrix[row][column] = True
 
-        extra = {"pcgl_decisions": pcgl_decisions} if rows_by_study else {}
+        extra = {"pcgl_decisions": pcgl_decisions} if pending_cells else {}
         await self._log_evaluation(logger, resolved_token_data, resources, permissions, matrix, **extra)
 
         return matrix
