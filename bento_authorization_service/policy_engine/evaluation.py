@@ -272,9 +272,26 @@ LOG_SUBJECT_ANONYMOUS = {"anonymous": True}
 
 
 class BentoPolicyEngine(PolicyEngine):
-    def __init__(self, idp_manager: BaseIdPManager, provider: BaseDataProvider):
+    def __init__(self, idp_manager: BaseIdPManager, provider: BaseDataProvider, jwt_access_tokens: bool = True):
         self.idp_manager = idp_manager
         self.provider = provider
+        self.jwt_access_tokens = jwt_access_tokens
+
+    async def _resolve_token_data(self, token: str | None, token_data: TokenData | None) -> TokenData | None:
+        """
+        Use already-parsed token data if we have it. Otherwise, decode the bearer token, but only if we expect access
+        tokens to be JWTs. Opaque tokens give no token data (i.e., the same as anonymous for Bento grants).
+        """
+        if token_data is not None:
+            return token_data
+        if token and self.jwt_access_tokens:
+            # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
+            # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
+            # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
+            # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject.
+            # TODO: implement decode, it does nothing atm so it behaves like anonymous access
+            return cast(TokenData, await self.idp_manager.decode(token))
+        return None
 
     @classmethod
     def _determine_permissions(
@@ -331,9 +348,57 @@ class BentoPolicyEngine(PolicyEngine):
         :return: The permissions frozen set
         """
 
+        token_data = await self._resolve_token_data(token, token_data)
+
         # Fetch grants + groups from the database and any other permissions providers in parallel
         grants, groups_dict = await self.provider.get_grants_and_groups_dict()
         return self._determine_permissions(grants, groups_dict, token_data, requested_resource, logger)
+
+    async def _evaluate_matrix(
+        self,
+        resources: Sequence[ResourceModel],
+        permissions: Sequence[Permission],
+        token_data: TokenData | None,
+        logger: BoundLogger,
+    ) -> list[list[bool]]:
+        """
+        Build the permissions evaluation matrix (rows: resources, columns: permissions) from Bento grants only.
+        Does not log the decision; see _log_evaluation.
+        """
+
+        # Fetch grants + groups from the database and any other permissions providers in parallel
+        grants, groups_dict = await self.provider.get_grants_and_groups_dict()
+
+        return [
+            [
+                self._evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger)
+                for p in permissions
+            ]
+            for r in resources
+        ]
+
+    @staticmethod
+    async def _log_evaluation(
+        logger: BoundLogger,
+        token_data: TokenData | None,
+        resources: Sequence[ResourceModel],
+        permissions: Sequence[Permission],
+        evaluation_matrix: list[list[bool]],
+        **extra,
+    ) -> None:
+        # Log the decision made, with some user data
+        user_str: dict[str, object] = dict(LOG_SUBJECT_ANONYMOUS)
+        if token_data is not None:
+            # noinspection PyTypedDict
+            user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
+        log_obj = {
+            "user": user_str,
+            "resources": [r.model_dump(mode="json") for r in resources],
+            "permissions": permissions,
+            "decisions": evaluation_matrix,
+            **extra,
+        }
+        await logger.ainfo("evaluate", log_obj)
 
     async def evaluate(
         self,
@@ -343,40 +408,7 @@ class BentoPolicyEngine(PolicyEngine):
         token_data: TokenData | None,
         logger: BoundLogger,
     ) -> list[list[bool]]:
-        # If an access token is specified, validate it and extract its data.
-        # OIDC / OAuth2 providers do not HAVE to give a JWT access token; there are many caveats here mentioned in
-        # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
-        # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
-        # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject on us.
-
-        # If we instead receive already parsed token data, we just use that instead:
-        token_data: TokenData | None = token_data or (
-            cast(TokenData, await self.idp_manager.decode(token)) if isinstance(token, str) else None
-        )
-
-        # Fetch grants + groups from the database and any other permissions providers in parallel
-        grants, groups_dict = await self.provider.get_grants_and_groups_dict()
-
-        # Determine the permissions evaluation matrix
-        evaluation_matrix = [
-            [
-                self._evaluate_on_resource_and_permission(grants, groups_dict, token_data, r, p, logger)
-                for p in permissions
-            ]
-            for r in resources
-        ]
-
-        # Log the decision made, with some user data
-        user_str = LOG_SUBJECT_ANONYMOUS
-        if token_data is not None:
-            # noinspection PyTypedDict
-            user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
-        log_obj = {
-            "user": user_str,
-            "resources": [r.model_dump(mode="json") for r in resources],
-            "permissions": permissions,
-            "decisions": evaluation_matrix,
-        }
-        await logger.ainfo("evaluate", log_obj)
-
+        resolved_token_data = await self._resolve_token_data(token, token_data)
+        evaluation_matrix = await self._evaluate_matrix(resources, permissions, resolved_token_data, logger)
+        await self._log_evaluation(logger, resolved_token_data, resources, permissions, evaluation_matrix)
         return evaluation_matrix
