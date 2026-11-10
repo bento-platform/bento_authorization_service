@@ -196,11 +196,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
         # - anonymous
         # - no study_id
         # - PCGL permissions are a subset of BentoPolicyEngine perms
-        if (
-            not token
-            or study_id is None
-            or self.PCGL_GRANTED_PERMISSIONS <= bento_perms
-        ):
+        if not token or study_id is None or self.PCGL_GRANTED_PERMISSIONS <= bento_perms:
             return bento_perms
 
         if (await self.pcgl_allowed(token, (study_id,), logger))[study_id]:
