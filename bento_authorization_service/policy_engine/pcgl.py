@@ -186,22 +186,36 @@ class PcglPolicyEngine(BentoPolicyEngine):
             )
             return denied
 
-    async def determine_permissions(
-        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
-    ) -> frozenset[Permission]:
-        bento_perms = await super().determine_permissions(requested_resource, token, token_data, logger)
-        study_id = self._pcgl_study_id(requested_resource)
+    async def determine_permissions_bulk(
+        self,
+        resources: Sequence[ResourceModel],
+        token: str | None,
+        token_data: TokenData | None,
+        logger: BoundLogger,
+    ) -> list[frozenset[Permission]]:
+        bento_perms = await super().determine_permissions_bulk(resources, token, token_data, logger)
 
-        # Only call PCGL if it could add something on this resource, skip when:
-        # - anonymous
-        # - no study_id
-        # - PCGL permissions are a subset of BentoPolicyEngine perms
-        if not token or study_id is None or self.PCGL_GRANTED_PERMISSIONS <= bento_perms:
+        if not token:
+            return bento_perms  # PCGL has no anonymous access
+
+        # Rows PCGL could still add something to, as {row: study ID}: the resource maps to a PCGL study, and Bento
+        # grants don't already give everything PCGL can grant.
+        pending_rows: dict[int, str] = {}
+        for row, resource in enumerate(resources):
+            study_id = self._pcgl_study_id(resource)
+            if study_id is not None and not self.PCGL_GRANTED_PERMISSIONS <= bento_perms[row]:
+                pending_rows[row] = study_id
+
+        if not pending_rows:
             return bento_perms
 
-        if (await self.pcgl_allowed(token, (study_id,), logger))[study_id]:
-            # Union of BentoPolicyEngine and PCGL granted permissions
-            return bento_perms | self.PCGL_GRANTED_PERMISSIONS
+        # One call for all the studies involved (unique, in order of first appearance)
+        pcgl_decisions = await self.pcgl_allowed(token, list(dict.fromkeys(pending_rows.values())), logger)
+
+        for row, study_id in pending_rows.items():
+            if pcgl_decisions.get(study_id):
+                # Union of BentoPolicyEngine and PCGL granted permissions
+                bento_perms[row] = bento_perms[row] | self.PCGL_GRANTED_PERMISSIONS
         return bento_perms
 
     def _pcgl_pending_cells(

@@ -85,6 +85,7 @@ For more environment variable configuration options see the `Config` object in
 | `PCGL_AUTHZ_ACTION_ENDPOINT`  | `/export/study` | Action endpoint sent to PCGL `/allowed`; must match Bento's registration in the PCGL authorization service.                             |
 | `PCGL_AUTHZ_ACTION_METHOD`    | `GET`           | Action method sent to PCGL `/allowed`.                                                                                                  |
 | `PCGL_REQUEST_TIMEOUT`        | `10`            | Timeout, in seconds, for each request to the PCGL authorization service.                                                                |
+| `BENTO_VALIDATE_SSL`          | `true`          | Whether to verify the PCGL authorization service's TLS certificate. Only disable for local development.                                 |
 
 The service fails to start if `POLICY_ENGINE=pcgl` and a required PCGL setting is missing.
 

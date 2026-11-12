@@ -297,6 +297,42 @@ async def test_determine_permissions_bento_grant_skips_pcgl(
     assert stub.calls == []
 
 
+@pytest.mark.asyncio
+async def test_determine_permissions_bulk_one_call(
+    stub_engine: StubEngineFactory, plogger: structlog.stdlib.BoundLogger
+):
+    resources = (R_A_EXP, R_PROJECT, R_B_EXP, R_A_EXP, R_A)  # mixed delegated/non-delegated, repeated study
+
+    # No Bento grants; PCGL allows only STUDY_A
+    engine, stub = stub_engine({STUDY_A})
+    res = await engine.determine_permissions_bulk(resources, USER_TOKEN, sd.TEST_TOKEN_DATA, plogger)
+    from_pcgl, nothing = engine.PCGL_GRANTED_PERMISSIONS, frozenset()
+    assert res == [from_pcgl, nothing, nothing, from_pcgl, nothing]
+    assert stub.calls == [[STUDY_A, STUDY_B]]  # unique studies, one call
+
+    # Same answers as asking one resource at a time
+    for r, perms in zip(resources, res, strict=True):
+        assert await engine.determine_permissions(r, USER_TOKEN, sd.TEST_TOKEN_DATA, plogger) == perms
+
+    # Anonymous: no call, nothing from PCGL
+    stub.calls.clear()
+    assert await engine.determine_permissions_bulk(resources, None, None, plogger) == [frozenset()] * len(resources)
+    assert stub.calls == []
+
+    # Bento query:data grant on study A already gives download:metadata, so only study B is sent to PCGL
+    grants = (make_grant(1, sd.SUBJECT_DAVID, R_A, P_QUERY_DATA),)
+    engine, stub = stub_engine({STUDY_B}, grants)
+    res = await engine.determine_permissions_bulk(resources, USER_TOKEN, sd.TEST_TOKEN_DATA, plogger)
+    assert [P_DOWNLOAD_METADATA in perms for perms in res] == [True, False, True, True, True]
+    assert [P_QUERY_DATA in perms for perms in res] == [True, False, False, True, True]  # PCGL adds nothing else
+    assert stub.calls == [[STUDY_B]]
+
+    # Nothing left for PCGL to add: no call
+    engine, stub = stub_engine({STUDY_A}, grants)
+    await engine.determine_permissions_bulk((R_A_EXP, R_A, R_PROJECT), USER_TOKEN, sd.TEST_TOKEN_DATA, plogger)
+    assert stub.calls == []
+
+
 # --- pcgl_allowed HTTP behaviour (fake PCGL authz service) -------------------------------------------------------
 
 # Builds a custom /allowed response from the requested study IDs
@@ -568,8 +604,12 @@ def test_get_policy_engine_sync():
     pe = get_policy_engine.__wrapped__(Config(**PCGL_SETTINGS, bento_debug=True), idp_manager, provider)
     assert isinstance(pe, PcglPolicyEngine)
     assert pe.pcgl_authz_url == "https://pcgl.local"
-    assert not pe.verify_ssl
+    assert pe.verify_ssl  # debug mode does not turn off TLS verification...
     assert pe.jwt_access_tokens
+
+    pe = get_policy_engine.__wrapped__(Config(**PCGL_SETTINGS, bento_validate_ssl=False), idp_manager, provider)
+    assert isinstance(pe, PcglPolicyEngine)
+    assert not pe.verify_ssl  # ... only BENTO_VALIDATE_SSL does
 
     pe = get_policy_engine.__wrapped__(Config(jwt_access_tokens=False), idp_manager, provider)
     assert type(pe) is BentoPolicyEngine
@@ -615,6 +655,23 @@ def test_policy_endpoints_with_pcgl(
     assert res.status_code == status.HTTP_200_OK
     assert P_DOWNLOAD_METADATA in res.json()["result"][0]
     assert P_DOWNLOAD_METADATA not in res.json()["result"][1]
+
+    # permissions endpoints: one PCGL call for all the resources of a request, not one per resource
+    pcgl_router_stub.calls.clear()
+    res = test_client.post(
+        "/policy/permissions", headers=auth_headers, json={"resources": _res_json(R_A_EXP, R_B_EXP, R_A)}
+    )
+    assert res.status_code == status.HTTP_200_OK
+    assert [P_DOWNLOAD_METADATA in perms for perms in res.json()["result"]] == [True, False, False]
+    assert pcgl_router_stub.calls == [[STUDY_A, STUDY_B]]
+
+    pcgl_router_stub.calls.clear()
+    res = test_client.post(
+        "/policy/permissions_map", headers=auth_headers, json={"resources": _res_json(R_A_EXP, R_B_EXP, R_A)}
+    )
+    assert res.status_code == status.HTTP_200_OK
+    assert [perms_map.get(P_DOWNLOAD_METADATA) for perms_map in res.json()["result"]][:2] == [True, False]
+    assert pcgl_router_stub.calls == [[STUDY_A, STUDY_B]]
 
     # anonymous: no PCGL access
     pcgl_router_stub.calls.clear()

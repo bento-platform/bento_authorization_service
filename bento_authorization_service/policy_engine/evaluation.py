@@ -289,8 +289,9 @@ class BentoPolicyEngine(PolicyEngine):
             # https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations and
             # https://datatracker.ietf.org/doc/html/rfc9068#name-privacy-considerations
             # but here we assume that we get a nice JWT with aud/azp/sub/etc. and they aren't rotating the subject.
-            # TODO: implement decode, it does nothing atm so it behaves like anonymous access
             return cast(TokenData, await self.idp_manager.decode(token))
+        # TODO: opaque access tokens - resolve token data via the OIDC userinfo endpoint; until then, anonymous for
+        #  Bento grants
         return None
 
     @classmethod
@@ -336,23 +337,27 @@ class BentoPolicyEngine(PolicyEngine):
         # Permitted if our required permission is contained in the permissions this token has on this resource.
         return permission in permissions
 
-    async def determine_permissions(
-        self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
-    ) -> frozenset[Permission]:
+    async def determine_permissions_bulk(
+        self,
+        resources: Sequence[ResourceModel],
+        token: str | None,
+        token_data: TokenData | None,
+        logger: BoundLogger,
+    ) -> list[frozenset[Permission]]:
         """
-        Given a token (or None if anonymous) and a resource, return the list of permissions the token has on the resource.
+        Given a token (or None if anonymous) and some resources, return the permissions the token has on each resource.
+        :param resources: The resources the token wishes to operate on.
         :param token: The bearer token from the request, or None if an anonymous request.
         :param token_data: Parsed token data of a user or automated script, or None if an anonymous request.
-        :param requested_resource: The resource the token wishes to operate on.
         :param logger: Structlog stdlib BoundLogger instance.
-        :return: The permissions frozen set
+        :return: One permissions frozen set per resource, in the same order.
         """
 
         token_data = await self._resolve_token_data(token, token_data)
 
         # Fetch grants + groups from the database and any other permissions providers in parallel
         grants, groups_dict = await self.provider.get_grants_and_groups_dict()
-        return self._determine_permissions(grants, groups_dict, token_data, requested_resource, logger)
+        return [self._determine_permissions(grants, groups_dict, token_data, r, logger) for r in resources]
 
     async def _evaluate_matrix(
         self,

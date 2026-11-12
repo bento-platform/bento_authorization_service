@@ -29,7 +29,7 @@ def get_policy_engine(
             pcgl_action_endpoint=config.pcgl_authz_action_endpoint,
             pcgl_action_method=config.pcgl_authz_action_method,
             pcgl_request_timeout=config.pcgl_request_timeout,
-            verify_ssl=not config.bento_debug,
+            verify_ssl=config.bento_validate_ssl,
         )
     return BentoPolicyEngine(idp_manager, provider, jwt_access_tokens=config.jwt_access_tokens)
 

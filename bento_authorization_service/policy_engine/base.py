@@ -17,9 +17,25 @@ class PolicyEngine(ABC):
     """
 
     @abstractmethod
+    async def determine_permissions_bulk(
+        self,
+        resources: Sequence[ResourceModel],
+        token: str | None,
+        token_data: TokenData | None,
+        logger: BoundLogger,
+    ) -> list[frozenset[Permission]]:
+        """
+        Given a token (or None if anonymous) and some resources, return the permissions the token has on each resource
+        (one frozen set per resource, in the same order).
+        """
+
     async def determine_permissions(
         self, requested_resource: ResourceModel, token: str | None, token_data: TokenData | None, logger: BoundLogger
-    ) -> frozenset[Permission]: ...
+    ) -> frozenset[Permission]:
+        """
+        Single-resource version of determine_permissions_bulk.
+        """
+        return (await self.determine_permissions_bulk((requested_resource,), token, token_data, logger))[0]
 
     @abstractmethod
     async def evaluate(

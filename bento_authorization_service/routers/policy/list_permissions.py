@@ -1,3 +1,5 @@
+from collections.abc import Collection, Sequence
+
 from bento_lib.auth.helpers import valid_permissions_for_resource
 from bento_lib.auth.permissions import Permission
 from fastapi import Request
@@ -26,10 +28,18 @@ class ListPermissionsResponse(BaseModel):
     result: list[list[str]]
 
 
-async def list_permissions_for_resource(
-    pe: PolicyEngine, token: str | None, token_data: TokenData | None, r: ResourceModel, logger: BoundLogger
-) -> list[str]:
-    return sorted(str(p) for p in await pe.determine_permissions(r, token, token_data, logger))
+async def list_permissions_for_resources(
+    pe: PolicyEngine,
+    token: str | None,
+    token_data: TokenData | None,
+    resources: Sequence[ResourceModel],
+    logger: BoundLogger,
+) -> list[list[str]]:
+    # One policy engine call for all resources, so engines which call out to other services (PCGL) can batch.
+    return [
+        sorted(str(p) for p in perms)
+        for perms in await pe.determine_permissions_bulk(resources, token, token_data, logger)
+    ]
 
 
 @policy_router.post("/permissions")
@@ -63,10 +73,9 @@ async def req_list_permissions(
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
     async def _create_response(token: str | None, token_data: TokenData | None) -> ListPermissionsResponse:
-        res = []
-        for r in r_resources:
-            res.append(await list_permissions_for_resource(pe, token, token_data, r, logger))
-        return ListPermissionsResponse(result=res)
+        return ListPermissionsResponse(
+            result=await list_permissions_for_resources(pe, token, token_data, r_resources, logger)
+        )
 
     # TODO: real error response
     return await use_token_data_or_return_error_state(
@@ -83,14 +92,7 @@ class PermissionsMapResponse(BaseModel):
     result: list[dict[str, bool]]
 
 
-async def build_permissions_map(
-    pe: PolicyEngine,
-    token: str | None,
-    token_data: TokenData | None,
-    resource: ResourceModel,
-    logger: BoundLogger,
-) -> dict[Permission, bool]:
-    resource_permissions = set(await list_permissions_for_resource(pe, token, token_data, resource, logger))
+def build_permissions_map(resource: ResourceModel, resource_permissions: Collection[str]) -> dict[Permission, bool]:
     valid_permissions = valid_permissions_for_resource(resource.model_dump(exclude_none=True))
     return {p: p in resource_permissions for p in valid_permissions}
 
@@ -126,8 +128,9 @@ async def req_permissions_map(
     # In general, the evaluation endpoints SHOULD be used unless necessary or for cosmetic purposes (UI rendering).
 
     async def _create_response(token: str | None, token_data: TokenData | None):
+        permissions = await list_permissions_for_resources(pe, token, token_data, r_resources, logger)
         return PermissionsMapResponse(
-            result=[await build_permissions_map(pe, token, token_data, r, logger) for r in r_resources],
+            result=[build_permissions_map(r, set(perms)) for r, perms in zip(r_resources, permissions, strict=True)],
         )
 
     # TODO: real error response
