@@ -72,6 +72,31 @@ For more environment variable configuration options see the `Config` object in
 [config.py](./bento_authorization_service/config.py).
 
 
+### Policy engine and PCGL authorization
+
+| Variable                      | Default         | Description                                                                                                                             |
+| ----------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `POLICY_ENGINE`               | `bento`         | `bento` (Bento grants only) or `pcgl` (Bento grants + PCGL authorization service, see below).                                           |
+| `JWT_ACCESS_TOKENS`           | `true`          | Whether bearer tokens are JWTs to decode. If `false`, Bento grants treat requests as anonymous for now (OIDC userinfo endpoint is WIP). |
+| `PCGL_AUTHZ_SERVICE_URL`      |                 | Base URL of the PCGL authorization service. Required if `POLICY_ENGINE=pcgl`.                                                           |
+| `PCGL_SERVICE_ID`             |                 | Bento's service ID in the PCGL authorization service. Required if `POLICY_ENGINE=pcgl`.                                                 |
+| `PCGL_SERVICE_SECRET`         |                 | Bento's service secret (UUID) in the PCGL authorization service. Required if `POLICY_ENGINE=pcgl`.                                      |
+| `PCGL_SERVICE_TOKEN_LIFESPAN` | `1500`          | Seconds to cache the PCGL service token for.                                                                                            |
+| `PCGL_AUTHZ_ACTION_ENDPOINT`  | `/export/study` | Action endpoint sent to PCGL `/allowed`; must match Bento's registration in the PCGL authorization service.                             |
+| `PCGL_AUTHZ_ACTION_METHOD`    | `GET`           | Action method sent to PCGL `/allowed`.                                                                                                  |
+| `PCGL_REQUEST_TIMEOUT`        | `10`            | Timeout, in seconds, for each request to the PCGL authorization service.                                                                |
+| `BENTO_VALIDATE_SSL`          | `true`          | Whether to verify the PCGL authorization service's TLS certificate. Only disable for local development.                                 |
+
+The service fails to start if `POLICY_ENGINE=pcgl` and a required PCGL setting is missing.
+
+With `POLICY_ENGINE=pcgl`, the PCGL authorization service can only **add** the `download:metadata` permission, and
+only on resources of the form `{"project": ..., "dataset": <PCGL study ID>, "data_type": "experiment"}` (the Bento
+dataset ID is the PCGL study ID). Every other decision comes from Bento grants, and PCGL never removes a permission
+granted by Bento. If the PCGL authorization service is unreachable or returns an error, it counts as "not allowed".
+Users with a Bento `query:data` grant on the dataset already have `download:metadata` (`query:data` gives it), so
+the PCGL authorization service is only consulted for users without it.
+
+
 ### Static Authorization Data Format
 
 A file can be provided via the configuration environment variable `STATIC_AUTHZ_DATA_PATH` with the following format, 

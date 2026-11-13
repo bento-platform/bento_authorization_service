@@ -74,7 +74,7 @@ async def list_grants(
     all_grants = await provider.get_grants()
 
     resources = tuple(g.resource for g in all_grants)
-    permissions = await pe.evaluate(resources, (P_VIEW_PERMISSIONS,), extract_token(authorization), logger)
+    permissions = await pe.evaluate(resources, (P_VIEW_PERMISSIONS,), extract_token(authorization), None, logger)
 
     # For each grant in the database, check if the passed token (or the anonymous user) have "view:permissions"
     # permission on the resource in question. If so, include the grant in the response.
