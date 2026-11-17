@@ -1,6 +1,6 @@
 import itertools
 from collections.abc import Callable, Generator, Iterable, Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 
 from bento_lib.auth.permissions import PERMISSIONS_BY_STRING, Permission
@@ -97,7 +97,7 @@ def check_if_token_is_in_group(
     if token_data is None:
         return False  # anonymous users cannot CURRENTLY be part of groups
 
-    if (g_expiry := group.expiry) is not None and g_expiry <= get_now().astimezone(tz=timezone.utc):
+    if (g_expiry := group.expiry) is not None and g_expiry <= get_now().astimezone(tz=UTC):
         return False  # Expired group, no membership
 
     membership: GroupMembership = group.membership
@@ -243,7 +243,7 @@ def filter_matching_grants(
     :return: TODO
     """
 
-    dt_now = get_now().astimezone(tz=timezone.utc)
+    dt_now = get_now().astimezone(tz=UTC)
 
     for g in grants:
         if g.expiry is not None and g.expiry <= dt_now:
