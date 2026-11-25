@@ -33,6 +33,8 @@ from .token_data import TokenData
 
 __all__ = [
     "InvalidSubject",
+    "DEFAULT_CLIENT_ID_CLAIMS",
+    "get_token_client",
     "check_token_against_issuer_based_model_obj",
     "check_if_token_is_in_group",
     "check_if_token_matches_subject",
@@ -59,14 +61,43 @@ class InvalidSubject(Exception):
     pass
 
 
-def check_token_against_issuer_based_model_obj(token_data: TokenData | None, m: BaseIssuerModel) -> bool:
+# Standard claims holding the token's client ID: azp (OIDC) and client_id (RFC 9068).
+DEFAULT_CLIENT_ID_CLAIMS: tuple[str, ...] = ("azp", "client_id")
+
+
+def get_token_client(
+    token_data: TokenData | None, client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS
+) -> str | None:
+    """
+    Get the client ID of a token from the first of the given claims which has a non-empty string value.
+    The aud claim is a special case: it is non-standard as a client ID (in RFC 9068, aud is the resource server), but
+    some IdPs (e.g., CILogon) only put the client ID there. It is only used if it has a single value.
+    :param token_data: Token data (decoded token claims), or None if anonymous.
+    :param client_id_claims: Claims to look for the client ID in, in order of priority.
+    :return: The client ID, or None if not found.
+    """
+    td = token_data or {}
+    for claim in client_id_claims:
+        value = td.get(claim)
+        if claim == "aud" and isinstance(value, list):
+            value = value[0] if len(value) == 1 else None
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def check_token_against_issuer_based_model_obj(
+    token_data: TokenData | None,
+    m: BaseIssuerModel,
+    client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS,
+) -> bool:
     td = token_data or {}
 
     if m.iss != td.get("iss"):  # Token issuer isn't the same as this member, so skip this entry early.
         return False
 
     if isinstance(m, IssuerAndClientModel):
-        if m.client == td.get("azp"):
+        if m.client == get_token_client(td, client_id_claims):
             # Issuer and client IDs match, so this token bearer is a member of this group
             return True
         # Otherwise, do nothing & keep checking members
@@ -85,6 +116,7 @@ def check_if_token_is_in_group(
     token_data: TokenData | None,
     group: GroupModel,
     get_now: Callable[[], datetime] = datetime.now,
+    client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS,
 ) -> bool:
     """
     TODO
@@ -104,7 +136,10 @@ def check_if_token_is_in_group(
 
     if isinstance(membership, GroupMembershipMembers):
         # Check if any issuer and (client ID | subject ID) match --> token bearer is a member of this group
-        return any(check_token_against_issuer_based_model_obj(token_data, member.root) for member in membership.members)
+        return any(
+            check_token_against_issuer_based_model_obj(token_data, member.root, client_id_claims)
+            for member in membership.members
+        )
 
     elif isinstance(membership, GroupMembershipExpr):
         return check_ast_against_data_structure(
@@ -129,6 +164,7 @@ def check_if_token_matches_subject(
     token_data: TokenData | None,
     subject: SubjectModel,
     logger: BoundLogger,
+    client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS,
 ) -> bool:
     # First, check if the subject matches.
     #  - If the grant applies to everyone, it automatically includes the current token/anonymous user.
@@ -140,11 +176,12 @@ def check_if_token_matches_subject(
         return True
     elif isinstance(s, SubjectGroupModel):
         if (group_def := groups_dict.get(s.group)) is not None:
-            return check_if_token_is_in_group(token_data, group_def)  # Will validate group expiry too
+            # Will validate group expiry too:
+            return check_if_token_is_in_group(token_data, group_def, client_id_claims=client_id_claims)
         logger.error("invalid subject encountered - group not found", subject=subject, group=s.group)
         raise InvalidSubject(str(subject))
     elif isinstance(s, BaseIssuerModel):
-        return check_token_against_issuer_based_model_obj(token_data, s)
+        return check_token_against_issuer_based_model_obj(token_data, s, client_id_claims)
     else:
         raise _subject_not_implemented(s, logger)
 
@@ -231,6 +268,7 @@ def filter_matching_grants(
     requested_resource: ResourceModel,
     logger: BoundLogger,
     get_now: Callable[[], datetime] = datetime.now,
+    client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS,
 ) -> Generator[GrantModel, None, None]:
     """
     TODO
@@ -240,6 +278,7 @@ def filter_matching_grants(
     :param requested_resource: TODO
     :param logger: Structlog stdlib BoundLogger instance.
     :param get_now: TODO
+    :param client_id_claims: Token claims to read the client ID from, for {iss, client} subjects.
     :return: TODO
     """
 
@@ -250,7 +289,9 @@ def filter_matching_grants(
             continue  # Skip expired grants
 
         try:
-            subject_matches: bool = check_if_token_matches_subject(groups_dict, token_data, g.subject, logger)
+            subject_matches: bool = check_if_token_matches_subject(
+                groups_dict, token_data, g.subject, logger, client_id_claims
+            )
             resource_matches: bool = resource_is_equivalent_or_contained(requested_resource, g.resource, logger)
             if subject_matches and resource_matches:
                 # Grant applies to the token in question, and the requested resource in question, so it is part of the
@@ -272,10 +313,17 @@ LOG_SUBJECT_ANONYMOUS = {"anonymous": True}
 
 
 class BentoPolicyEngine(PolicyEngine):
-    def __init__(self, idp_manager: BaseIdPManager, provider: BaseDataProvider, jwt_access_tokens: bool = True):
+    def __init__(
+        self,
+        idp_manager: BaseIdPManager,
+        provider: BaseDataProvider,
+        jwt_access_tokens: bool = True,
+        client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS,
+    ):
         self.idp_manager = idp_manager
         self.provider = provider
         self.jwt_access_tokens = jwt_access_tokens
+        self.client_id_claims = tuple(client_id_claims)
 
     async def _resolve_token_data(self, token: str | None, token_data: TokenData | None) -> TokenData | None:
         """
@@ -294,9 +342,8 @@ class BentoPolicyEngine(PolicyEngine):
         #  Bento grants
         return None
 
-    @classmethod
     def _determine_permissions(
-        cls,
+        self,
         grants: Sequence[GrantModel],
         groups_dict: dict[int, StoredGroupModel],
         token_data: TokenData | None,
@@ -316,14 +363,20 @@ class BentoPolicyEngine(PolicyEngine):
         return frozenset(
             itertools.chain.from_iterable(
                 _permission_and_gives_from_string(p)
-                for g in filter_matching_grants(grants, groups_dict, token_data, requested_resource, logger)
+                for g in filter_matching_grants(
+                    grants,
+                    groups_dict,
+                    token_data,
+                    requested_resource,
+                    logger,
+                    client_id_claims=self.client_id_claims,
+                )
                 for p in g.permissions
             )
         )
 
-    @classmethod
     def _evaluate_on_resource_and_permission(
-        cls,
+        self,
         grants: Sequence[GrantModel],
         groups_dict: dict[int, StoredGroupModel],
         token_data: TokenData | None,
@@ -332,7 +385,7 @@ class BentoPolicyEngine(PolicyEngine):
         logger: BoundLogger,
     ) -> bool:
         # Determine the permissions the token has on the resource
-        permissions = cls._determine_permissions(grants, groups_dict, token_data, resource, logger)
+        permissions = self._determine_permissions(grants, groups_dict, token_data, resource, logger)
 
         # Permitted if our required permission is contained in the permissions this token has on this resource.
         return permission in permissions
@@ -382,8 +435,8 @@ class BentoPolicyEngine(PolicyEngine):
             for r in resources
         ]
 
-    @staticmethod
     async def _log_evaluation(
+        self,
         logger: BoundLogger,
         token_data: TokenData | None,
         resources: Sequence[ResourceModel],
@@ -396,6 +449,7 @@ class BentoPolicyEngine(PolicyEngine):
         if token_data is not None:
             # noinspection PyTypedDict
             user_str = {k: token_data.get(k) for k in LOG_USER_STR_FIELDS}
+            user_str["client"] = get_token_client(token_data, self.client_id_claims)
         log_obj = {
             "user": user_str,
             "resources": [r.model_dump(mode="json") for r in resources],

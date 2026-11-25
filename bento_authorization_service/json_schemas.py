@@ -33,8 +33,16 @@ TOKEN_DATA = {
                 "queryable": "internal",
             },
         },
-        # Client ID (ish)
+        # Client ID (OIDC)
         "azp": {
+            "type": "string",
+            "search": {
+                "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
+                "queryable": "internal",
+            },
+        },
+        # Client ID (RFC 9068 JWT access tokens)
+        "client_id": {
             "type": "string",
             "search": {
                 "operations": [q.SEARCH_OP_EQ, q.SEARCH_OP_IN],
