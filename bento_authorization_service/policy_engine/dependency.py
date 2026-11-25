@@ -22,6 +22,7 @@ def get_policy_engine(
             idp_manager,
             provider,
             jwt_access_tokens=config.jwt_access_tokens,
+            client_id_claims=config.client_id_claims,
             pcgl_authz_url=config.pcgl_authz_service_url,
             pcgl_service_id=config.pcgl_service_id,
             pcgl_service_secret=config.pcgl_service_secret,
@@ -31,7 +32,9 @@ def get_policy_engine(
             pcgl_request_timeout=config.pcgl_request_timeout,
             verify_ssl=config.bento_validate_ssl,
         )
-    return BentoPolicyEngine(idp_manager, provider, jwt_access_tokens=config.jwt_access_tokens)
+    return BentoPolicyEngine(
+        idp_manager, provider, jwt_access_tokens=config.jwt_access_tokens, client_id_claims=config.client_id_claims
+    )
 
 
 PolicyEngineDependency = Annotated[PolicyEngine, Depends(get_policy_engine)]

@@ -11,7 +11,7 @@ from structlog.stdlib import BoundLogger
 from ..data_provider.base import BaseDataProvider
 from ..idp_manager import BaseIdPManager
 from ..models import ResourceModel, ResourceSpecificModel
-from .evaluation import BentoPolicyEngine
+from .evaluation import DEFAULT_CLIENT_ID_CLAIMS, BentoPolicyEngine
 from .token_data import TokenData
 
 __all__ = ["PcglPolicyEngine"]
@@ -48,6 +48,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
         provider: BaseDataProvider,
         *,
         jwt_access_tokens: bool = True,
+        client_id_claims: Sequence[str] = DEFAULT_CLIENT_ID_CLAIMS,
         pcgl_authz_url: str,
         pcgl_service_id: str,
         pcgl_service_secret: SecretStr,
@@ -57,7 +58,7 @@ class PcglPolicyEngine(BentoPolicyEngine):
         pcgl_request_timeout: float,
         verify_ssl: bool = True,
     ):
-        super().__init__(idp_manager, provider, jwt_access_tokens=jwt_access_tokens)
+        super().__init__(idp_manager, provider, jwt_access_tokens=jwt_access_tokens, client_id_claims=client_id_claims)
 
         self.pcgl_authz_url = pcgl_authz_url.rstrip("/")
         self.pcgl_service_id = pcgl_service_id

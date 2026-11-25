@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Annotated
@@ -38,21 +39,21 @@ class BaseIdPManager(ABC):
         self,
         logger: BoundLogger,
         openid_config_url: str,
-        audience: str,
+        audience: str | Sequence[str],
         disabled_token_signing_algorithms: frozenset[str],
         debug: bool,
     ):
         self._logger: BoundLogger = logger
 
         self._openid_config_url: str = openid_config_url
-        self._audience: str = audience
+        self._audience: str | Sequence[str] = audience  # PyJWT accepts a token if any of its aud values is in here
         self._disabled_token_signing_algorithms: frozenset[str] = disabled_token_signing_algorithms
         self._debug: bool = debug
 
         self._initialized: bool = False
 
     @property
-    def audience(self) -> str:
+    def audience(self) -> str | Sequence[str]:
         return self._audience
 
     @property
@@ -112,7 +113,7 @@ class IdPManager(BaseIdPManager):
         self,
         logger: BoundLogger,
         openid_config_url: str,
-        audience: str,
+        audience: str | Sequence[str],
         disabled_token_signing_algorithms: frozenset[str],
         debug: bool = False,
     ):
@@ -204,7 +205,7 @@ def get_idp_manager(config: ConfigDependency, logger: LoggerDependency) -> BaseI
     return IdPManager(
         logger,
         config.openid_config_url,
-        config.token_audience,
+        config.token_audiences,
         config.disabled_token_signing_algorithms,
         config.bento_debug,
     )
