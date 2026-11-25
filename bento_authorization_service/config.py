@@ -22,6 +22,11 @@ def ensure_blank_to_none(value: Any) -> Any:
     return value
 
 
+def split_semicolon_list(value: str) -> tuple[str, ...]:
+    # ";" rather than "," as a separator (same as CORS_ORIGINS), since some client IDs contain commas (e.g. CILogon's)
+    return tuple(s for s in (x.strip() for x in value.split(";")) if s)
+
+
 class Config(BentoFastAPIBaseConfig):
     # Don't echo raw settings (secrets, database URI) in validation errors at startup
     model_config = SettingsConfigDict(hide_input_in_errors=True)
@@ -44,8 +49,14 @@ class Config(BentoFastAPIBaseConfig):
     #    the instance-local IdP is supported.
     openid_config_url: str = "https://bentov2auth.local/realms/bentov2/.well-known/openid-configuration"
 
-    #  - Default access token audience from Keycloak
+    #  - Accepted access token audience(s), separated by ";"; a token is accepted if any of its aud values is in this
+    #    list. Default: Keycloak's access token audience.
     token_audience: str = "account"
+    #  - Token claims to read the client ID from, for {iss, client} subjects, separated by ";". The first claim with a
+    #    non-empty string value wins. azp is the OIDC claim; client_id is the RFC 9068 (JWT access token) claim.
+    #    "aud" is non-standard (in RFC 9068, aud is the resource server), but some IdPs (e.g., CILogon) only put the
+    #    client ID there; it is only used if it has a single value. Only add "aud" for such IdPs.
+    token_client_id_claims: str = "azp;client_id"
     #  - Default set of disabled 'insecure' algorithms (in this case symmetric key algorithms)
     disabled_token_signing_algorithms: frozenset = frozenset(["HS256", "HS384", "HS512"])
     #  - Whether we expect access tokens to be JWTs. If False, bearer tokens are not decoded, so Bento grants treat
@@ -67,6 +78,22 @@ class Config(BentoFastAPIBaseConfig):
     pcgl_authz_action_method: str = "GET"
     #  - Total timeout for each request to the PCGL authz service, in seconds
     pcgl_request_timeout: float = 10
+
+    @property
+    def token_audiences(self) -> tuple[str, ...]:
+        return split_semicolon_list(self.token_audience)
+
+    @property
+    def client_id_claims(self) -> tuple[str, ...]:
+        return split_semicolon_list(self.token_client_id_claims)
+
+    @model_validator(mode="after")
+    def check_token_settings(self) -> Self:
+        if not self.token_audiences:
+            raise ValueError("token_audience must contain at least one audience")
+        if not self.client_id_claims:
+            raise ValueError("token_client_id_claims must contain at least one claim")
+        return self
 
     @model_validator(mode="after")
     def check_pcgl_settings(self) -> Self:
